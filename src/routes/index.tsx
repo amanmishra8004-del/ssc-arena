@@ -121,7 +121,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           try {
             const r = await doLogin({ data: { username: u, password: p } });
             if (r.ok) onLogin({ username: r.username, password: p, isDefault: r.isDefault }); else setErr("Incorrect user ID or password.");
-          } catch { setErr("Connection failed. Please try again."); }
+          } catch (x: any) { setErr(x?.message || "Connection failed. Please try again."); }
           setBusy(false);
         }}
       >

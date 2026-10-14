@@ -43,27 +43,7 @@ const SUBJ_COLOR: Record<string, string> = {
   Reasoning: "bg-chart-2", Maths: "bg-primary", GS: "bg-accent", English: "bg-chart-4",
 };
 
-function istOpen() {
-  const d = new Date(Date.now() + 5.5 * 3600 * 1000);
-  const h = d.getUTCHours();
-  return h >= 17 && h < 23;
-}
-
 function App() {
-  const [open, setOpen] = useState<boolean | null>(null);
-  useEffect(() => {
-    setOpen(istOpen());
-    const t = setInterval(() => setOpen(istOpen()), 30000);
-    return () => clearInterval(t);
-  }, []);
-  if (open === null) return null;
-  if (!open) return (
-    <div className="arena-shell flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <img src={studyCompanion} alt="" className="h-28 w-28 object-contain" />
-      <h1 className="text-2xl font-bold text-foreground">Study Arena is closed</h1>
-      <p className="max-w-xs text-muted-foreground">The app is open daily from <b className="text-foreground">5:00 PM to 11:00 PM</b> (India time). Please come back then.</p>
-    </div>
-  );
   return <ArenaApp />;
 }
 
@@ -228,7 +208,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   const fetchAll = useServerFn(getAll);
   const save = useServerFn(saveData);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["all"], queryFn: () => fetchAll(), refetchInterval: 15000 });
+  const q = useQuery({ queryKey: ["all"], queryFn: () => fetchAll(), refetchInterval: 3000 });
   const [mine, setMine] = useState<UserData | null>(null);
   const { search, change } = useWorkspaceNavigation();
   const router = useRouter();
@@ -332,7 +312,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
       setSaveStatus("saving");
       timer.current = setTimeout(() => {
         flushSave(next);
-      }, 700);
+      }, 50);
       return next;
     });
   };

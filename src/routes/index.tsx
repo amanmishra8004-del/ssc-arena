@@ -209,7 +209,17 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   const save = useServerFn(saveData);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["all"], queryFn: () => fetchAll(), refetchInterval: 3000 });
-  const [mine, setMine] = useState<UserData | null>(null);
+  const [mine, setMine] = useState<UserData>(() => {
+    if (typeof localStorage !== "undefined") {
+      const cachedRaw = localStorage.getItem(`arena-data-${auth.username}`);
+      if (cachedRaw) {
+        try {
+          return normalize(JSON.parse(cachedRaw));
+        } catch {}
+      }
+    }
+    return normalize({});
+  });
   const { search, change } = useWorkspaceNavigation();
   const router = useRouter();
   const tab = search.tab ?? "today";
@@ -265,41 +275,27 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     return undefined;
   }, [auth.username, auth.password]);
 
-  // Safe initialization: never overwrite richer offline progress with stale server data
+  // Sync server data when available
   useEffect(() => {
-    if (!mine && q.data) {
-      const row = q.data.find((r) => r.username === auth.username);
-      const cachedRaw = localStorage.getItem(`arena-data-${auth.username}`);
-      let cachedData: any = null;
-      try {
-        if (cachedRaw) cachedData = JSON.parse(cachedRaw);
-      } catch {}
-
+    if (q.data) {
+      const row = q.data.find((r) => r.username.toLowerCase() === auth.username.toLowerCase());
       const isPending = localStorage.getItem(`arena-pending-${auth.username}`) === "1";
       const serverData = row?.data && Object.keys(row.data).length ? row.data : null;
 
-      let chosen: any = {};
-      if (serverData && cachedData) {
-        if (isPending || richnessScore(cachedData) > richnessScore(serverData)) {
-          chosen = cachedData;
-          flushSave(cachedData);
-        } else {
-          chosen = serverData;
+      if (serverData) {
+        if (!isPending && richnessScore(serverData) >= richnessScore(mine)) {
+          const normalized = normalize(serverData);
+          latestPayload.current = normalized;
+          setMine(normalized);
           localStorage.setItem(`arena-data-${auth.username}`, JSON.stringify(serverData));
+        } else if (isPending) {
+          flushSave(mine);
         }
-      } else if (cachedData) {
-        chosen = cachedData;
-        if (isPending) flushSave(cachedData);
-      } else if (serverData) {
-        chosen = serverData;
-        localStorage.setItem(`arena-data-${auth.username}`, JSON.stringify(serverData));
+      } else if (isPending) {
+        flushSave(mine);
       }
-
-      const normalized = normalize(chosen);
-      latestPayload.current = normalized;
-      setMine(normalized);
     }
-  }, [q.data, mine, auth.username]);
+  }, [q.data, auth.username]);
 
   const update = (fn: (d: UserData) => UserData) => {
     setMine((prev) => {
@@ -366,9 +362,9 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     return list.map((x) => ({ ...x, rank: x.score > 0 ? ++r : null }));
   }, [all]);
 
-  if (!mine || !q.data) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading your workspace…</div>;
-  const me = board.find((b) => b.u === auth.username);
-  if (!me) return null;
+  if (!mine) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading your workspace…</div>;
+  const fallbackMe = { u: auth.username, score: 0, rank: null, todayMin: 0, planMin: 0, tasksDone: 0, totalMin: 0, lec: 0, rev: 0, pyq: 0, caCount: 0, streak: 0 };
+  const me = board.find((b) => b.u.toLowerCase() === auth.username.toLowerCase()) ?? fallbackMe;
 
   return (
     <div className="arena-shell min-h-screen pb-28">

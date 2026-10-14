@@ -1,0 +1,14 @@
+# App polish
+- [x] Translate all interface text and user-facing errors into formal English; preserve Hinglish study explanations and notifications.
+- [x] Refresh theme, navigation, typography and layouts without changing saved data or study workflows.
+- [x] Verify key screens and controls on desktop and phone-sized layouts.
+- [x] Improve the Today overview and current-session presentation.
+- [x] Support touch hold-and-drag reordering in daily and date-specific timetables.
+- [x] Verify reordering, saved order, and home layout on mobile and desktop.
+- [x] Refresh app-wide surfaces, navigation, forms, syllabus, practice, and leaderboard presentation without changing saved data.
+- [x] Do not run browser checks or tests for this visual refresh, as requested.
+- [x] Refresh the entire app with a light consumer-app theme, clearer screen hierarchy and compact navigation.
+- [x] Add a study companion and subtle motion without altering progress or notifications.
+- [x] Replace repeated mascot usage with distinct section characters.
+- [x] Add restrained app-entry, view-change, popup opening/closing and completion motion; preserve reduced-motion support.
+- [x] Make device/browser Back restore previous sections, practice views and close open panels before leaving the app.

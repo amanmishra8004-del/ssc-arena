@@ -1,0 +1,1 @@
+ALTER TABLE public.quizzes ADD COLUMN hidden boolean NOT NULL DEFAULT false;

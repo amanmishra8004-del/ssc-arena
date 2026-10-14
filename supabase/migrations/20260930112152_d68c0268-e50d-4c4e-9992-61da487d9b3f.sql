@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.backup_user_data() FROM PUBLIC, anon, authenticated;

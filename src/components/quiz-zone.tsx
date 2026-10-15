@@ -5,14 +5,14 @@ import { FileUp, Trash2, Trophy, Play, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SYLLABUS, chapterKey } from "@/lib/syllabus";
-import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, cleanEnglish, type QQ } from "@/lib/quiz.functions";
+import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, cleanText, type QQ } from "@/lib/quiz.functions";
 
 type Quiz = { id: string; title: string; chapter: string | null; day: string | null; questions: QQ[]; created_at: string; expired: boolean };
 type Attempt = { quiz_id: string; username: string; score: number; total: number; answers: unknown; at: string };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const creds = () => { try { const a = JSON.parse(localStorage.getItem("arena-auth") ?? "{}"); return { username: a.username ?? "", password: a.password ?? "" }; } catch { return { username: "", password: "" }; } };
-// Quizzes are English-only: drop Hindi (Devanagari) text and leftover " / " separators.
-export const en = (raw: string) => cleanEnglish(raw);
+// Quizzes show content as-is (Bilingual/English/Hindi and matching tables fully preserved):
+export const en = (raw: string) => cleanText(raw);
 const chapterLabel = (k: string) => k.startsWith("test:") ? `${k.slice(5)} test` : k.split("|").join(" · ");
 
 function useQuizzes() {
@@ -75,16 +75,54 @@ export function QuizNudge({ who, onOpen }: { who: string; onOpen: () => void }) 
   );
 }
 
+type MistakeItem = {
+  id: string;
+  quizId: string;
+  quizTitle: string;
+  chapterKey: string;
+  chapterLabel: string;
+  qIndex: number;
+  question: QQ;
+  userAnswer: number;
+  correctAnswer: number;
+};
+
 export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | "test" }) {
   const qc = useQueryClient();
   const q = useQuizzes();
   const [playing, setPlaying] = useState<{ quiz: Quiz; questions?: QQ[] } | null>(null);
-  const [filter, setFilter] = useState<"active" | "past">("active");
+  const [filter, setFilter] = useState<"active" | "past" | "mistakes">("active");
   const all = ((q.data?.quizzes ?? []) as Quiz[]).filter((z) => (mode === "test") === !!z.chapter?.startsWith("test:"));
   const quizzes = all.filter((z) => !z.expired);
   const attempts = (q.data?.attempts ?? []) as Attempt[];
   const shown = quizzes;
   const refresh = () => qc.invalidateQueries({ queryKey: ["quizzes"] });
+
+  const allMistakes = useMemo(() => {
+    const list: MistakeItem[] = [];
+    for (const z of all) {
+      const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
+      if (!mine || !Array.isArray(mine.answers)) continue;
+      const ans = mine.answers as number[];
+      z.questions.forEach((x, i) => {
+        const a = ans[i] ?? -1;
+        if (a !== x.answer) {
+          list.push({
+            id: `${z.id}-${i}`,
+            quizId: z.id,
+            quizTitle: z.title,
+            chapterKey: z.chapter || z.title,
+            chapterLabel: z.chapter ? chapterLabel(z.chapter) : z.title,
+            qIndex: i,
+            question: x,
+            userAnswer: a,
+            correctAnswer: x.answer,
+          });
+        }
+      });
+    }
+    return list;
+  }, [all, attempts, who]);
 
   const retryMissed = (z: Quiz) => {
     const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
@@ -100,16 +138,286 @@ export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | 
     <div className="space-y-4">
       {who === "arun" && <QuizUpload onCreated={refresh} mode={mode} />}
       <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-2">
-        {([["active", "Active quizzes"], ["past", "Past results"]] as const).map(([k, l]) => (
-          <Button variant="unstyled" key={k} aria-pressed={filter === k} onClick={() => setFilter(k)} className={cn("shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold", filter === k ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>{l}</Button>
+        {([
+          ["active", "Active quizzes"],
+          ["past", "Past results"],
+          ["mistakes", `Mistake Bank (${allMistakes.length})`],
+        ] as const).map(([k, l]) => (
+          <Button
+            variant="unstyled"
+            key={k}
+            aria-pressed={filter === k}
+            onClick={() => setFilter(k)}
+            className={cn(
+              "shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors",
+              filter === k ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+            )}
+          >
+            {l}
+          </Button>
         ))}
       </div>
-      {filter !== "past" && <p className="text-xs text-muted-foreground">Quizzes remain active until manually deleted by the administrator. Marks and mistakes are saved in Past results.</p>}
-      {q.isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading quizzes…</p>
-        : q.isError ? <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">Unable to load quizzes. <Button variant="unstyled" onClick={() => q.refetch()} className="font-bold underline">Try again</Button></p>
-        : filter === "past" ? <PastResults quizzes={all} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
-        : shown.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No quizzes available right now.</p>
-        : <div className="space-y-3">{shown.map((z) => <QuizCard key={z.id} quiz={z} attempts={attempts.filter((a) => a.quiz_id === z.id)} who={who} onPlay={() => setPlaying({ quiz: z })} onRetry={() => retryMissed(z)} onDeleted={refresh} />)}</div>}
+      {filter === "active" && (
+        <p className="text-xs text-muted-foreground">Quizzes are permanently available until deleted by admin. Your scores and mistakes are automatically saved.</p>
+      )}
+      {filter === "past" && (
+        <p className="text-xs text-muted-foreground">Complete history of all attempted quizzes and leaderboard standings.</p>
+      )}
+      {filter === "mistakes" && (
+        <p className="text-xs text-muted-foreground">All questions you answered wrong are saved here chapter-wise. Select one or multiple chapters to start a custom revision quiz.</p>
+      )}
+      {q.isLoading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading quizzes…</p>
+      ) : q.isError ? (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+          Unable to load quizzes. <Button variant="unstyled" onClick={() => q.refetch()} className="font-bold underline">Try again</Button>
+        </p>
+      ) : filter === "past" ? (
+        <PastResults quizzes={all} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
+      ) : filter === "mistakes" ? (
+        <MistakeBank
+          mistakes={allMistakes}
+          onStartPractice={({ quiz, questions }) => setPlaying({ quiz, questions })}
+        />
+      ) : shown.length === 0 ? (
+        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No quizzes available right now.</p>
+      ) : (
+        <div className="space-y-3">
+          {shown.map((z) => (
+            <QuizCard
+              key={z.id}
+              quiz={z}
+              attempts={attempts.filter((a) => a.quiz_id === z.id)}
+              who={who}
+              onPlay={() => setPlaying({ quiz: z })}
+              onRetry={() => retryMissed(z)}
+              onDeleted={refresh}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MistakeBank({
+  mistakes,
+  onStartPractice,
+}: {
+  mistakes: MistakeItem[];
+  onStartPractice: (p: { quiz: Quiz; questions: QQ[] }) => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(mistakes.map((m) => m.id)));
+  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(() => new Set());
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { label: string; quizTitle: string; items: MistakeItem[] }>();
+    for (const m of mistakes) {
+      if (!map.has(m.chapterKey)) {
+        map.set(m.chapterKey, { label: m.chapterLabel, quizTitle: m.quizTitle, items: [] });
+      }
+      map.get(m.chapterKey)!.items.push(m);
+    }
+    return Array.from(map.entries()).map(([key, data]) => ({ key, ...data }));
+  }, [mistakes]);
+
+  const selectedCount = mistakes.filter((m) => selectedIds.has(m.id)).length;
+  const allSelected = mistakes.length > 0 && selectedCount === mistakes.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(mistakes.map((m) => m.id)));
+    }
+  };
+
+  const toggleChapter = (items: MistakeItem[]) => {
+    const ids = items.map((m) => m.id);
+    const allInChapterSelected = ids.every((id) => selectedIds.has(id));
+    const next = new Set(selectedIds);
+    if (allInChapterSelected) {
+      ids.forEach((id) => next.delete(id));
+    } else {
+      ids.forEach((id) => next.add(id));
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleQuestion = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleExpand = (key: string) => {
+    const next = new Set(expandedChapters);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setExpandedChapters(next);
+  };
+
+  const startQuiz = () => {
+    const selectedList = mistakes.filter((m) => selectedIds.has(m.id));
+    if (!selectedList.length) return;
+    const chaptersSelected = [...new Set(selectedList.map((m) => m.chapterLabel))];
+    const title =
+      chaptersSelected.length === 1
+        ? `Mistake Revision · ${chaptersSelected[0]}`
+        : `Multi-Chapter Mistake Test (${chaptersSelected.length} Chapters · ${selectedList.length} Qs)`;
+
+    onStartPractice({
+      quiz: {
+        id: `mistake-rev-${Date.now()}`,
+        title,
+        chapter: null,
+        day: null,
+        questions: selectedList.map((m) => m.question),
+        created_at: new Date().toISOString(),
+        expired: false,
+      },
+      questions: selectedList.map((m) => m.question),
+    });
+  };
+
+  if (!mistakes.length) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center bg-card/50">
+        <p className="font-semibold text-primary">No mistakes recorded! 🎉</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Great job! Either you have not attempted any quizzes yet, or you answered all questions correctly in your previous attempts.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="font-semibold text-sm">
+              Mistake Bank · {mistakes.length} wrong questions across {grouped.length} {grouped.length === 1 ? "chapter" : "chapters"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Select one or multiple chapters to test your weak points in a revision quiz.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={toggleSelectAll}>
+              {allSelected ? "Deselect All" : "Select All"}
+            </Button>
+            <Button size="sm" disabled={selectedCount === 0} onClick={startQuiz}>
+              <Play size={14} className="mr-1.5" />
+              Start Quiz ({selectedCount})
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {grouped.map(({ key, label, items }) => {
+          const ids = items.map((m) => m.id);
+          const allInChapterSelected = ids.every((id) => selectedIds.has(id));
+          const someInChapterSelected = ids.some((id) => selectedIds.has(id));
+          const isExpanded = expandedChapters.has(key);
+          const selectedInChapter = items.filter((m) => selectedIds.has(m.id)).length;
+
+          return (
+            <div key={key} className="rounded-lg border bg-card overflow-hidden transition-all">
+              <div className="flex items-center justify-between p-3.5 bg-secondary/30 gap-2">
+                <div
+                  className="flex items-center gap-3 min-w-0 cursor-pointer select-none flex-1"
+                  onClick={() => toggleChapter(items)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allInChapterSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allInChapterSelected && someInChapterSelected;
+                    }}
+                    onChange={() => {}}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {items.length} {items.length === 1 ? "question" : "questions"} wrong · {selectedInChapter} selected
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleExpand(key)}
+                  className="text-xs text-muted-foreground shrink-0"
+                >
+                  {isExpanded ? "Hide details" : "View questions"}
+                </Button>
+              </div>
+
+              {isExpanded && (
+                <div className="p-3.5 space-y-3 border-t bg-card/60">
+                  {items.map((m) => {
+                    const isChecked = selectedIds.has(m.id);
+                    const q = m.question;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => toggleQuestion(m.id)}
+                        className={cn(
+                          "rounded-lg border p-3 cursor-pointer transition-colors",
+                          isChecked ? "border-primary/50 bg-primary/5" : "border-muted bg-secondary/15 hover:bg-secondary/30"
+                        )}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <p className="text-sm font-semibold">{en(q.q)}</p>
+                            <p className="flex items-center gap-1.5 text-xs text-destructive font-medium">
+                              <X size={13} className="shrink-0" />
+                              Your answer: {m.userAnswer >= 0 ? en(q.options[m.userAnswer]) : "Not answered"}
+                            </p>
+                            <p className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                              <Check size={13} className="shrink-0" />
+                              Correct answer: {en(q.options[m.correctAnswer])}
+                            </p>
+                            {q.explain && (
+                              <p className="text-xs text-muted-foreground bg-secondary/50 p-2 rounded mt-1">
+                                <b>Explanation:</b> {en(q.explain)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {selectedCount > 0 && (
+        <div className="sticky bottom-4 z-20 rounded-xl border border-primary/30 bg-card/95 p-3.5 shadow-xl backdrop-blur flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground">Ready to test:</p>
+            <p className="text-sm font-bold text-primary">{selectedCount} Questions Selected</p>
+          </div>
+          <Button onClick={startQuiz} className="font-semibold shadow-md">
+            <Play size={15} className="mr-1.5" />
+            Start Mistake Quiz
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

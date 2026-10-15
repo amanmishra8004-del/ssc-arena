@@ -27,54 +27,20 @@ export function decodeHtml(html: unknown): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-export function cleanEnglish(raw: unknown): string {
+export function cleanText(raw: unknown): string {
   if (!raw) return "";
-  const s = decodeHtml(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  const lines = s.split("\n");
-  const keptLines: string[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (hindiRegex.test(trimmed) || trimmed.includes("/")) {
-      const parts = trimmed.split(/\s*[\/|]\s*/);
-      if (parts.length > 1) {
-        const unique = [...new Set(parts.map((p) => p.trim()))];
-        if (unique.length === 1 && unique[0]) {
-          keptLines.push(unique[0]);
-          continue;
-        }
-        const enParts = parts.filter((p) => !hindiRegex.test(p) && /[A-Za-z0-9]/.test(p));
-        if (enParts.length > 0 && enParts[0]) {
-          keptLines.push(enParts[0]);
-          continue;
-        }
-      }
-      const stripped = trimmed.replace(/[\u0900-\u097F\uA8E0-\uA8FF।॥]/g, "").trim();
-      if (/[A-Za-z]{2,}/.test(stripped)) {
-        keptLines.push(stripped);
-      }
-    } else {
-      keptLines.push(trimmed);
-    }
-  }
-
-  const res = keptLines
-    .join("\n")
-    .replace(/[\u0900-\u097F\uA8E0-\uA8FF।॥]/g, "")
-    .replace(/\s*[\/|]\s*$/g, "")
-    .replace(/^\s*[\/|]\s*/g, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\[\s*\]/g, "")
+  return decodeHtml(raw)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
     .replace(/[ \t]+/g, " ")
-    .replace(/\s+([?.,:])/g, "$1")
+    .replace(/\n\s*\n+/g, "\n")
     .trim();
-
-  return res;
 }
 
+export const cleanEnglish = cleanText;
+
 export function cleanOptionText(raw: unknown): string {
-  let s = cleanEnglish(raw);
+  let s = cleanText(raw);
   // Do NOT strip if it's a person's initials like "B. N. Rao" or "B. R. Ambedkar"
   if (/^[A-Z]\.\s+[A-Z]\./.test(s)) {
     return s;
@@ -84,16 +50,13 @@ export function cleanOptionText(raw: unknown): string {
 }
 
 function stripTags(html: unknown): string {
-  return decodeHtml(
+  return cleanText(
     String(html ?? "")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|li|tr|h\d|td)>/gi, "\n")
       .replace(/<[^>]+>/g, " ")
-      .replace(/[ \t]+/g, " ")
-      .replace(/\n\s*\n+/g, "\n")
-      .trim()
   );
 }
 
@@ -485,12 +448,33 @@ export const submitQuiz = createServerFn({ method: "POST" })
   .inputValidator((d) => cred.extend({ quizId: z.string().uuid(), answers: z.array(z.number().int()) }).parse(d))
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password);
-    const { data: q } = await sb.from("quizzes").select("questions").eq("id", data.quizId).maybeSingle();
+    const { data: q } = await sb.from("quizzes").select("id,chapter,title,questions").eq("id", data.quizId).maybeSingle();
     if (!q) throw new Error("This quiz no longer exists.");
     const qs = q.questions as unknown as QQ[];
     const score = qs.reduce((a, x, i) => a + (data.answers[i] === x.answer ? 1 : 0), 0);
     const { error } = await sb.from("quiz_attempts").insert({ quiz_id: data.quizId, username: data.username, score, total: qs.length, answers: data.answers });
     if (error) throw new Error(error.message);
+
+    if (q.chapter && !q.chapter.startsWith("test:")) {
+      try {
+        const { data: uRow } = await sb.from("user_data").select("payload").eq("username", data.username).maybeSingle();
+        if (uRow && uRow.payload) {
+          const payload = typeof uRow.payload === "string" ? JSON.parse(uRow.payload) : uRow.payload;
+          payload.chapters = payload.chapters ?? {};
+          payload.chapters[q.chapter] = {
+            ...(payload.chapters[q.chapter] ?? {}),
+            quiz: `${score}/${qs.length}`,
+          };
+          await sb.from("user_data").upsert(
+            { username: data.username, payload, updated_at: new Date().toISOString() },
+            { onConflict: "username" }
+          );
+        }
+      } catch (err) {
+        console.error("Could not sync quiz mark to chapter:", err);
+      }
+    }
+
     return { score, total: qs.length };
   });
 

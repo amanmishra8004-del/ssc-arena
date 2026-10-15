@@ -140,9 +140,17 @@ export function stats(d: UserData) {
     else if (streak === 0 && k === tk) { cur.setDate(cur.getDate() - 1); }
     else break;
   }
+  let quizMarksTotal = 0;
+  for (const c of ch) {
+    if (c.quiz) {
+      const num = parseInt(c.quiz.split("/")[0] ?? "0", 10);
+      if (!isNaN(num) && num > 0) quizMarksTotal += num;
+    }
+  }
   const score =
     tasksDone * 10 + lec * 15 + rev * 8 + pyq * 8 + caCount * 3 +
-    Math.floor((d.tables.table + d.tables.square + d.tables.cube) / 5) + streak * 5;
+    Math.floor((d.tables.table + d.tables.square + d.tables.cube) / 5) + streak * 5 +
+    quizMarksTotal * 2;
   return { todayMin, planMin, tasksDone, totalMin, lec, rev, pyq, caCount, streak, score };
 }
 

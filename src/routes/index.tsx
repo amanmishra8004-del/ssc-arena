@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff } from "lucide-react";
 import { QuizNudge, QuizZone, useQuizScores } from "@/components/quiz-zone";
+import { MathPracticeZone } from "@/components/math-practice";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TimetableSortable } from "@/components/timetable-sortable";
@@ -815,13 +816,13 @@ function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: 
     <div className="space-y-4">
       <Hint icon="" title="Practice" character={practiceRobot} />
       <div className="section-tabs">
-        {([["ca", Newspaper, "Current affairs"], ["tables", Hash, "Calculations"], ["vocab", Type, "Vocabulary"],] as const).map(([k, Icon, l]) => (
+        {([["ca", Newspaper, "Current affairs"], ["tables", Hash, "Maths calculations"], ["vocab", Type, "Vocabulary"],] as const).map(([k, Icon, l]) => (
           <Button variant="unstyled" aria-pressed={view === k} key={k} onClick={() => setView(k)} className={cn("flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-3 text-sm font-semibold transition", view === k ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground")}>
             <Icon size={18} />{l}
           </Button>
         ))}
       </div>
-      {view === "ca" ? <CAZone data={data} update={update} all={all} who={who} /> : view === "tables" ? <Tables data={data} update={update} all={all} /> : <VocabBox me={data} update={update} all={all} who={who} />}
+      {view === "ca" ? <CAZone data={data} update={update} all={all} who={who} /> : view === "tables" ? <MathPracticeZone data={data} update={update} all={all} /> : <VocabBox me={data} update={update} all={all} who={who} />}
     </div>
   );
 }

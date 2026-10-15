@@ -75,6 +75,10 @@ export function cleanEnglish(raw: unknown): string {
 
 export function cleanOptionText(raw: unknown): string {
   let s = cleanEnglish(raw);
+  // Do NOT strip if it's a person's initials like "B. N. Rao" or "B. R. Ambedkar"
+  if (/^[A-Z]\.\s+[A-Z]\./.test(s)) {
+    return s;
+  }
   s = s.replace(/^(?:\([A-Da-d1-4]\)|[A-Da-d1-4][.):]|\bOption\s*[1-4A-Da-d][:.-]?)\s+/i, "").trim();
   return s;
 }
@@ -472,7 +476,7 @@ export const listQuizzes = createServerFn({ method: "POST" })
       sb.from("quiz_attempts").select("quiz_id,username,score,total,answers,at").order("at", { ascending: true }),
     ]);
     return {
-      quizzes: (qz ?? []).map(({ hidden, ...q }) => ({ ...q, questions: q.questions as unknown as QQ[], expired: hidden || Date.now() - new Date(q.created_at).getTime() > (q.chapter?.startsWith("test:") ? 2 : 7) * 86400000 })),
+      quizzes: (qz ?? []).map(({ hidden, ...q }) => ({ ...q, questions: q.questions as unknown as QQ[], expired: Boolean(hidden) })),
       attempts: at ?? [],
     };
   });

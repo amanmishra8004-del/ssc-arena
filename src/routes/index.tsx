@@ -391,7 +391,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (latestPayload.current) flushSave(latestPayload.current);
+                    flushSave(latestPayload.current ?? mine);
                   }}
                   className="flex items-center gap-1 font-medium text-amber-500 hover:underline"
                   title="Saved locally on this device. Click to sync with cloud"

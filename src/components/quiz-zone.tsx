@@ -104,10 +104,10 @@ export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | 
           <Button variant="unstyled" key={k} aria-pressed={filter === k} onClick={() => setFilter(k)} className={cn("shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold", filter === k ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>{l}</Button>
         ))}
       </div>
-      {filter !== "past" && <p className="text-xs text-muted-foreground">{mode === "test" ? "Tests are removed automatically 2 days" : "Quizzes are removed automatically 7 days"} after they are created. Marks and mistakes remain in Past results.</p>}
+      {filter !== "past" && <p className="text-xs text-muted-foreground">Quizzes remain active until manually deleted by the administrator. Marks and mistakes are saved in Past results.</p>}
       {q.isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading quizzes…</p>
         : q.isError ? <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">Unable to load quizzes. <Button variant="unstyled" onClick={() => q.refetch()} className="font-bold underline">Try again</Button></p>
-        : filter === "past" ? <PastResults quizzes={all.filter((z) => z.expired)} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
+        : filter === "past" ? <PastResults quizzes={all} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
         : shown.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No quizzes available right now.</p>
         : <div className="space-y-3">{shown.map((z) => <QuizCard key={z.id} quiz={z} attempts={attempts.filter((a) => a.quiz_id === z.id)} who={who} onPlay={() => setPlaying({ quiz: z })} onRetry={() => retryMissed(z)} onDeleted={refresh} />)}</div>}
     </div>

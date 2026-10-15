@@ -19,12 +19,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
-    // New Supabase API keys are opaque strings, not bearer JWTs.
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
-      headers.delete('Authorization');
-    }
-
     headers.set('apikey', supabaseKey);
+    if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${supabaseKey}`);
+    }
     return fetch(input, { ...init, headers });
   };
 }
@@ -40,7 +38,7 @@ function createSupabaseAdminClient() {
   const SUPABASE_URL =
     getEnv("SUPABASE_URL") ||
     getEnv("VITE_SUPABASE_URL") ||
-    "https://ceqfqneetphtfchuodmk.supabase.co";
+    "https://ceqfqneefphtfchuodmk.supabase.co";
 
   const SUPABASE_SERVICE_ROLE_KEY =
     getEnv("SUPABASE_SERVICE_ROLE_KEY") ||

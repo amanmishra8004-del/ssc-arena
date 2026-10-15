@@ -32,7 +32,7 @@ function createSupabaseClient() {
   const SUPABASE_URL =
     import.meta.env['VITE_SUPABASE_URL'] ||
     (typeof process !== 'undefined' ? process.env?.['SUPABASE_URL'] : undefined) ||
-    'https://ceqfqneetphtfchuodmk.supabase.co';
+    'https://ceqfqneefphtfchuodmk.supabase.co';
 
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] ||

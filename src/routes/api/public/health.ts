@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/public/health")({
 
           if (error) {
             return Response.json(
-              { status: "degraded", error: error.message, timestamp: new Date().toISOString() },
+              { status: "degraded", error: error.message || error.details || error.code || "db error", code: error.code, timestamp: new Date().toISOString() },
               { status: 500 },
             );
           }

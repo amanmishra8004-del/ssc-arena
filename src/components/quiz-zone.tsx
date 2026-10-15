@@ -36,8 +36,36 @@ export function useQuizScores() {
     const qz = (q.data?.quizzes ?? []) as Quiz[];
     for (const a of (q.data?.attempts ?? []) as Attempt[]) {
       if (a.username !== who) continue;
-      const ch = qz.find((z) => z.id === a.quiz_id)?.chapter;
-      if (ch && (!out[ch] || (a.total > 0 && a.score / a.total > out[ch].score / out[ch].total))) out[ch] = { score: a.score, total: a.total };
+      const z = qz.find((x) => x.id === a.quiz_id);
+      if (!z) continue;
+
+      const recordScore = (k: string) => {
+        if (!out[k] || (a.total > 0 && a.score / a.total > out[k].score / out[k].total)) {
+          out[k] = { score: a.score, total: a.total };
+        }
+      };
+
+      if (z.chapter) {
+        recordScore(z.chapter);
+        if (z.chapter.includes("|")) {
+          const chapOnly = z.chapter.split("|")[1]?.trim();
+          if (chapOnly) recordScore(chapOnly);
+        }
+      }
+
+      for (const s of SYLLABUS) {
+        for (const sec of s.sections) {
+          for (const c of sec.chapters) {
+            const k = chapterKey(sec.name, c);
+            const cLower = c.toLowerCase();
+            const zChap = String(z.chapter || "").toLowerCase();
+            const zTitle = String(z.title || "").toLowerCase();
+            if (zChap === cLower || (zChap && zChap.includes(cLower)) || zTitle.includes(cLower)) {
+              recordScore(k);
+            }
+          }
+        }
+      }
     }
     return out;
   }, [q.data]);
@@ -50,9 +78,34 @@ export function useChapterQuizMap() {
     const out: Record<string, { id: string; title: string; count: number; quiz: Quiz }> = {};
     const qz = (q.data?.quizzes ?? []) as Quiz[];
     for (const z of qz) {
-      if (!z.expired && z.chapter) {
+      if (!z.expired) {
         const qCount = Array.isArray(z.questions) ? z.questions.length : 0;
-        out[z.chapter] = { id: z.id, title: z.title || "", count: qCount, quiz: z };
+        const entry = { id: z.id, title: z.title || "", count: qCount, quiz: z };
+
+        if (z.chapter) {
+          out[z.chapter] = entry;
+          if (z.chapter.includes("|")) {
+            const chapOnly = z.chapter.split("|")[1]?.trim();
+            if (chapOnly) out[chapOnly] = entry;
+          }
+        }
+
+        // Match with syllabus chapters by chapter name or quiz title
+        for (const s of SYLLABUS) {
+          for (const sec of s.sections) {
+            for (const c of sec.chapters) {
+              const k = chapterKey(sec.name, c);
+              if (!out[k]) {
+                const cLower = c.toLowerCase();
+                const zChap = String(z.chapter || "").toLowerCase();
+                const zTitle = String(z.title || "").toLowerCase();
+                if (zChap === cLower || (zChap && zChap.includes(cLower)) || zTitle.includes(cLower)) {
+                  out[k] = entry;
+                }
+              }
+            }
+          }
+        }
       }
     }
     return out;
@@ -138,26 +191,80 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["quizzes"] });
 
-  // Update target chapter if prop changes
+  // Update target chapter if prop changes and auto-launch if quiz exists
   useEffect(() => {
     if (targetChapter) {
       setSelectedTargetChapter(targetChapter);
       setFilter("active");
+
+      const targetKey = targetChapter.toLowerCase();
+      const chapOnly = targetChapter.includes("|")
+        ? targetChapter.split("|")[1].trim().toLowerCase()
+        : targetKey;
+
+      const found = quizzes.find((z) => {
+        const zChap = String(z.chapter || "").toLowerCase();
+        const zTitle = String(z.title || "").toLowerCase();
+        return (
+          zChap === targetKey ||
+          zChap === chapOnly ||
+          (zChap && zChap.includes(chapOnly)) ||
+          zTitle.includes(chapOnly)
+        );
+      });
+
+      if (found) {
+        setPlaying({ quiz: found });
+      }
     }
-  }, [targetChapter]);
+  }, [targetChapter, quizzes]);
 
   // Find target quiz if navigating from syllabus
   const targetQuiz = useMemo(() => {
     if (!selectedTargetChapter) return null;
-    return quizzes.find((z) => z.chapter === selectedTargetChapter) || null;
+    const targetKey = selectedTargetChapter.toLowerCase();
+    const chapOnly = selectedTargetChapter.includes("|")
+      ? selectedTargetChapter.split("|")[1].trim().toLowerCase()
+      : targetKey;
+
+    return (
+      quizzes.find((z) => {
+        const zChap = String(z.chapter || "").toLowerCase();
+        const zTitle = String(z.title || "").toLowerCase();
+        return (
+          zChap === targetKey ||
+          zChap === chapOnly ||
+          (zChap && zChap.includes(chapOnly)) ||
+          zTitle.includes(chapOnly)
+        );
+      }) || null
+    );
   }, [quizzes, selectedTargetChapter]);
 
   // Filtered quizzes by subject and sub-topic query
   const shown = useMemo(() => {
-    return quizzes.filter((z) => {
-      // If targeting a specific chapter from syllabus
-      if (selectedTargetChapter && z.chapter === selectedTargetChapter) return true;
+    // If targeting a specific chapter from syllabus, isolate matching quizzes
+    if (selectedTargetChapter) {
+      const targetKey = selectedTargetChapter.toLowerCase();
+      const chapOnly = selectedTargetChapter.includes("|")
+        ? selectedTargetChapter.split("|")[1].trim().toLowerCase()
+        : targetKey;
 
+      const matching = quizzes.filter((z) => {
+        const zChap = String(z.chapter || "").toLowerCase();
+        const zTitle = String(z.title || "").toLowerCase();
+        return (
+          zChap === targetKey ||
+          zChap === chapOnly ||
+          (zChap && zChap.includes(chapOnly)) ||
+          zTitle.includes(chapOnly)
+        );
+      });
+
+      if (matching.length > 0) return matching;
+    }
+
+    return quizzes.filter((z) => {
       // Subject filter
       if (subjectFilter !== "all") {
         const s = detectQuizSubject(z);
@@ -216,7 +323,7 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
 
   return (
     <div className="space-y-4">
-      {who === "arun" && <QuizUpload onCreated={refresh} mode={mode} />}
+      {who === "arun" && <QuizUpload onCreated={refresh} mode={mode} defaultChapter={selectedTargetChapter} />}
 
       {/* Target Chapter Launcher Banner from Syllabus */}
       {selectedTargetChapter && (
@@ -691,10 +798,34 @@ function QuizCard({ quiz, attempts, who, onPlay, onRetry, onDeleted }: { quiz: Q
   );
 }
 
-function QuizUpload({ onCreated, mode }: { onCreated: () => void; mode: "quiz" | "test" }) {
+function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void; mode: "quiz" | "test"; defaultChapter?: string | null }) {
   const create = useServerFn(createQuiz);
-  const [subj, setSubj] = useState(0);
-  const [chap, setChap] = useState("");
+  const [subj, setSubj] = useState(() => {
+    if (defaultChapter) {
+      const dLower = defaultChapter.toLowerCase();
+      for (let i = 0; i < SYLLABUS.length; i++) {
+        if (SYLLABUS[i].sections.some((s) => s.chapters.some((c) => dLower.includes(c.toLowerCase()) || dLower.includes(s.name.toLowerCase())))) {
+          return i;
+        }
+      }
+    }
+    return 0;
+  });
+  const [chap, setChap] = useState(() => defaultChapter ?? "");
+
+  useEffect(() => {
+    if (defaultChapter) {
+      setChap(defaultChapter);
+      const dLower = defaultChapter.toLowerCase();
+      for (let i = 0; i < SYLLABUS.length; i++) {
+        if (SYLLABUS[i].sections.some((s) => s.chapters.some((c) => dLower.includes(c.toLowerCase()) || dLower.includes(s.name.toLowerCase())))) {
+          setSubj(i);
+          break;
+        }
+      }
+    }
+  }, [defaultChapter]);
+
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);

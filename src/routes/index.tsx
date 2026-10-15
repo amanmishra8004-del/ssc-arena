@@ -717,11 +717,19 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
         {SYLLABUS.map((x, i) => {
           const total = x.sections.reduce((n, s) => n + s.chapters.length, 0);
           const doneN = x.sections.reduce((n, s) => n + s.chapters.filter((c) => data.chapters[chapterKey(s.name, c)]?.lecture).length, 0);
+          const totalQuizzes = x.sections.reduce((n, s) => n + s.chapters.filter((c) => !!chapterQuizzes[chapterKey(s.name, c)]).length, 0);
           return (
             <Button variant="unstyled" aria-pressed={subj === i} key={x.subject} onClick={() => { setSubj(i); setOpen(x.sections[0].name); }}
               className={cn("rounded-lg border p-3.5 text-left transition", subj === i ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
-              <p className="font-display text-base font-bold">{x.subject}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{doneN}/{total} chapters</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="font-display text-base font-bold">{x.subject}</p>
+                {totalQuizzes > 0 && (
+                  <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full border", subj === i ? "bg-white/20 border-white/30 text-white" : "bg-primary/10 border-primary/20 text-primary")}>
+                    🎯 {totalQuizzes}Q
+                  </span>
+                )}
+              </div>
+              <p className={cn("mt-1 text-xs", subj === i ? "text-primary-foreground/80 font-medium" : "text-muted-foreground")}>{doneN}/{total} chapters</p>
               <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(doneN / total) * 100}%` }} />
               </div>
@@ -731,12 +739,20 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
       </div>
       {S.sections.map((sec) => {
         const doneN = sec.chapters.filter((c) => data.chapters[chapterKey(sec.name, c)]?.lecture).length;
+        const secQuizCount = sec.chapters.filter((c) => !!chapterQuizzes[chapterKey(sec.name, c)]).length;
         const isOpen = open === sec.name;
         return (
           <div key={sec.name} className="chapter-section overflow-hidden">
             <Button variant="unstyled" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : sec.name)} className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-4 text-left">
               <div className="min-w-0">
-                <p className="font-display font-bold">{sec.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-display font-bold">{sec.name}</p>
+                  {secQuizCount > 0 && (
+                    <span className="rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-black px-2 py-0.5 shrink-0">
+                      🎯 {secQuizCount} {secQuizCount === 1 ? "Quiz" : "Quizzes"}
+                    </span>
+                  )}
+                </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(doneN / sec.chapters.length) * 100}%` }} />
                 </div>
@@ -758,26 +774,22 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold">{c}</p>
-                          {qz ? (
-                            <Button
-                              variant="unstyled"
-                              onClick={() => change({ tab: "quiz", chapter: k })}
-                              className={cn(
-                                "rounded-lg border px-2 py-0.5 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs active:scale-95",
-                                sc
-                                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                  : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25"
-                              )}
-                              title={`Take Quiz for ${c} (${qz.count} Questions)`}
-                            >
-                              <span>🎯</span>
-                              <span>{sc ? `Quiz ${sc.score}/${sc.total}` : `Take Quiz (${qz.count}Q)`}</span>
-                            </Button>
-                          ) : sc ? (
-                            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
-                              Quiz {sc.score}/{sc.total}
-                            </span>
-                          ) : null}
+                          <Button
+                            variant="unstyled"
+                            onClick={() => change({ tab: "quiz", chapter: k })}
+                            className={cn(
+                              "rounded-lg border px-2 py-0.5 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs active:scale-95",
+                              qz
+                                ? (sc
+                                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                    : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
+                                : "border-border/60 bg-secondary/60 text-muted-foreground hover:text-foreground hover:border-primary/40"
+                            )}
+                            title={`Take Quiz for ${c}${qz ? ` (${qz.count} Questions)` : ""}`}
+                          >
+                            <span>🎯</span>
+                            <span>{sc ? `Quiz ${sc.score}/${sc.total}` : qz ? `Take Quiz (${qz.count}Q)` : "Quiz"}</span>
+                          </Button>
                         </div>
                         <div className="flex -space-x-1.5">
                           {others.map((u) => (
@@ -792,21 +804,29 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
                             {st[f] ? "✓ " : ""}{f === "lecture" ? " Lecture" : f === "revised" ? " Revised" : " PYQ"}
                           </Button>
                         ))}
-                        {qz && (
-                          <Button
-                            variant="unstyled"
-                            onClick={() => change({ tab: "quiz", chapter: k })}
-                            className={cn(
-                              "min-h-11 rounded-lg border px-3 py-2 text-xs font-bold transition flex items-center gap-1.5",
-                              sc
-                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "border-primary/40 bg-primary/15 text-primary hover:bg-primary/25"
-                            )}
-                          >
-                            <span>🎯</span>
-                            <span>{sc ? `Quiz: ${sc.score}/${sc.total}` : `🎯 Quiz (${qz.count}Q)`}</span>
-                          </Button>
-                        )}
+                        {/* 4th Action: Direct Chapter Quiz Launch Button - ALWAYS VISIBLE */}
+                        <Button
+                          variant="unstyled"
+                          onClick={() => change({ tab: "quiz", chapter: k })}
+                          className={cn(
+                            "min-h-11 rounded-lg border px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95",
+                            qz
+                              ? (sc
+                                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
+                              : "border-border bg-secondary/80 text-foreground/80 hover:bg-secondary hover:border-primary/40"
+                          )}
+                          title={`Directly open quiz for ${c}`}
+                        >
+                          <span>🎯</span>
+                          <span>
+                            {sc
+                              ? `Quiz: ${sc.score}/${sc.total}`
+                              : qz
+                              ? `Quiz (${qz.count}Q)`
+                              : "Chapter Quiz"}
+                          </span>
+                        </Button>
                         {st.pyq && (
                           <input value={st.marks ?? ""} onChange={(e) => set({ marks: e.target.value })} placeholder="PYQ marks 18/25"
                             className="w-32 rounded-full border border-input bg-secondary px-3 py-2 text-xs outline-none focus:border-primary" />

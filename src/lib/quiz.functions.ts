@@ -129,9 +129,24 @@ function stripTags(html: unknown): string {
   );
 }
 
+function parseRelaxedJson(str: string): unknown {
+  try {
+    return JSON.parse(str);
+  } catch {
+    try {
+      const normalized = str
+        .replace(/([{,]\s*)([A-Za-z0-9_$]+)\s*:/g, '$1"$2":')
+        .replace(/'((?:\\.|[^'])*)'/g, '"$1"');
+      return JSON.parse(normalized);
+    } catch {
+      return null;
+    }
+  }
+}
+
 // 1. JSON in Script / HTML
 export function extractJson(html: string): QQ[] {
-  const jsonArrRegex = /\[\s*\{\s*["'][A-Za-z0-9_]+["']\s*:/g;
+  const jsonArrRegex = /\[\s*\{\s*(?:["'][A-Za-z0-9_]+["']|[A-Za-z0-9_]+)\s*:/g;
   let match: RegExpExecArray | null;
   while ((match = jsonArrRegex.exec(html)) !== null) {
     const start = match.index;
@@ -155,20 +170,15 @@ export function extractJson(html: string): QQ[] {
     if (end > start) {
       try {
         const jsonStr = html.slice(start, end + 1);
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(jsonStr);
-        } catch {
-          parsed = JSON.parse(jsonStr.replace(/'/g, '"'));
-        }
+        const parsed = parseRelaxedJson(jsonStr);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const sample = parsed[0] as Record<string, unknown> | null;
-          const hasQ = sample && (sample.q || sample.question || sample.question_text || sample.questionText || sample.title);
+          const hasQ = sample && (sample.q || sample.question || sample.question_text || sample.questionText || sample.qText || sample.title || sample.Question);
           if (hasQ) {
             const result: QQ[] = [];
             for (const rawItem of parsed) {
               const item = rawItem as Record<string, unknown>;
-              const qRaw = item.q || item.question || item.question_text || item.questionText || item.title;
+              const qRaw = item.q || item.question || item.question_text || item.questionText || item.qText || item.title || item.Question || item.problem;
               const q = cleanEnglish(stripTags(qRaw));
               if (!q) continue;
 
@@ -176,9 +186,10 @@ export function extractJson(html: string): QQ[] {
               if (Array.isArray(item.options)) opts = item.options.map((o) => cleanOptionText(stripTags(o)));
               else if (Array.isArray(item.opts)) opts = item.opts.map((o) => cleanOptionText(stripTags(o)));
               else if (Array.isArray(item.choices)) opts = item.choices.map((o) => cleanOptionText(stripTags(o)));
+              else if (Array.isArray(item.answers)) opts = item.answers.map((o) => cleanOptionText(stripTags(o)));
               else {
                 for (let n = 1; n <= 6; n++) {
-                  const val = item[`option_${n}`] ?? item[`option${n}`] ?? item[`opt_${n}`] ?? item[`opt${n}`] ?? item[`choice_${n}`];
+                  const val = item[`option_${n}`] ?? item[`option${n}`] ?? item[`opt_${n}`] ?? item[`opt${n}`] ?? item[`choice_${n}`] ?? item[`Option_${n}`] ?? item[`Option${n}`];
                   if (val != null) opts.push(cleanOptionText(stripTags(val)));
                 }
               }
@@ -186,7 +197,7 @@ export function extractJson(html: string): QQ[] {
               if (opts.length < 2) continue;
 
               let ansIdx = 0;
-              const ansRaw = item.answer ?? item.ans ?? item.correct ?? item.correct_option ?? item.correctOption ?? item.right_answer;
+              const ansRaw = item.answer ?? item.ans ?? item.correct ?? item.correct_option ?? item.correctOption ?? item.right_answer ?? item.rightAnswer ?? item.Answer;
               if (typeof ansRaw === "number") {
                 ansIdx = Array.isArray(item.options) ? ansRaw : ansRaw - 1;
               } else if (typeof ansRaw === "string") {
@@ -332,8 +343,11 @@ export function extractFromRadioInputs(html: string): QQ[] {
       const idMatch = /id=["']([^"']+)["']/i.exec(input.fullTag);
       let optText = "";
       if (idMatch && idMatch[1]) {
+        const windowStart = Math.max(0, input.index - 500);
+        const windowEnd = Math.min(html.length, input.index + 500);
+        const localHtml = html.slice(windowStart, windowEnd);
         const forRegex = new RegExp(`<label[^>]*for=["']${idMatch[1]}["'][^>]*>([\\s\\S]*?)<\\/label>`, "i");
-        const forMatch = forRegex.exec(html);
+        const forMatch = forRegex.exec(localHtml);
         if (forMatch && forMatch[1]) optText = cleanOptionText(stripTags(forMatch[1]));
       }
 
@@ -486,31 +500,68 @@ export function parseQuizHtml(html: string): QQ[] {
   return [];
 }
 
+const qqSchema = z.object({
+  q: z.string(),
+  options: z.array(z.string()),
+  answer: z.number().int(),
+  explain: z.string().optional(),
+});
+
 export const createQuiz = createServerFn({ method: "POST" })
-  .inputValidator((d) => cred.extend({ html: z.string().min(20).max(5_000_000), title: z.string().trim().min(1).max(120), chapter: z.string().max(200).nullable(), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }).parse(d))
+  .inputValidator((d) =>
+    cred
+      .extend({
+        html: z.string().max(10_000_000).optional(),
+        questions: z.array(qqSchema).optional(),
+        title: z.string().trim().min(1).max(150),
+        chapter: z.string().max(250).nullable(),
+        day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      })
+      .parse(d)
+  )
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password, true);
-    const qs: QQ[] = parseQuizHtml(data.html);
+    let qs: QQ[] = [];
+    if (Array.isArray(data.questions) && data.questions.length > 0) {
+      qs = data.questions;
+    } else if (data.html) {
+      qs = parseQuizHtml(data.html);
+    }
     if (!qs.length) {
       throw new Error("No questions could be read from this file. Please verify that the HTML file contains questions with options.");
     }
-    const { data: row, error } = await sb.from("quizzes").insert({ title: data.title, chapter: data.chapter, day: data.day, questions: qs }).select("id").single();
+    const { data: row, error } = await sb
+      .from("quizzes")
+      .insert({ title: data.title, chapter: data.chapter, day: data.day, questions: qs })
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { id: row.id, count: qs.length };
+    return { id: row?.id ?? "", count: qs.length };
   });
 
 export const listQuizzes = createServerFn({ method: "POST" })
   .inputValidator((d) => cred.parse(d))
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password);
-    const [{ data: qz }, { data: at }] = await Promise.all([
-      sb.from("quizzes").select("id,title,chapter,day,questions,created_at,hidden").order("created_at", { ascending: false }),
-      sb.from("quiz_attempts").select("quiz_id,username,score,total,answers,at").order("at", { ascending: true }),
-    ]);
-    return {
-      quizzes: (qz ?? []).map(({ hidden, ...q }) => ({ ...q, questions: q.questions as unknown as QQ[], expired: Boolean(hidden) })),
-      attempts: at ?? [],
-    };
+    try {
+      const [{ data: qz, error: qzErr }, { data: at, error: atErr }] = await Promise.all([
+        sb.from("quizzes").select("id,title,chapter,day,questions,created_at,hidden").order("created_at", { ascending: false }),
+        sb.from("quiz_attempts").select("quiz_id,username,score,total,answers,at").order("at", { ascending: true }),
+      ]);
+      if (qzErr) console.error("Quizzes fetch error:", qzErr);
+      if (atErr) console.error("Attempts fetch error:", atErr);
+      return {
+        quizzes: (qz ?? []).map(({ hidden, ...q }) => ({
+          ...q,
+          questions: (Array.isArray(q.questions) ? q.questions : []) as unknown as QQ[],
+          expired: Boolean(hidden),
+        })),
+        attempts: at ?? [],
+      };
+    } catch (err) {
+      console.error("listQuizzes handler error:", err);
+      throw new Error("Failed to load quizzes. Please try again.");
+    }
   });
 
 export const submitQuiz = createServerFn({ method: "POST" })

@@ -111,6 +111,7 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
 
 function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
   const doLogin = useServerFn(login);
+  const { search } = useWorkspaceNavigation();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
@@ -133,6 +134,17 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           <h1 className="mt-5 text-4xl font-extrabold tracking-normal">Study <span className="text-primary">Arena</span></h1>
           <p className="mt-2 text-sm text-muted-foreground">Your study. Your progress. Your next milestone.</p>
         </div>
+        {search.quizId && (
+          <div className="rounded-2xl border-2 border-primary/50 bg-primary/10 p-4 text-center space-y-1.5 shadow-sm animate-in fade-in">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-primary">
+              <span>🎯</span>
+              <span>Direct Quiz Invitation</span>
+            </div>
+            <p className="text-xs font-semibold text-foreground">
+              Sign in with your ID — the shared quiz will open automatically!
+            </p>
+          </div>
+        )}
         <div className="flex justify-center gap-2">
           {USERS.map((x) => (
             <Button variant="unstyled" type="button" key={x} onClick={() => setU(x)}
@@ -225,7 +237,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   });
   const { search, change } = useWorkspaceNavigation();
   const router = useRouter();
-  const tab = search.tab ?? "today";
+  const tab = search.tab ?? (search.quizId ? (search.practice === "pyq" ? "extras" : "quiz") : "today");
   const viewing = search.profile && USERS.includes(search.profile) ? search.profile : null;
   const setTab = (next: Tab) => change({ tab: next, profile: undefined, panel: undefined });
   const setViewing = (next: string | null) => change({ profile: next ?? undefined, panel: undefined });
@@ -443,9 +455,9 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         ) : tab === "syllabus" ? (
           <Syllabus data={mine} update={update} all={all} />
         ) : tab === "quiz" ? (
-          <QuizZone who={auth.username} targetChapter={search.chapter} />
+          <QuizZone who={auth.username} targetChapter={search.chapter} targetQuizId={search.quizId} />
         ) : tab === "extras" ? (
-          <Extras data={mine} update={update} all={all} who={auth.username} />
+          <Extras data={mine} update={update} all={all} who={auth.username} targetQuizId={search.quizId} />
         ) : (
           <Arena board={board} me={auth.username} onView={setViewing} auth={auth} />
         )}
@@ -868,7 +880,7 @@ function weekLabel(d = new Date()) {
   return `Week of ${x.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
 }
 
-function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: Record<string, UserData>; who: string }) {
+function Extras({ data, update, all, who, targetQuizId }: { data: UserData; update: Upd; all: Record<string, UserData>; who: string; targetQuizId?: string }) {
   const { search, change } = useWorkspaceNavigation();
   const view = search.practice === "quiz" || search.practice === "mock" || search.practice === "tests" ? "pyq" : search.practice ?? "pyq";
   const setView = (practice: "pyq" | "ca" | "tables" | "vocab" | "idioms") => change({ practice });
@@ -889,7 +901,7 @@ function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: 
         ))}
       </div>
       {view === "pyq" ? (
-        <PYQPracticeZone who={who} />
+        <PYQPracticeZone who={who} targetQuizId={targetQuizId} />
       ) : view === "ca" ? (
         <CAZone data={data} update={update} all={all} who={who} />
       ) : view === "tables" ? (

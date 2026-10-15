@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -16,6 +16,7 @@ import {
   HelpCircle,
   AlertCircle,
   FileText,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,9 +26,10 @@ import {
   deleteResults,
   listQuizzes,
   cleanText,
+  parseQuizHtml,
   type QQ,
 } from "@/lib/quiz.functions";
-import { QuizPlayer, TimerPromptModal } from "@/components/quiz-zone";
+import { QuizPlayer, TimerPromptModal, shareQuizLink } from "@/components/quiz-zone";
 
 type Quiz = {
   id: string;
@@ -83,13 +85,15 @@ function usePYQQuizzes() {
   return useQuery({
     queryKey: ["quizzes"],
     queryFn: () => list({ data: creds() }),
-    staleTime: 0,
-    refetchInterval: 4000,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 2,
   });
 }
 
-export function PYQPracticeZone({ who }: { who: string }) {
+export function PYQPracticeZone({ who, targetQuizId }: { who: string; targetQuizId?: string }) {
   const qc = useQueryClient();
   const q = usePYQQuizzes();
   const [playing, setPlaying] = useState<{
@@ -102,6 +106,10 @@ export function PYQPracticeZone({ who }: { who: string }) {
   const [examFilter, setExamFilter] = useState<string>("all");
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTargetQuizId, setSelectedTargetQuizId] = useState<string | null>(targetQuizId ?? null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const autoLaunchedRef = useRef(false);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["quizzes"] });
 
@@ -189,6 +197,41 @@ export function PYQPracticeZone({ who }: { who: string }) {
     return list;
   }, [allPYQs, attempts, who]);
 
+  // Auto-launch target PYQ if targetQuizId is provided
+  useEffect(() => {
+    if (targetQuizId) {
+      setSelectedTargetQuizId(targetQuizId);
+      setFilter("active");
+    }
+  }, [targetQuizId]);
+
+  useEffect(() => {
+    if (selectedTargetQuizId && allPYQs.length > 0 && !autoLaunchedRef.current) {
+      const found = allPYQs.find((z) => z.id === selectedTargetQuizId);
+      if (found) {
+        autoLaunchedRef.current = true;
+        setPromptQuiz({ quiz: found });
+      }
+    }
+  }, [selectedTargetQuizId, allPYQs]);
+
+  const targetPYQ = useMemo(() => {
+    if (!selectedTargetQuizId) return null;
+    return allPYQs.find((z) => z.id === selectedTargetQuizId) || null;
+  }, [selectedTargetQuizId, allPYQs]);
+
+  const onSharePYQ = async (quiz: Quiz) => {
+    const res = await shareQuizLink(quiz);
+    if (res.status === "copied" || res.status === "shared") {
+      setCopiedId(quiz.id);
+      setShareToast(`Link for "${quiz.title}" copied! Share it on WhatsApp/Telegram.`);
+      setTimeout(() => {
+        setCopiedId(null);
+        setShareToast(null);
+      }, 4000);
+    }
+  };
+
   const retryMissed = (z: Quiz) => {
     const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
     if (!mine || !Array.isArray(mine.answers)) return;
@@ -214,6 +257,37 @@ export function PYQPracticeZone({ who }: { who: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Target Shared PYQ Banner */}
+      {targetPYQ && (
+        <div className="rounded-2xl border-2 border-primary/60 bg-gradient-to-r from-primary/15 via-card to-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm animate-in fade-in">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-black text-primary uppercase tracking-wider">
+              <span>🎯</span>
+              <span>Shared PYQ Paper Opened</span>
+            </div>
+            <p className="font-display font-black text-base text-foreground mt-0.5">
+              {targetPYQ.title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {Array.isArray(targetPYQ.questions) ? targetPYQ.questions.length : 0} questions · {targetPYQ.chapter ? targetPYQ.chapter.replace("pyq:", "").toUpperCase() : "SSC PYQ"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" onClick={() => setPromptQuiz({ quiz: targetPYQ })} className="font-bold text-xs shadow-md">
+              <Play size={14} className="mr-1" /> Start PYQ Now
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTargetQuizId(null)}
+              className="text-xs font-semibold"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Banner */}
       <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 space-y-2 shadow-sm">
         <div className="flex items-center gap-2">
@@ -315,6 +389,16 @@ export function PYQPracticeZone({ who }: { who: string }) {
                 Clear
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => q.refetch()}
+              disabled={q.isFetching}
+              title="Refresh PYQs"
+              className="h-9 w-9 shrink-0 rounded-xl"
+            >
+              <RotateCcw size={14} className={cn(q.isFetching && "animate-spin text-primary")} />
+            </Button>
           </div>
         </div>
       )}
@@ -323,12 +407,15 @@ export function PYQPracticeZone({ who }: { who: string }) {
       {q.isLoading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading PYQ papers…</p>
       ) : q.isError ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
-          Unable to load PYQs.{" "}
-          <Button variant="unstyled" onClick={() => q.refetch()} className="font-bold underline">
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm flex items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-destructive">Unable to load PYQ papers right now.</p>
+            <p className="text-xs text-muted-foreground">Click retry to reload from the server.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => q.refetch()} className="font-bold shrink-0">
             Try again
           </Button>
-        </p>
+        </div>
       ) : filter === "past" ? (
         <PYQPastResults
           quizzes={allPYQs}
@@ -363,6 +450,8 @@ export function PYQPracticeZone({ who }: { who: string }) {
               who={who}
               onPlay={() => setPromptQuiz({ quiz: z })}
               onRetry={() => retryMissed(z)}
+              onShare={onSharePYQ}
+              isCopied={copiedId === z.id}
               onDeleted={refresh}
             />
           ))}
@@ -388,6 +477,19 @@ export function PYQPracticeZone({ who }: { who: string }) {
           onClose={() => setPromptQuiz(null)}
         />
       )}
+
+      {/* Floating Share Toast */}
+      {shareToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] rounded-xl border border-primary/40 bg-card/95 backdrop-blur px-4 py-3 shadow-2xl text-xs font-semibold text-foreground flex items-center justify-between gap-2 animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Check size={16} className="text-emerald-500 shrink-0" />
+            <span className="truncate">{shareToast}</span>
+          </div>
+          <button onClick={() => setShareToast(null)} className="text-muted-foreground hover:text-foreground text-xs font-bold">
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -398,6 +500,8 @@ function PYQCard({
   who,
   onPlay,
   onRetry,
+  onShare,
+  isCopied,
   onDeleted,
 }: {
   quiz: Quiz;
@@ -405,6 +509,8 @@ function PYQCard({
   who: string;
   onPlay: () => void;
   onRetry: () => void;
+  onShare: (quiz: Quiz) => void;
+  isCopied?: boolean;
   onDeleted: () => void;
 }) {
   const del = useServerFn(deleteQuiz);
@@ -451,21 +557,34 @@ function PYQCard({
           </div>
           <p className="font-display font-black text-base text-foreground">{quiz.title}</p>
         </div>
-        {who === "arun" && (
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
-            size="icon"
-            aria-label="Delete quiz"
-            onClick={async () => {
-              if (confirm(`Delete PYQ paper "${quiz.title}" and all player scores?`)) {
-                await del({ data: { ...creds(), quizId: quiz.id } });
-                onDeleted();
-              }
-            }}
+            size="sm"
+            onClick={() => onShare(quiz)}
+            title="Share PYQ paper link"
+            className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 gap-1.5"
           >
-            <Trash2 size={17} className="text-muted-foreground hover:text-destructive" />
+            {isCopied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+            <span>{isCopied ? "Copied" : "Share"}</span>
           </Button>
-        )}
+          {who === "arun" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Delete quiz"
+              onClick={async () => {
+                if (confirm(`Delete PYQ paper "${quiz.title}" and all player scores?`)) {
+                  await del({ data: { ...creds(), quizId: quiz.id } });
+                  onDeleted();
+                }
+              }}
+            >
+              <Trash2 size={16} className="text-muted-foreground hover:text-destructive" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Leaderboard rows */}
@@ -541,15 +660,32 @@ function PYQUpload({ onCreated }: { onCreated: () => void }) {
             .replace(/[_-]+/g, " ")
             .trim() || "SSC PYQ Paper";
         const tag = `pyq:${exam}:${subject}`;
+
+        let qs: QQ[] = [];
+        try {
+          qs = parseQuizHtml(html);
+        } catch (parseErr) {
+          console.warn("Client parse warning:", parseErr);
+        }
+
+        log[log.length - 1] = `${f.name}: uploading ${qs.length > 0 ? `(${qs.length} questions)` : "file"}…`;
+        setStatus([...log]);
+
         const r = await create({
           data: {
             ...creds(),
-            html,
+            html: qs.length > 0 ? undefined : html,
+            questions: qs.length > 0 ? qs : undefined,
             title: cleanTitle,
             chapter: tag,
             day: null,
           },
         });
+
+        if (!r || typeof r.count !== "number") {
+          throw new Error("Server did not return a valid count. Please try again.");
+        }
+
         log[log.length - 1] = `✅ ${f.name}: ${r.count} questions added to ${exam.toUpperCase()} PYQ.`;
         onCreated();
       } catch (e) {

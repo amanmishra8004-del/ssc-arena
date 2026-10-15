@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileUp, Trash2, Trophy, Play, Check, X, Clock, RotateCcw } from "lucide-react";
+import { FileUp, Trash2, Trophy, Play, Check, X, Clock, RotateCcw, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SYLLABUS, chapterKey } from "@/lib/syllabus";
-import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, cleanText, type QQ } from "@/lib/quiz.functions";
+import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, cleanText, parseQuizHtml, type QQ } from "@/lib/quiz.functions";
 
 type Quiz = { id: string; title: string; chapter: string | null; day: string | null; questions: QQ[]; created_at: string; expired: boolean };
 type Attempt = { quiz_id: string; username: string; score: number; total: number; answers: unknown; at: string };
@@ -15,14 +15,57 @@ const creds = () => { try { const a = JSON.parse(localStorage.getItem("arena-aut
 export const en = (raw: string) => cleanText(raw);
 const chapterLabel = (k: string) => k.startsWith("test:") ? `${k.slice(5)} test` : k.split("|").join(" · ");
 
+export async function shareQuizLink(quiz: { id: string; title: string; chapter?: string | null; questions?: unknown[] }) {
+  const isPyq = quiz.chapter?.startsWith("pyq:");
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const count = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
+  const countText = count > 0 ? ` (${count} Questions)` : "";
+  const url = isPyq
+    ? `${origin}/?tab=extras&practice=pyq&quizId=${encodeURIComponent(quiz.id)}`
+    : `${origin}/?tab=quiz&quizId=${encodeURIComponent(quiz.id)}`;
+
+  const text = `🎯 Attempt this SSC quiz: "${quiz.title}"${countText} on SSC Arena!\n\n${url}`;
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({
+        title: `SSC Arena: ${quiz.title}`,
+        text,
+        url,
+      });
+      return { status: "shared", url };
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        return { status: "cancelled", url };
+      }
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(url);
+      return { status: "copied", url };
+    } catch {}
+  }
+
+  if (typeof window !== "undefined") {
+    window.prompt("Copy link to share this quiz with friends:", url);
+    return { status: "copied", url };
+  }
+
+  return { status: "error", url };
+}
+
 function useQuizzes() {
   const list = useServerFn(listQuizzes);
   return useQuery({
     queryKey: ["quizzes"],
     queryFn: () => list({ data: creds() }),
-    staleTime: 0,
-    refetchInterval: 4000,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 2,
   });
 }
 
@@ -176,7 +219,17 @@ type MistakeItem = {
   correctAnswer: number;
 };
 
-export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; mode?: "quiz" | "test"; targetChapter?: string }) {
+export function QuizZone({
+  who,
+  mode = "quiz",
+  targetChapter,
+  targetQuizId,
+}: {
+  who: string;
+  mode?: "quiz" | "test";
+  targetChapter?: string;
+  targetQuizId?: string;
+}) {
   const qc = useQueryClient();
   const q = useQuizzes();
   const [playing, setPlaying] = useState<{
@@ -189,6 +242,10 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
   const [subjectFilter, setSubjectFilter] = useState<"all" | "maths" | "reasoning" | "english" | "ga" | "test">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTargetChapter, setSelectedTargetChapter] = useState<string | null>(targetChapter ?? null);
+  const [selectedTargetQuizId, setSelectedTargetQuizId] = useState<string | null>(targetQuizId ?? null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const autoLaunchedRef = useRef(false);
 
   const all = ((q.data?.quizzes ?? []) as Quiz[]).filter((z) => (mode === "test") === !!z.chapter?.startsWith("test:"));
   const quizzes = all.filter((z) => !z.expired);
@@ -223,6 +280,41 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       }
     }
   }, [targetChapter, quizzes]);
+
+  // Update target quizId from prop and auto-launch direct quiz
+  useEffect(() => {
+    if (targetQuizId) {
+      setSelectedTargetQuizId(targetQuizId);
+      setFilter("active");
+    }
+  }, [targetQuizId]);
+
+  useEffect(() => {
+    if (selectedTargetQuizId && (quizzes.length > 0 || all.length > 0) && !autoLaunchedRef.current) {
+      const found = quizzes.find((z) => z.id === selectedTargetQuizId) || all.find((z) => z.id === selectedTargetQuizId);
+      if (found) {
+        autoLaunchedRef.current = true;
+        setPromptQuiz({ quiz: found });
+      }
+    }
+  }, [selectedTargetQuizId, quizzes, all]);
+
+  const targetSharedQuiz = useMemo(() => {
+    if (!selectedTargetQuizId) return null;
+    return quizzes.find((z) => z.id === selectedTargetQuizId) || all.find((z) => z.id === selectedTargetQuizId) || null;
+  }, [selectedTargetQuizId, quizzes, all]);
+
+  const onShareQuiz = async (quiz: Quiz) => {
+    const res = await shareQuizLink(quiz);
+    if (res.status === "copied" || res.status === "shared") {
+      setCopiedId(quiz.id);
+      setShareToast(`Link for "${quiz.title}" copied! Share it on WhatsApp/Telegram.`);
+      setTimeout(() => {
+        setCopiedId(null);
+        setShareToast(null);
+      }, 4000);
+    }
+  };
 
   // Find target quiz if navigating from syllabus
   const targetQuiz = useMemo(() => {
@@ -341,6 +433,37 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
     <div className="space-y-4">
       {who === "arun" && <QuizUpload onCreated={refresh} mode={mode} defaultChapter={selectedTargetChapter} />}
 
+      {/* Target Shared Quiz Banner */}
+      {targetSharedQuiz && (
+        <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-r from-primary/15 via-card to-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm animate-in fade-in">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-black text-primary uppercase tracking-wider">
+              <span>🎯</span>
+              <span>Shared Quiz Opened</span>
+            </div>
+            <p className="font-display font-black text-base text-foreground mt-0.5">
+              {targetSharedQuiz.title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {Array.isArray(targetSharedQuiz.questions) ? targetSharedQuiz.questions.length : 0} questions · {targetSharedQuiz.chapter ? chapterLabel(targetSharedQuiz.chapter) : "General"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" onClick={() => setPromptQuiz({ quiz: targetSharedQuiz })} className="font-bold text-xs shadow-md">
+              <Play size={14} className="mr-1" /> Start Quiz Now
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTargetQuizId(null)}
+              className="text-xs font-semibold"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Target Chapter Launcher Banner from Syllabus */}
       {selectedTargetChapter && (
         <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm animate-in fade-in">
@@ -445,6 +568,16 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
                 Clear
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => q.refetch()}
+              disabled={q.isFetching}
+              title="Refresh quizzes"
+              className="h-9 w-9 shrink-0 rounded-xl"
+            >
+              <RotateCcw size={14} className={cn(q.isFetching && "animate-spin text-primary")} />
+            </Button>
           </div>
         </div>
       )}
@@ -459,9 +592,15 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       {q.isLoading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading quizzes…</p>
       ) : q.isError ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
-          Unable to load quizzes. <Button variant="unstyled" onClick={() => q.refetch()} className="font-bold underline">Try again</Button>
-        </p>
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm flex items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-destructive">Unable to load quizzes right now.</p>
+            <p className="text-xs text-muted-foreground">Click retry to reload from the server.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => q.refetch()} className="font-bold shrink-0">
+            Try again
+          </Button>
+        </div>
       ) : filter === "past" ? (
         <PastResults quizzes={all} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
       ) : filter === "mistakes" ? (
@@ -484,6 +623,8 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
               who={who}
               onPlay={() => setPromptQuiz({ quiz: z })}
               onRetry={() => retryMissed(z)}
+              onShare={onShareQuiz}
+              isCopied={copiedId === z.id}
               onDeleted={refresh}
             />
           ))}
@@ -507,6 +648,19 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
           }}
           onClose={() => setPromptQuiz(null)}
         />
+      )}
+
+      {/* Floating Share Toast */}
+      {shareToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] rounded-xl border border-primary/40 bg-card/95 backdrop-blur px-4 py-3 shadow-2xl text-xs font-semibold text-foreground flex items-center justify-between gap-2 animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Check size={16} className="text-emerald-500 shrink-0" />
+            <span className="truncate">{shareToast}</span>
+          </div>
+          <button onClick={() => setShareToast(null)} className="text-muted-foreground hover:text-foreground text-xs font-bold">
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
@@ -791,7 +945,25 @@ function PastResults({ quizzes, attempts, who, onRetry, onChanged }: { quizzes: 
   );
 }
 
-function QuizCard({ quiz, attempts, who, onPlay, onRetry, onDeleted }: { quiz: Quiz; attempts: Attempt[]; who: string; onPlay: () => void; onRetry: () => void; onDeleted: () => void }) {
+function QuizCard({
+  quiz,
+  attempts,
+  who,
+  onPlay,
+  onRetry,
+  onShare,
+  isCopied,
+  onDeleted,
+}: {
+  quiz: Quiz;
+  attempts: Attempt[];
+  who: string;
+  onPlay: () => void;
+  onRetry: () => void;
+  onShare: (quiz: Quiz) => void;
+  isCopied?: boolean;
+  onDeleted: () => void;
+}) {
   const del = useServerFn(deleteQuiz);
   const best = useMemo(() => {
     const m: Record<string, Attempt & { tries: number }> = {};
@@ -813,7 +985,34 @@ function QuizCard({ quiz, attempts, who, onPlay, onRetry, onDeleted }: { quiz: Q
             {qList.length} questions · {quiz.chapter ? chapterLabel(quiz.chapter)  : "General"}
           </p>
         </div>
-        {who === "arun" && <Button variant="ghost" size="icon" aria-label="Delete quiz" onClick={async () => { if (confirm("Delete this quiz and all of its scores?")) { await del({ data: { ...creds(), quizId: quiz.id } }); onDeleted(); } }}><Trash2 size={18} /></Button>}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onShare(quiz)}
+            title="Share quiz link with friends"
+            className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 gap-1.5"
+          >
+            {isCopied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+            <span>{isCopied ? "Copied" : "Share"}</span>
+          </Button>
+          {who === "arun" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Delete quiz"
+              onClick={async () => {
+                if (confirm("Delete this quiz and all of its scores?")) {
+                  await del({ data: { ...creds(), quizId: quiz.id } });
+                  onDeleted();
+                }
+              }}
+            >
+              <Trash2 size={16} />
+            </Button>
+          )}
+        </div>
       </div>
       {best.length > 0 && (
         <div className="mt-3 space-y-1">
@@ -872,14 +1071,41 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
     if (!target) { setStatus(["Please select a chapter."]); return; }
     setBusy(true); const log: string[] = [];
     for (const f of files) {
-      log.push(`${f.name}: reading…`); setStatus([...log]);
+      log.push(`${f.name}: parsing…`); setStatus([...log]);
       try {
         const html = await f.text();
         const title = f.name.replace(/\.html?$/i, "").replace(/[_-]+/g, " ").trim() || "Quiz";
-        const r = await create({ data: { ...creds(), html, title, chapter: target, day: null } });
+
+        let qs: QQ[] = [];
+        try {
+          qs = parseQuizHtml(html);
+        } catch (parseErr) {
+          console.warn("Client parsing warning:", parseErr);
+        }
+
+        log[log.length - 1] = `${f.name}: uploading ${qs.length > 0 ? `(${qs.length} questions)` : "file"}…`;
+        setStatus([...log]);
+
+        const r = await create({
+          data: {
+            ...creds(),
+            html: qs.length > 0 ? undefined : html,
+            questions: qs.length > 0 ? qs : undefined,
+            title,
+            chapter: target,
+            day: null,
+          },
+        });
+
+        if (!r || typeof r.count !== "number") {
+          throw new Error("Server did not return a valid count. Please try again.");
+        }
+
         log[log.length - 1] = `${f.name}: ${r.count} questions added.`;
         onCreated();
-      } catch (e) { log[log.length - 1] = `${f.name}: ${e instanceof Error ? e.message : "Failed."}`; }
+      } catch (e) {
+        log[log.length - 1] = `${f.name}: ${e instanceof Error ? e.message : "Failed."}`;
+      }
       setStatus([...log]);
     }
     setBusy(false); setFiles([]); onCreated();
@@ -1167,9 +1393,24 @@ export function QuizPlayer({
             {x.explain && <p className="mt-1.5 text-xs text-muted-foreground">{en(x.explain)}</p>}
           </div>
         ))}
-        <Button className="w-full" onClick={onDone}>
-          Back to quizzes
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            className="w-full font-bold gap-1.5"
+            onClick={async () => {
+              const res = await shareQuizLink(quiz);
+              if (res.status === "copied" || res.status === "shared") {
+                alert(`Quiz link copied! Send it on WhatsApp/Telegram to invite your friends:\n\n${res.url}`);
+              }
+            }}
+          >
+            <Share2 size={15} className="text-primary" />
+            Share Quiz
+          </Button>
+          <Button className="w-full font-bold" onClick={onDone}>
+            Back to quizzes
+          </Button>
+        </div>
       </div>
     );
 

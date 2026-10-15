@@ -9,6 +9,7 @@ export type WorkspaceSearch = {
   ca?: "today" | "cards" | "quiz" | "week" | "notes";
   subject?: number;
   chapter?: string;
+  quizId?: string;
 };
 
 export function validateWorkspaceSearch(raw: Record<string, unknown>): WorkspaceSearch {
@@ -21,6 +22,7 @@ export function validateWorkspaceSearch(raw: Record<string, unknown>): Workspace
   const subject = Number(raw['subject']);
   if (raw['subject'] !== undefined && Number.isInteger(subject) && subject >= 0 && subject < 4) result.subject = subject;
   if (typeof raw['chapter'] === "string" && raw['chapter'].length > 0 && raw['chapter'].length <= 200) result.chapter = raw['chapter'];
+  if (typeof raw['quizId'] === "string" && raw['quizId'].length > 0 && raw['quizId'].length <= 128) result.quizId = raw['quizId'];
   return result;
 }
 

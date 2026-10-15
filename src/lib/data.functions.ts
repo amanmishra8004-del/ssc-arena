@@ -56,16 +56,44 @@ export const resetPassword = createServerFn({ method: "POST" })
     const db = await requireArun(data.username, data.password);
     await db.from("user_passwords" as any).delete().eq("username", data.target);
     await db.from("password_log" as any).insert({ username: data.target, old_password: null, new_password: DEFAULT_PASS } as any);
+    clearAuthCache(data.target);
     return { ok: true };
   });
 
+const authCheckCache = new Map<string, { ok: boolean; isDefault: boolean; expires: number }>();
+
+export function clearAuthCache(username?: string) {
+  if (username) {
+    const prefix = `${username.toLowerCase().trim()}:`;
+    for (const k of authCheckCache.keys()) {
+      if (k.startsWith(prefix)) authCheckCache.delete(k);
+    }
+  } else {
+    authCheckCache.clear();
+  }
+}
+
 export async function check(username: string, password: string): Promise<{ ok: boolean; isDefault: boolean }> {
-  if (!(await names()).includes(username)) return { ok: false, isDefault: false };
+  const normUser = username.toLowerCase().trim();
+  const cacheKey = `${normUser}:${password}`;
+  const now = Date.now();
+  const cached = authCheckCache.get(cacheKey);
+  if (cached && cached.expires > now) {
+    return { ok: cached.ok, isDefault: cached.isDefault };
+  }
+
+  if (!(await names()).includes(normUser)) return { ok: false, isDefault: false };
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("user_passwords" as any).select("password_hash").eq("username", username).maybeSingle();
+  const { data } = await supabaseAdmin.from("user_passwords" as any).select("password_hash").eq("username", normUser).maybeSingle();
   const row = data as { password_hash: string } | null;
-  if (!row) return { ok: password === DEFAULT_PASS, isDefault: true };
-  return { ok: row.password_hash === (await hash(password)), isDefault: false };
+  const result = !row
+    ? { ok: password === DEFAULT_PASS, isDefault: true }
+    : { ok: row.password_hash === (await hash(password)), isDefault: false };
+
+  if (result.ok) {
+    authCheckCache.set(cacheKey, { ...result, expires: now + 30_000 });
+  }
+  return result;
 }
 
 export const login = createServerFn({ method: "POST" })
@@ -90,6 +118,7 @@ export const changePassword = createServerFn({ method: "POST" })
       .upsert({ username: data.username, password_hash: await hash(data.newPassword), updated_at: new Date().toISOString() } as any);
     if (error) throw new Error(error.message);
     await supabaseAdmin.from("password_log" as any).insert({ username: data.username, old_password: data.password, new_password: data.newPassword } as any);
+    clearAuthCache(data.username);
     return { ok: true };
   });
 

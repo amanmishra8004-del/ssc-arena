@@ -72,6 +72,8 @@ export type UserData = {
   vocab: Vocab[];
   caq: { known: string[]; wrong: string[] };
   daySlots: Record<string, Slot[]>;
+  bbWordsMastered: string[];
+  bbIdiomsMastered: string[];
 };
 export type Vocab = { id: string; word: string; meaning: string; trick: string; example?: string; date: string };
 
@@ -85,6 +87,8 @@ export const emptyData = (): UserData => ({
   vocab: [],
   caq: { known: [], wrong: [] },
   daySlots: {},
+  bbWordsMastered: [],
+  bbIdiomsMastered: [],
 });
 
 export const normalize = (d: any): UserData => {
@@ -99,6 +103,8 @@ export const normalize = (d: any): UserData => {
     vocab: Array.isArray(d?.vocab) ? d.vocab : [],
     caq: { known: Array.isArray(d?.caq?.known) ? d.caq.known : [], wrong: Array.isArray(d?.caq?.wrong) ? d.caq.wrong : [] },
     daySlots: d?.daySlots && typeof d.daySlots === "object" ? d.daySlots : {},
+    bbWordsMastered: Array.isArray(d?.bbWordsMastered) ? d.bbWordsMastered : [],
+    bbIdiomsMastered: Array.isArray(d?.bbIdiomsMastered) ? d.bbIdiomsMastered : [],
   };
 };
 

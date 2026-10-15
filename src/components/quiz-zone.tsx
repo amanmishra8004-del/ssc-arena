@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileUp, Trash2, Trophy, Play, Check, X } from "lucide-react";
+import { FileUp, Trash2, Trophy, Play, Check, X, Clock, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SYLLABUS, chapterKey } from "@/lib/syllabus";
@@ -179,7 +179,12 @@ type MistakeItem = {
 export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; mode?: "quiz" | "test"; targetChapter?: string }) {
   const qc = useQueryClient();
   const q = useQuizzes();
-  const [playing, setPlaying] = useState<{ quiz: Quiz; questions?: QQ[] } | null>(null);
+  const [playing, setPlaying] = useState<{
+    quiz: Quiz;
+    questions?: QQ[];
+    timerMinutes?: number | null;
+  } | null>(null);
+  const [promptQuiz, setPromptQuiz] = useState<{ quiz: Quiz; questions?: QQ[] } | null>(null);
   const [filter, setFilter] = useState<"active" | "past" | "mistakes">("active");
   const [subjectFilter, setSubjectFilter] = useState<"all" | "maths" | "reasoning" | "english" | "ga" | "test">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -214,7 +219,7 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       });
 
       if (found) {
-        setPlaying({ quiz: found });
+        setPromptQuiz({ quiz: found });
       }
     }
   }, [targetChapter, quizzes]);
@@ -316,10 +321,21 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
     const ans = mine.answers as number[];
     const qList = Array.isArray(z.questions) ? z.questions : [];
     const wrong = qList.filter((x, i) => (ans[i] ?? -1) !== x.answer);
-    if (wrong.length) setPlaying({ quiz: z, questions: wrong });
+    if (wrong.length) setPromptQuiz({ quiz: z, questions: wrong });
   };
 
-  if (playing) return <QuizPlayer quiz={playing.quiz} questions={playing.questions} onDone={() => { setPlaying(null); refresh(); }} />;
+  if (playing)
+    return (
+      <QuizPlayer
+        quiz={playing.quiz}
+        questions={playing.questions}
+        timerMinutes={playing.timerMinutes}
+        onDone={() => {
+          setPlaying(null);
+          refresh();
+        }}
+      />
+    );
 
   return (
     <div className="space-y-4">
@@ -342,7 +358,7 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {targetQuiz && (
-              <Button size="sm" onClick={() => setPlaying({ quiz: targetQuiz })} className="font-bold text-xs shadow-md">
+              <Button size="sm" onClick={() => setPromptQuiz({ quiz: targetQuiz })} className="font-bold text-xs shadow-md">
                 <Play size={14} className="mr-1" /> Start Chapter Quiz
               </Button>
             )}
@@ -451,7 +467,7 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       ) : filter === "mistakes" ? (
         <MistakeBank
           mistakes={allMistakes}
-          onStartPractice={({ quiz, questions }) => setPlaying({ quiz, questions })}
+          onStartPractice={({ quiz, questions }) => setPromptQuiz({ quiz, questions })}
         />
       ) : shown.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center bg-card space-y-1">
@@ -466,12 +482,31 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
               quiz={z}
               attempts={attempts.filter((a) => a.quiz_id === z.id)}
               who={who}
-              onPlay={() => setPlaying({ quiz: z })}
+              onPlay={() => setPromptQuiz({ quiz: z })}
               onRetry={() => retryMissed(z)}
               onDeleted={refresh}
             />
           ))}
         </div>
+      )}
+
+      {promptQuiz && (
+        <TimerPromptModal
+          title={promptQuiz.quiz.title}
+          questionCount={
+            promptQuiz.questions?.length ??
+            (Array.isArray(promptQuiz.quiz.questions) ? promptQuiz.quiz.questions.length : 0)
+          }
+          onStart={(timerMinutes) => {
+            setPlaying({
+              quiz: promptQuiz.quiz,
+              questions: promptQuiz.questions,
+              timerMinutes,
+            });
+            setPromptQuiz(null);
+          }}
+          onClose={() => setPromptQuiz(null)}
+        />
       )}
     </div>
   );
@@ -873,7 +908,135 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
   );
 }
 
-function QuizPlayer({ quiz, questions, onDone }: { quiz: Quiz; questions?: QQ[] | undefined; onDone: () => void }) {
+export function TimerPromptModal({
+  title,
+  questionCount,
+  onStart,
+  onClose,
+}: {
+  title?: string;
+  questionCount?: number;
+  onStart: (timerMinutes: number | null) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-primary">
+              <Clock size={13} />
+              <span>Timer Settings</span>
+            </div>
+            <h3 className="text-base font-bold text-foreground mt-0.5">Choose Test Time</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+              {title || "Set a time limit or practice freely"}
+            </p>
+            {questionCount !== undefined && questionCount > 0 && (
+              <span className="inline-block mt-1 rounded bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                {questionCount} Questions
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          {/* Option 1: No Timer */}
+          <button
+            type="button"
+            onClick={() => onStart(null)}
+            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-primary/50 transition text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg">
+                ⚡
+              </span>
+              <div>
+                <p className="text-sm font-bold text-foreground group-hover:text-primary">
+                  No Timer (Practice)
+                </p>
+                <p className="text-[11px] text-muted-foreground">Solve calmly without time limit</p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground">Untimed</span>
+          </button>
+
+          {/* Option 2: 15 Minutes */}
+          <button
+            type="button"
+            onClick={() => onStart(15)}
+            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-amber-500/50 transition text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 text-lg">
+                ⏱️
+              </span>
+              <div>
+                <p className="text-sm font-bold text-foreground group-hover:text-amber-500">
+                  15 Minutes
+                </p>
+                <p className="text-[11px] text-muted-foreground">Quick sectional speed drill</p>
+              </div>
+            </div>
+            <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-black text-amber-500">
+              15 min
+            </span>
+          </button>
+
+          {/* Option 3: 25 Minutes */}
+          <button
+            type="button"
+            onClick={() => onStart(25)}
+            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-red-500/50 transition text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 text-lg">
+                ⏳
+              </span>
+              <div>
+                <p className="text-sm font-bold text-foreground group-hover:text-red-500">
+                  25 Minutes
+                </p>
+                <p className="text-[11px] text-muted-foreground">Standard SSC Tier 1 section time</p>
+              </div>
+            </div>
+            <span className="rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-black text-red-500">
+              25 min
+            </span>
+          </button>
+        </div>
+
+        <Button variant="ghost" size="sm" className="w-full text-xs font-semibold" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function QuizPlayer({
+  quiz,
+  questions,
+  timerMinutes,
+  onDone,
+}: {
+  quiz: Quiz;
+  questions?: QQ[] | undefined;
+  timerMinutes?: number | null;
+  onDone: () => void;
+}) {
   const qc = useQueryClient();
   const submit = useServerFn(submitQuiz);
   const qs = questions ?? quiz.questions;
@@ -882,65 +1045,223 @@ function QuizPlayer({ quiz, questions, onDone }: { quiz: Quiz; questions?: QQ[] 
   const [i, setI] = useState(0);
   const [result, setResult] = useState<{ score: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(() =>
+    timerMinutes ? timerMinutes * 60 : null
+  );
+
+  const ansRef = useRef(ans);
+  ansRef.current = ans;
+
   const qq = qs[i];
   const answered = ans.filter((a) => a >= 0).length;
 
-  if (result) return (
-    <div className="space-y-4">
-      <div className="rounded-lg border bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">{quiz.title}{practice ? " · Missed questions" : ""}</p>
-        <p className="mt-2 text-4xl font-bold">{result.score}/{result.total}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{practice ? "Practice score — not saved to the leaderboard." : "Your score has been saved."}</p>
-      </div>
-      <p className="text-sm font-semibold">Review answers</p>
-      {qs.map((x, k) => (
-        <div key={k} className={cn("rounded-lg border p-3.5", ans[k] === x.answer ? "border-primary/40 bg-primary/5" : "border-destructive/40 bg-destructive/5")}>
-          <p className="whitespace-pre-line text-sm font-semibold">{k + 1}. {en(x.q)}</p>
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm">{ans[k] === x.answer ? <Check size={15} className="text-primary" /> : <X size={15} className="text-destructive" />}Your answer: {ans[k] >= 0 ? en(x.options[ans[k]]) : "Not answered"}</p>
-          {ans[k] !== x.answer && <p className="mt-1 text-sm"><b>Correct:</b> {en(x.options[x.answer])}</p>}
-          {x.explain && <p className="mt-1.5 text-xs text-muted-foreground">{en(x.explain)}</p>}
+  const doSubmit = async (isAuto = false) => {
+    const currentAns = ansRef.current;
+    if (
+      !isAuto &&
+      answered < currentAns.length &&
+      !confirm(`${currentAns.length - answered} questions are unanswered. Submit anyway?`)
+    ) {
+      return;
+    }
+    setBusy(true);
+    if (isAuto) setTimeExpired(true);
+    try {
+      if (practice) {
+        setResult({
+          score: currentAns.filter((a, k) => a === qs[k].answer).length,
+          total: qs.length,
+        });
+      } else {
+        const r = await submit({ data: { ...creds(), quizId: quiz.id, answers: currentAns } });
+        setResult(r);
+        qc.invalidateQueries({ queryKey: ["quizzes"] });
+        qc.invalidateQueries({ queryKey: ["all"] });
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Unable to submit.");
+    }
+    setBusy(false);
+  };
+
+  useEffect(() => {
+    if (secondsLeft === null || result || busy) return;
+    if (secondsLeft <= 0) {
+      void doSubmit(true);
+      return;
+    }
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s === null) return null;
+        if (s <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft, result, busy]);
+
+  const formatTimer = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec < 10 ? "0" : ""}${sec}`;
+  };
+
+  if (result)
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl border bg-card p-6 text-center space-y-2">
+          {timeExpired && (
+            <span className="inline-block rounded-full bg-destructive/15 text-destructive px-3 py-1 text-xs font-bold mb-1">
+              ⏰ Time Expired — Auto-Submitted
+            </span>
+          )}
+          {timerMinutes && (
+            <span className="inline-block rounded-full bg-secondary text-muted-foreground px-2.5 py-0.5 text-xs font-semibold">
+              Timed Test ({timerMinutes} min limit)
+            </span>
+          )}
+          <p className="text-sm text-muted-foreground">
+            {quiz.title}
+            {practice ? " · Missed questions" : ""}
+          </p>
+          <p className="text-4xl font-black">
+            {result.score}/{result.total}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {practice
+              ? "Practice score — not saved to the leaderboard."
+              : "Your score has been saved to the leaderboard."}
+          </p>
         </div>
-      ))}
-      <Button className="w-full" onClick={onDone}>Back to quizzes</Button>
-    </div>
-  );
+        <p className="text-sm font-semibold">Review answers</p>
+        {qs.map((x, k) => (
+          <div
+            key={k}
+            className={cn(
+              "rounded-lg border p-3.5",
+              ans[k] === x.answer
+                ? "border-primary/40 bg-primary/5"
+                : "border-destructive/40 bg-destructive/5"
+            )}
+          >
+            <p className="whitespace-pre-line text-sm font-semibold">
+              {k + 1}. {en(x.q)}
+            </p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm">
+              {ans[k] === x.answer ? (
+                <Check size={15} className="text-primary" />
+              ) : (
+                <X size={15} className="text-destructive" />
+              )}
+              Your answer: {ans[k] >= 0 ? en(x.options[ans[k]]) : "Not answered"}
+            </p>
+            {ans[k] !== x.answer && (
+              <p className="mt-1 text-sm">
+                <b>Correct:</b> {en(x.options[x.answer])}
+              </p>
+            )}
+            {x.explain && <p className="mt-1.5 text-xs text-muted-foreground">{en(x.explain)}</p>}
+          </div>
+        ))}
+        <Button className="w-full" onClick={onDone}>
+          Back to quizzes
+        </Button>
+      </div>
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-sm">
-        <Button variant="ghost" size="sm" onClick={() => { if (confirm("Leave this quiz? Your answers will not be saved.")) onDone(); }}>Exit</Button>
-        <span className="text-muted-foreground">Question {i + 1} of {qs.length}{practice ? " · Missed" : ""}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (confirm("Leave this test? Your answers will not be saved.")) onDone();
+          }}
+        >
+          Exit
+        </Button>
+
+        {secondsLeft !== null && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-xs font-bold border transition-colors",
+              secondsLeft <= 60
+                ? "bg-destructive/15 text-destructive border-destructive/40 animate-pulse"
+                : secondsLeft <= 300
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40"
+                : "bg-secondary text-foreground border-border"
+            )}
+          >
+            <Clock
+              size={13}
+              className={
+                secondsLeft <= 60
+                  ? "text-destructive"
+                  : secondsLeft <= 300
+                  ? "text-amber-500"
+                  : "text-muted-foreground"
+              }
+            />
+            <span>{formatTimer(secondsLeft)}</span>
+          </div>
+        )}
+
+        <span className="text-muted-foreground">
+          Question {i + 1} of {qs.length}
+          {practice ? " · Missed" : ""}
+        </span>
       </div>
-      <div className="session-progress h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-primary transition-all" style={{ width: `${((i + 1) / qs.length) * 100}%` }} /></div>
+      <div className="session-progress h-1.5 overflow-hidden rounded-full bg-secondary">
+        <div
+          className="h-full bg-primary transition-all"
+          style={{ width: `${((i + 1) / qs.length) * 100}%` }}
+        />
+      </div>
       <div className="rounded-lg border bg-card p-4">
         <p className="whitespace-pre-line font-semibold">{en(qq.q)}</p>
         <div className="mt-3 space-y-2">
           {qq.options.map((o, k) => (
-            <Button variant="unstyled" key={k} aria-pressed={ans[i] === k} onClick={() => setAns((a) => a.map((v, j) => (j === i ? k : v)))} className={cn("flex w-full items-center rounded-lg border px-3.5 py-3 text-left text-sm transition", ans[i] === k ? "border-primary bg-primary/10 font-semibold" : "bg-card")}>
-              <span className={cn("mr-3 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold", ans[i] === k ? "border-primary bg-primary text-primary-foreground" : "bg-secondary")}>{String.fromCharCode(65 + k)}</span><span className="min-w-0 break-words">{en(o)}</span>
+            <Button
+              variant="unstyled"
+              key={k}
+              aria-pressed={ans[i] === k}
+              onClick={() => setAns((a) => a.map((v, j) => (j === i ? k : v)))}
+              className={cn(
+                "flex w-full items-center rounded-lg border px-3.5 py-3 text-left text-sm transition",
+                ans[i] === k ? "border-primary bg-primary/10 font-semibold" : "bg-card"
+              )}
+            >
+              <span
+                className={cn(
+                  "mr-3 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+                  ans[i] === k
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-secondary"
+                )}
+              >
+                {String.fromCharCode(65 + k)}
+              </span>
+              <span className="min-w-0 break-words">{en(o)}</span>
             </Button>
           ))}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" disabled={i === 0} onClick={() => setI(i - 1)}>Previous</Button>
-        {i < qs.length - 1
-          ? <Button onClick={() => setI(i + 1)}>Next</Button>
-          : <Button disabled={busy} onClick={async () => {
-              if (answered < ans.length && !confirm(`${ans.length - answered} questions are unanswered. Submit anyway?`)) return;
-              setBusy(true);
-              try {
-                if (practice) {
-                  setResult({ score: ans.filter((a, k) => a === qs[k].answer).length, total: qs.length });
-                } else {
-                  const r = await submit({ data: { ...creds(), quizId: quiz.id, answers: ans } });
-                  setResult(r);
-                  qc.invalidateQueries({ queryKey: ["quizzes"] });
-                  qc.invalidateQueries({ queryKey: ["all"] });
-                }
-              } catch (e) { alert(e instanceof Error ? e.message : "Unable to submit."); }
-              setBusy(false);
-            }}>{busy ? "Submitting…" : "Submit"}</Button>}
+        <Button variant="outline" disabled={i === 0} onClick={() => setI(i - 1)}>
+          Previous
+        </Button>
+        {i < qs.length - 1 ? (
+          <Button onClick={() => setI(i + 1)}>Next</Button>
+        ) : (
+          <Button disabled={busy} onClick={() => doSubmit(false)}>
+            {busy ? "Submitting…" : "Submit"}
+          </Button>
+        )}
       </div>
     </div>
   );

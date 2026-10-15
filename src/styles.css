@@ -133,6 +133,7 @@
 .arena-shell main button { -webkit-tap-highlight-color: transparent; }
 .section-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-bottom: 20px; }
 .section-tabs button { min-height: 58px; border: 1px solid var(--border); box-shadow: var(--shadow-soft); }
+.section-tabs button:last-child:nth-child(odd) { grid-column: span 2; }
 .section-tabs button[aria-pressed="true"] { border-color: var(--primary); background: var(--session-surface); color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .section-tabs button:nth-child(2):not([aria-pressed="true"]) svg { color: var(--chart-2); }
 .section-tabs button:nth-child(3):not([aria-pressed="true"]) svg { color: var(--accent); }
@@ -225,8 +226,8 @@
   .today-welcome h1 { font-size: 32px; }
   .welcome-companion { width: 140px; height: 140px; }
   .quick-access { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .quick-action { flex-direction: row; justify-content: flex-start; gap: 14px; }
-  .section-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .section-tabs { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .section-tabs button:last-child:nth-child(odd) { grid-column: auto; }
 }
 @media (max-width: 420px) {
   .arena-shell header { gap: 8px; padding-inline: 16px; }

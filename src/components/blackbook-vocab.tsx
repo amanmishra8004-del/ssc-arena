@@ -53,43 +53,106 @@ export function BlackBookVocabZone({
     setSearchQuery("");
   };
 
-  // 1. Vocabulary Words State & Storage
-  const [masteredWordIds, setMasteredWordIds] = useState<Set<string>>(() => {
+  // 1. Vocabulary Words State & Supabase Cloud Sync
+  const masteredWordIds = useMemo(() => {
+    const set = new Set<string>(data.bbWordsMastered ?? []);
     try {
       const stored = localStorage.getItem(`arena-bb-words-mastered-${who}`) || localStorage.getItem(`arena-bb-mastered-${who}`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) arr.forEach((id) => set.add(id));
+      }
+    } catch {}
+    return set;
+  }, [data.bbWordsMastered, who]);
+
+  // If local storage has mastered words not yet synced to Supabase DB, auto-save to cloud!
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`arena-bb-words-mastered-${who}`) || localStorage.getItem(`arena-bb-mastered-${who}`);
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr) && arr.length > 0) {
+          const dbSet = new Set(data.bbWordsMastered ?? []);
+          const hasUnsynced = arr.some((id) => !dbSet.has(id));
+          if (hasUnsynced) {
+            arr.forEach((id) => dbSet.add(id));
+            update((d) => {
+              d.bbWordsMastered = Array.from(dbSet);
+              return d;
+            });
+          }
+        }
+      }
+    } catch {}
+  }, [who]);
 
   const toggleMasteredWord = (id: string) => {
     const next = new Set(masteredWordIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    setMasteredWordIds(next);
+
+    const list = Array.from(next);
+    // 1. Save to Supabase Cloud via update() (so mobile & laptop are in 100% sync!)
+    update((d) => {
+      d.bbWordsMastered = list;
+      return d;
+    });
+
+    // 2. Also keep local storage updated
     try {
-      localStorage.setItem(`arena-bb-words-mastered-${who}`, JSON.stringify([...next]));
+      localStorage.setItem(`arena-bb-words-mastered-${who}`, JSON.stringify(list));
     } catch {}
   };
 
-  // 2. Idioms State & Storage
-  const [masteredIdiomIds, setMasteredIdiomIds] = useState<Set<string>>(() => {
+  // 2. Idioms State & Supabase Cloud Sync
+  const masteredIdiomIds = useMemo(() => {
+    const set = new Set<string>(data.bbIdiomsMastered ?? []);
     try {
       const stored = localStorage.getItem(`arena-bb-idioms-mastered-${who}`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) arr.forEach((id) => set.add(id));
+      }
+    } catch {}
+    return set;
+  }, [data.bbIdiomsMastered, who]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`arena-bb-idioms-mastered-${who}`);
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr) && arr.length > 0) {
+          const dbSet = new Set(data.bbIdiomsMastered ?? []);
+          const hasUnsynced = arr.some((id) => !dbSet.has(id));
+          if (hasUnsynced) {
+            arr.forEach((id) => dbSet.add(id));
+            update((d) => {
+              d.bbIdiomsMastered = Array.from(dbSet);
+              return d;
+            });
+          }
+        }
+      }
+    } catch {}
+  }, [who]);
 
   const toggleMasteredIdiom = (id: string) => {
     const next = new Set(masteredIdiomIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    setMasteredIdiomIds(next);
+
+    const list = Array.from(next);
+    // 1. Save to Supabase Cloud via update()
+    update((d) => {
+      d.bbIdiomsMastered = list;
+      return d;
+    });
+
+    // 2. Also keep local storage updated
     try {
-      localStorage.setItem(`arena-bb-idioms-mastered-${who}`, JSON.stringify([...next]));
+      localStorage.setItem(`arena-bb-idioms-mastered-${who}`, JSON.stringify(list));
     } catch {}
   };
 

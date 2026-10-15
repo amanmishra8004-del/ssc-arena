@@ -105,7 +105,7 @@ const richness = (d: any) => {
   let n = 0;
   for (const day of Object.values(d.daily ?? {})) n += Object.keys(day as object).length;
   n += Object.keys(d.chapters ?? {}).length;
-  n += (d.ca?.length ?? 0) + (d.mocks?.length ?? 0) + (d.vocab?.length ?? 0);
+  n += (d.ca?.length ?? 0) + (d.mocks?.length ?? 0) + (d.vocab?.length ?? 0) + (d.bbWordsMastered?.length ?? 0) + (d.bbIdiomsMastered?.length ?? 0);
   return n;
 };
 

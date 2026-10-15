@@ -12,6 +12,7 @@ import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, Ke
 import { QuizNudge, QuizZone, useQuizScores, useChapterQuizMap } from "@/components/quiz-zone";
 import { MathPracticeZone } from "@/components/math-practice";
 import { BlackBookVocabZone } from "@/components/blackbook-vocab";
+import { PYQPracticeZone } from "@/components/pyq-practice";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TimetableSortable } from "@/components/timetable-sortable";
@@ -202,7 +203,7 @@ const richnessScore = (d: any) => {
   let n = 0;
   for (const day of Object.values(d.daily ?? {})) n += Object.keys(day as object).length;
   n += Object.keys(d.chapters ?? {}).length;
-  n += (d.ca?.length ?? 0) + (d.mocks?.length ?? 0) + (d.vocab?.length ?? 0);
+  n += (d.ca?.length ?? 0) + (d.mocks?.length ?? 0) + (d.vocab?.length ?? 0) + (d.bbWordsMastered?.length ?? 0) + (d.bbIdiomsMastered?.length ?? 0);
   return n;
 };
 
@@ -831,8 +832,6 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
                           <input value={st.marks ?? ""} onChange={(e) => set({ marks: e.target.value })} placeholder="PYQ marks 18/25"
                             className="w-32 rounded-full border border-input bg-secondary px-3 py-2 text-xs outline-none focus:border-primary" />
                         )}
-                        <input value={st.quiz ?? ""} onChange={(e) => set({ quiz: e.target.value })} placeholder="Quiz marks 8/10"
-                          className="w-32 rounded-full border border-input bg-secondary px-3 py-2 text-xs outline-none focus:border-primary" />
                       </div>
                       {(() => {
                         const mk = USERS.filter((u) => all[u].chapters[k]?.marks || all[u].chapters[k]?.quiz);
@@ -871,13 +870,14 @@ function weekLabel(d = new Date()) {
 
 function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: Record<string, UserData>; who: string }) {
   const { search, change } = useWorkspaceNavigation();
-  const view = search.practice === "quiz" || search.practice === "mock" || search.practice === "tests" ? "ca" : search.practice ?? "ca";
-  const setView = (practice: "ca" | "tables" | "vocab" | "idioms") => change({ practice });
+  const view = search.practice === "quiz" || search.practice === "mock" || search.practice === "tests" ? "pyq" : search.practice ?? "pyq";
+  const setView = (practice: "pyq" | "ca" | "tables" | "vocab" | "idioms") => change({ practice });
   return (
     <div className="space-y-4">
       <Hint icon="" title="Practice" character={practiceRobot} />
       <div className="section-tabs">
         {([
+          ["pyq", FileText, "PYQ Papers"],
           ["ca", Newspaper, "Current affairs"],
           ["tables", Hash, "Maths calculations"],
           ["vocab", Type, "Vocabulary (1000)"],
@@ -888,7 +888,9 @@ function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: 
           </Button>
         ))}
       </div>
-      {view === "ca" ? (
+      {view === "pyq" ? (
+        <PYQPracticeZone who={who} />
+      ) : view === "ca" ? (
         <CAZone data={data} update={update} all={all} who={who} />
       ) : view === "tables" ? (
         <MathPracticeZone data={data} update={update} all={all} />

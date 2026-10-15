@@ -20,7 +20,6 @@ export function buildMessages(users: string[], rows: { username: string; data: u
 
   const out: Msg[] = [];
 
-  // Everyone: 3 reminders a day — 5 PM, 7 PM, 9 PM (IST) — to update tasks & syllabus
   for (const u of users) {
     const d = data[u];
     const done = d.daily[key] ?? {};
@@ -29,16 +28,65 @@ export function buildMessages(users: string[], rows: { username: string; data: u
     const doneCount = sl.filter((s) => done[s.id]).length;
     const pending = total - doneCount;
 
-    out.push({
-      username: u,
-      title: `📝 ${pending > 0 ? `${pending} task baaki hain` : "Sab done! Par update karo"}`,
-      body: pick([
-        `Website kholo — aaj ke tasks tick karo aur syllabus update karo ✅`,
-        `Jitna padha, utna mark karo. Tasks + syllabus update karo 📚`,
-        `Update karo tasks aur syllabus — warna ranking me peeche reh jaoge 😏`,
-      ]),
+    // 1. High-priority: Alert 0-15 minutes BEFORE task start time (e.g. 9:55 AM for 10:00 AM task)
+    const upcomingSlot = sl.find((s) => {
+      if (done[s.id]) return false;
+      const parts = s.start.split(":").map(Number);
+      if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return false;
+      const slotMin = parts[0] * 60 + parts[1];
+      const diff = slotMin - min;
+      return diff >= 0 && diff <= 15;
     });
+
+    if (upcomingSlot) {
+      const parts = upcomingSlot.start.split(":").map(Number);
+      const slotMin = parts[0] * 60 + parts[1];
+      const diff = slotMin - min;
+      const whenStr = diff <= 2 ? "Right now" : `in ${diff} minutes`;
+      out.push({
+        username: u,
+        title: `⏰ Next Task: ${upcomingSlot.name} at ${upcomingSlot.start}`,
+        body: `Starting ${whenStr}! Open Arena to track your study slot and maintain your daily streak 🔥`,
+      });
+      continue;
+    }
+
+    // 2. Fallback: 3 to 4 scheduled daily checkpoint reminders
+    // Morning (9:00 - 9:15), Afternoon (14:00 - 14:15), Evening (18:30 - 18:45), Night Recap (21:45 - 22:00)
+    const isMorning = min >= 540 && min <= 555;
+    const isAfternoon = min >= 840 && min <= 855;
+    const isEvening = min >= 1110 && min <= 1125;
+    const isNight = min >= 1305 && min <= 1320;
+
+    if (isMorning || isAfternoon || isEvening || isNight) {
+      if (isMorning) {
+        out.push({
+          username: u,
+          title: `☀️ Morning Kickoff: ${total} tasks planned today`,
+          body: `Today is a new day! Review your timetable and start your first study session.`,
+        });
+      } else if (isNight) {
+        out.push({
+          username: u,
+          title: pending > 0 ? `🌙 Day Ending: ${pending} tasks incomplete` : `🏆 All ${total} tasks finished!`,
+          body: pending > 0
+            ? `Tick off any completed tasks and update your syllabus marks before midnight.`
+            : `Outstanding work today! Check your ranking on the arena leaderboard.`,
+        });
+      } else {
+        out.push({
+          username: u,
+          title: `📝 ${pending > 0 ? `${pending} tasks remaining today` : "Great progress! All tasks on track"}`,
+          body: pick([
+            `Open Study Arena to tick completed tasks & update syllabus progress.`,
+            `Consistency beats intensity! Keep your daily streak alive.`,
+            `Update your completed chapters and practice scores to climb ranks.`,
+          ]),
+        });
+      }
+    }
   }
+
   return out;
 }
 

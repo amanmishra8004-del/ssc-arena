@@ -250,6 +250,8 @@ function generateCards(topic: TopicKey): MathCard[] {
   return cards.sort(() => Math.random() - 0.5);
 }
 
+type SubModeKey = "learn" | "flashcard" | "practice" | "quiz";
+
 export function MathPracticeZone({
   data,
   update,
@@ -259,8 +261,8 @@ export function MathPracticeZone({
   update: Upd;
   all: Record<string, UserData>;
 }) {
-  const [topic, setTopic] = useState<TopicKey>("tables");
-  const [mode, setMode] = useState<ModeKey>("quiz");
+  const [selectedTopic, setSelectedTopic] = useState<TopicKey | null>(null);
+  const [subMode, setSubMode] = useState<SubModeKey>("learn");
   const [showTargets, setShowTargets] = useState(false);
   const [mastered, setMastered] = useState<Set<string>>(() => {
     try {
@@ -281,160 +283,305 @@ export function MathPracticeZone({
     } catch {}
   };
 
-  const topicsList: { key: TopicKey; label: string; icon: string; badge: string }[] = [
-    { key: "tables", label: "Multiplication Tables", icon: "🔢", badge: "1 to 30" },
-    { key: "squares", label: "Squares", icon: "🔲", badge: "1 to 40" },
-    { key: "cubes", label: "Cubes", icon: "🧊", badge: "1 to 30" },
-    { key: "percentages", label: "Fraction to %", icon: "🎯", badge: "1/1 to 1/20" },
-    { key: "add_sub", label: "Fast Addition & Subtraction", icon: "⚡", badge: "2-Digit Drills" },
-    { key: "mul_div", label: "Fast Multiplication & Division", icon: "✖️", badge: "Speed Drills" },
-    { key: "divisibility", label: "Divisibility Rules", icon: "🔍", badge: "2 to 88" },
+  const topicsList: {
+    key: TopicKey;
+    label: string;
+    icon: string;
+    badge: string;
+    desc: string;
+    color: string;
+  }[] = [
+    {
+      key: "tables",
+      label: "Multiplication Tables",
+      icon: "🔢",
+      badge: "1 to 30",
+      desc: "Speed tables up to 30 tested in Tier 1 & 2 arithmetic calculations.",
+      color: "from-blue-500/10 to-indigo-500/10 border-blue-500/30",
+    },
+    {
+      key: "squares",
+      label: "Squares",
+      icon: "🔲",
+      badge: "1 to 40",
+      desc: "Instant mental recall of square values & roots from 1² to 40².",
+      color: "from-emerald-500/10 to-teal-500/10 border-emerald-500/30",
+    },
+    {
+      key: "cubes",
+      label: "Cubes",
+      icon: "🧊",
+      badge: "1 to 30",
+      desc: "Essential cubes up to 30³ for Compound Interest, Mensuration & Algebra.",
+      color: "from-amber-500/10 to-orange-500/10 border-amber-500/30",
+    },
+    {
+      key: "percentages",
+      label: "Fraction to % Values",
+      icon: "🎯",
+      badge: "1/1 to 1/20",
+      desc: "Crucial reciprocal fractions (1/7 = 14.28%, 1/8 = 12.5%, 3/8 = 37.5%).",
+      color: "from-rose-500/10 to-pink-500/10 border-rose-500/30",
+    },
+    {
+      key: "add_sub",
+      label: "Fast Addition & Subtraction",
+      icon: "⚡",
+      badge: "2-Digit Drills",
+      desc: "Rapid split-and-combine mental addition and nearest-10 subtraction.",
+      color: "from-violet-500/10 to-purple-500/10 border-violet-500/30",
+    },
+    {
+      key: "mul_div",
+      label: "Fast Multiplication & Division",
+      icon: "✖️",
+      badge: "Speed Shortcuts",
+      desc: "Vedic cross-multiplication, base-100 arithmetic, /5, /25 shortcuts.",
+      color: "from-cyan-500/10 to-sky-500/10 border-cyan-500/30",
+    },
+    {
+      key: "divisibility",
+      label: "Divisibility Rules",
+      icon: "🔍",
+      badge: "2 to 88 Master Rules",
+      desc: "Direct verification rules for 2, 3, 4, 7, 8, 9, 11, 13, 17, 19, 72, 88.",
+      color: "from-emerald-500/10 to-green-500/10 border-emerald-500/30",
+    },
   ];
 
-  return (
-    <div className="space-y-4">
-      {/* 1. Page Hero Card: Speed Math Arena */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-card via-card/95 to-primary/10 p-5 shadow-lg backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary tracking-wide">
-                <Zap size={13} /> Speed Arithmetic Lab
-              </span>
-              <span className="text-xs font-semibold text-muted-foreground">SSC CGL · CHSL · CPO</span>
+  const currentTopicMeta = topicsList.find((t) => t.key === selectedTopic);
+
+  // -------------------------------------------------------------
+  // VIEW A: 7-SECTION CALCULATION HUB (When no topic is selected)
+  // -------------------------------------------------------------
+  if (!selectedTopic) {
+    return (
+      <div className="space-y-5">
+        {/* Hero Card: Speed Math Arena */}
+        <div className="relative overflow-hidden rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-card via-card/95 to-primary/10 p-5 sm:p-6 shadow-md backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary tracking-wide">
+                  <Zap size={13} /> SSC Speed Math Arena
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground">High-Yield Arithmetic Lab</span>
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Calculation Practice Hub
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
+                Choose any calculation section below to start. Each section includes complete reference charts, 3D flash cards, rapid speed practice, and sprint MCQ quizzes.
+              </p>
             </div>
-            <h2 className="font-display text-2xl font-black tracking-tight text-foreground">
-              Calculation Practice Zone
-            </h2>
-            <p className="text-xs text-muted-foreground max-w-xl">
-              Master rapid mental arithmetic, multiplication tables up to 30, squares, cubes, percentage fractions, and high-yield divisibility rules.
-            </p>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTargets(!showTargets)}
+              className="flex items-center gap-1.5 rounded-xl border-primary/30 text-xs font-bold shadow-sm shrink-0"
+            >
+              <Sliders size={14} className="text-primary" />
+              {showTargets ? "Hide Target Sliders" : "Set Target Milestones"}
+            </Button>
           </div>
 
+          {/* Target Milestone Sliders (Collapsible Drawer) */}
+          {showTargets && (
+            <div className="mt-4 pt-4 border-t border-border/80 grid gap-3 sm:grid-cols-3 animate-in fade-in zoom-in-95 duration-200">
+              {([
+                ["table", "Tables up to", 30],
+                ["square", "Squares up to", 40],
+                ["cube", "Cubes up to", 30],
+              ] as const).map(([k, label, max]) => (
+                <div key={k} className="rounded-xl border bg-secondary/50 p-3 shadow-inner">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span>{label}</span>
+                    <span className="text-lg font-black text-primary font-display">{data.tables[k]}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={max}
+                    value={data.tables[k]}
+                    className="mt-2 w-full accent-[var(--color-primary)] cursor-pointer"
+                    onChange={(e) => {
+                      const v = +e.target.value;
+                      update((d) => {
+                        d.tables[k] = v;
+                        return d;
+                      });
+                    }}
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                    <span>0</span>
+                    <span>Target: {max}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Live Milestone Badges */}
+          <div className="mt-4 pt-3 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-secondary/60 p-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tables Memorised</p>
+              <p className="font-display text-lg font-black text-primary">{data.tables.table} / 30</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Squares Memorised</p>
+              <p className="font-display text-lg font-black text-emerald-600 dark:text-emerald-400">{data.tables.square} / 40</p>
+            </div>
+            <div className="rounded-xl bg-secondary/60 p-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cubes Memorised</p>
+              <p className="font-display text-lg font-black text-amber-500">{data.tables.cube} / 30</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 7 Section Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {topicsList.map((t) => (
+            <div
+              key={t.key}
+              onClick={() => {
+                setSelectedTopic(t.key);
+                setSubMode("learn");
+              }}
+              className={cn(
+                "group cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg bg-gradient-to-br bg-card flex flex-col justify-between space-y-4",
+                t.color
+              )}
+            >
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-3xl p-2 rounded-xl bg-card border shadow-sm group-hover:scale-110 transition-transform">
+                    {t.icon}
+                  </span>
+                  <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-extrabold text-primary">
+                    {t.badge}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-black tracking-tight text-foreground group-hover:text-primary transition-colors">
+                    {t.label}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    {t.desc}
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Mini Steps indicators */}
+              <div className="pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground mb-2">
+                  <span>1. Learn</span>
+                  <span>·</span>
+                  <span>2. Flashcards</span>
+                  <span>·</span>
+                  <span>3. Practice</span>
+                  <span>·</span>
+                  <span>4. Quiz</span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-black text-primary group-hover:translate-x-0.5 transition-transform">
+                  <span>Open Section</span>
+                  <ArrowRight size={14} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW B: FOCUSED SECTION VIEW (With 4 Ordered Sub-Modes)
+  // -------------------------------------------------------------
+  return (
+    <div className="space-y-4">
+      {/* Back to Hub Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border-2 border-border/80 bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowTargets(!showTargets)}
-            className="flex items-center gap-1.5 rounded-xl border-primary/30 text-xs font-bold shadow-sm shrink-0"
+            onClick={() => setSelectedTopic(null)}
+            className="rounded-xl px-3 font-bold text-xs border-primary/30 hover:bg-primary/10"
           >
-            <Sliders size={14} className="text-primary" />
-            {showTargets ? "Hide Target Sliders" : "Set Memorized Targets"}
+            <ChevronLeft size={16} className="mr-1 text-primary" /> Back to Calculation Hub
           </Button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{currentTopicMeta?.icon}</span>
+            <div>
+              <p className="font-display text-base font-black tracking-tight text-foreground">
+                {currentTopicMeta?.label}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{currentTopicMeta?.badge}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Target Milestone Sliders (Collapsible Drawer) */}
-        {showTargets && (
-          <div className="mt-4 pt-4 border-t border-border/80 grid gap-3 sm:grid-cols-3 animate-in fade-in zoom-in-95 duration-200">
-            {([
-              ["table", "Tables up to", 30],
-              ["square", "Squares up to", 40],
-              ["cube", "Cubes up to", 30],
-            ] as const).map(([k, label, max]) => (
-              <div key={k} className="rounded-xl border bg-secondary/50 p-3 shadow-inner">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span>{label}</span>
-                  <span className="text-lg font-black text-primary font-display">{data.tables[k]}</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={max}
-                  value={data.tables[k]}
-                  className="mt-2 w-full accent-[var(--color-primary)] cursor-pointer"
-                  onChange={(e) => {
-                    const v = +e.target.value;
-                    update((d) => {
-                      d.tables[k] = v;
-                      return d;
-                    });
-                  }}
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                  <span>0</span>
-                  <span>Target: {max}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Live Milestone Badges */}
-        <div className="mt-4 pt-3 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-lg bg-secondary/60 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tables Memorised</p>
-            <p className="font-display text-lg font-black text-primary">{data.tables.table} / 30</p>
-          </div>
-          <div className="rounded-lg bg-secondary/60 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Squares Memorised</p>
-            <p className="font-display text-lg font-black text-emerald-600 dark:text-emerald-400">{data.tables.square} / 40</p>
-          </div>
-          <div className="rounded-lg bg-secondary/60 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cubes Memorised</p>
-            <p className="font-display text-lg font-black text-amber-500">{data.tables.cube} / 30</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Topic Selector (Touch-friendly Pill Grid) */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {topicsList.map((t) => {
-          const active = topic === t.key;
-          return (
+        {/* Quick topic switcher pills */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+          {topicsList.map((t) => (
             <Button
               variant="unstyled"
               key={t.key}
-              onClick={() => setTopic(t.key)}
+              onClick={() => setSelectedTopic(t.key)}
+              title={t.label}
               className={cn(
-                "group relative shrink-0 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all text-left flex items-center gap-2 border",
-                active
-                  ? "border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]"
-                  : "border-border/60 bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                "h-8 w-8 rounded-lg text-sm flex items-center justify-center shrink-0 border transition-all",
+                selectedTopic === t.key
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                  : "border-border bg-secondary/60 text-muted-foreground hover:bg-secondary"
               )}
             >
-              <span className="text-base">{t.icon}</span>
-              <div>
-                <p className="leading-tight font-semibold">{t.label}</p>
-                <p className={cn("text-[10px] font-normal", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                  {t.badge}
-                </p>
-              </div>
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* 3. Interactive Mode Switcher (Clean Segmented Bar) */}
-      <div className="flex items-center justify-between border-b pb-2">
-        <div className="flex gap-1 overflow-x-auto">
-          {([
-            ["quiz", Zap, "Speed MCQ Quiz"],
-            ["flashcard", Sparkles, "Flippable Flashcards"],
-            ["chart", Eye, "Cheat Sheet Table"],
-            ["tricks", Lightbulb, "Mental Math Tricks"],
-          ] as const).map(([mKey, Icon, label]) => (
-            <Button
-              variant="unstyled"
-              key={mKey}
-              onClick={() => setMode(mKey)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0",
-                mode === mKey
-                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
-              )}
-            >
-              <Icon size={14} />
-              <span>{label}</span>
+              {t.icon}
             </Button>
           ))}
         </div>
       </div>
 
-      {/* 4. Active Interactive Experience */}
-      {mode === "quiz" && <SpeedQuiz topic={topic} onMastered={markMastered} mastered={mastered} />}
-      {mode === "flashcard" && <FlashcardDeck topic={topic} onMastered={markMastered} mastered={mastered} />}
-      {mode === "chart" && <ReferenceChart topic={topic} />}
-      {mode === "tricks" && <CalculationTricksView />}
+      {/* 4 Ordered Modes Switcher Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {([
+          ["learn", Eye, "1. Learn & Charts", "Reference rules & cheatsheet"],
+          ["flashcard", Sparkles, "2. Flash Cards", "3D flippable memory cards"],
+          ["practice", Zap, "3. Speed Practice", "Rapid mental speed drills"],
+          ["quiz", Trophy, "4. MCQ Quiz", "10-question sprint test"],
+        ] as const).map(([mKey, Icon, label, subtitle]) => {
+          const active = subMode === mKey;
+          return (
+            <Button
+              variant="unstyled"
+              key={mKey}
+              onClick={() => setSubMode(mKey)}
+              className={cn(
+                "rounded-xl p-3 text-left transition-all border-2 flex flex-col justify-between",
+                active
+                  ? "border-primary bg-primary text-primary-foreground shadow-md scale-[1.02]"
+                  : "border-border/80 bg-card text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              )}
+            >
+              <div className="flex items-center gap-1.5 font-bold text-xs">
+                <Icon size={14} className={active ? "text-primary-foreground" : "text-primary"} />
+                <span>{label}</span>
+              </div>
+              <p className={cn("text-[10px] mt-1 truncate", active ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                {subtitle}
+              </p>
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* Active Sub-Mode Content */}
+      {subMode === "learn" && <LearnAndCheatSheetView topic={selectedTopic} />}
+      {subMode === "flashcard" && <FlashcardDeck topic={selectedTopic} onMastered={markMastered} mastered={mastered} />}
+      {subMode === "practice" && <SpeedMentalPractice topic={selectedTopic} onMastered={markMastered} mastered={mastered} />}
+      {subMode === "quiz" && <SpeedQuiz topic={selectedTopic} onMastered={markMastered} mastered={mastered} />}
     </div>
   );
 }
@@ -723,7 +870,282 @@ function FlashcardDeck({
 }
 
 // -------------------------------------------------------------
-// 3. Complete Reference Cheat Sheet Table with Search
+// 3. Ultra-Rapid Speed Mental Arithmetic Drill (Mode 3: Practice)
+// -------------------------------------------------------------
+function SpeedMentalPractice({
+  topic,
+  onMastered,
+  mastered,
+}: {
+  topic: TopicKey;
+  onMastered: (id: string) => void;
+  mastered: Set<string>;
+}) {
+  const cards = useMemo(() => generateCards(topic), [topic]);
+  const [index, setIndex] = useState(0);
+  const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [totalSolved, setTotalSolved] = useState(0);
+  const [showHint, setShowHint] = useState(false);
+  const [startTime, setStartTime] = useState(() => Date.now());
+  const [avgSpeedSec, setAvgSpeedSec] = useState<number | null>(null);
+
+  const current = cards[index % cards.length];
+
+  const handleAnswer = (opt: string) => {
+    if (selectedOpt !== null || !current) return;
+    setSelectedOpt(opt);
+
+    const elapsed = (Date.now() - startTime) / 1000;
+    const isCorrect = opt === current.answer;
+
+    if (isCorrect) {
+      const nextStreak = streak + 1;
+      setStreak(nextStreak);
+      if (nextStreak > bestStreak) setBestStreak(nextStreak);
+      setTotalSolved((t) => t + 1);
+      setAvgSpeedSec((prev) => (prev ? +(prev * 0.7 + elapsed * 0.3).toFixed(1) : +elapsed.toFixed(1)));
+      onMastered(current.id);
+
+      // Rapid advance for smooth speed drilling
+      setTimeout(() => {
+        setSelectedOpt(null);
+        setShowHint(false);
+        setIndex((i) => i + 1);
+        setStartTime(Date.now());
+      }, 350);
+    } else {
+      setStreak(0);
+      setTimeout(() => {
+        setSelectedOpt(null);
+      }, 900);
+    }
+  };
+
+  const skipNext = () => {
+    setSelectedOpt(null);
+    setShowHint(false);
+    setIndex((i) => i + 1);
+    setStartTime(Date.now());
+  };
+
+  if (!current) return null;
+
+  return (
+    <div className="rounded-2xl border-2 border-border/80 bg-card p-5 sm:p-6 space-y-5 shadow-md">
+      {/* Top Status Bar: Live Metrics */}
+      <div className="flex items-center justify-between text-xs font-bold">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-primary/10 text-primary px-3 py-1 border border-primary/20">
+            ⚡ Rapid Drill #{totalSolved + 1}
+          </span>
+          {avgSpeedSec && (
+            <span className="text-muted-foreground hidden sm:inline">
+              Avg: <span className="text-foreground">{avgSpeedSec}s</span>/ans
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {streak > 1 && (
+            <span className="flex items-center gap-1 font-extrabold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full animate-pulse">
+              <Flame size={14} /> {streak} Streak
+            </span>
+          )}
+          <span className="text-muted-foreground text-[11px]">
+            Best: <span className="text-foreground">{bestStreak}</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Main Flash Question Box */}
+      <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-b from-secondary/40 via-card to-secondary/20 p-8 sm:p-10 text-center space-y-3 shadow-inner">
+        <p className="text-4xl sm:text-5xl font-black font-display tracking-tight text-foreground select-none">
+          {current.question}
+        </p>
+        {showHint && current.hint && (
+          <p className="text-xs text-primary font-bold bg-primary/10 py-1.5 px-3 rounded-xl inline-block border border-primary/30 animate-in fade-in">
+            💡 {current.hint}
+          </p>
+        )}
+      </div>
+
+      {/* Rapid Tap Choices */}
+      <div className="grid grid-cols-2 gap-3">
+        {current.options.map((opt) => {
+          const isChosen = selectedOpt === opt;
+          const isCorrectAnswer = opt === current.answer;
+          let btnCls = "border-2 border-border bg-card hover:bg-secondary/70 hover:border-primary/50 text-foreground";
+
+          if (selectedOpt !== null) {
+            if (isCorrectAnswer) {
+              btnCls = "border-emerald-500 bg-emerald-500/20 text-emerald-600 font-extrabold shadow-md dark:text-emerald-400";
+            } else if (isChosen) {
+              btnCls = "border-destructive bg-destructive/20 text-destructive font-extrabold";
+            }
+          }
+
+          return (
+            <Button
+              variant="unstyled"
+              key={opt}
+              disabled={selectedOpt !== null}
+              onClick={() => handleAnswer(opt)}
+              className={cn(
+                "h-16 rounded-2xl text-xl sm:text-2xl font-black font-display transition-all duration-100 flex items-center justify-center border active:scale-95 shadow-sm",
+                btnCls
+              )}
+            >
+              <span>{opt}</span>
+              {selectedOpt !== null && isCorrectAnswer && (
+                <Check size={20} className="ml-2 text-emerald-500 shrink-0" />
+              )}
+              {selectedOpt !== null && isChosen && !isCorrectAnswer && (
+                <X size={20} className="ml-2 text-destructive shrink-0" />
+              )}
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* Footer Speed Bar */}
+      <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowHint(!showHint)}
+          className="text-xs text-muted-foreground hover:text-primary font-bold"
+        >
+          <Lightbulb size={14} className="mr-1.5" />
+          {showHint ? "Hide Shortcut Hint" : "Need Shortcut Hint?"}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={skipNext}
+          className="rounded-xl px-4 text-xs font-bold border-border/80"
+        >
+          Skip Question →
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// 4. Combined Learn & Cheat Sheet View (Mode 1: Learn)
+// -------------------------------------------------------------
+function LearnAndCheatSheetView({ topic }: { topic: TopicKey }) {
+  return (
+    <div className="space-y-5">
+      {/* Reference Chart / Table for this specific topic */}
+      <ReferenceChart topic={topic} />
+
+      {/* Topic-specific Mental Calculation Tricks */}
+      <TopicSpecificTricks topic={topic} />
+    </div>
+  );
+}
+
+function TopicSpecificTricks({ topic }: { topic: TopicKey }) {
+  if (topic === "squares") {
+    return (
+      <div className="rounded-2xl border-2 border-primary/25 bg-card p-5 space-y-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Lightbulb size={20} className="text-primary" />
+          <h3 className="font-display font-black text-base text-foreground">
+            Squares Mental Math Shortcuts
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="rounded-xl border bg-secondary/30 p-3.5 space-y-1.5">
+            <p className="font-bold text-primary">1. Numbers ending in 5</p>
+            <p className="text-muted-foreground">Multiply tens digit by next integer, then append 25.</p>
+            <p className="font-mono bg-card p-2 rounded border font-semibold">35² → 3 × 4 = 12 → 1225</p>
+            <p className="font-mono bg-card p-2 rounded border font-semibold">75² → 7 × 8 = 56 → 5625</p>
+          </div>
+
+          <div className="rounded-xl border bg-secondary/30 p-3.5 space-y-1.5">
+            <p className="font-bold text-primary">2. Numbers near 50 (Base 50)</p>
+            <p className="text-muted-foreground">For (50 ± d)²: Part 1 = 25 ± d, Part 2 = d².</p>
+            <p className="font-mono bg-card p-2 rounded border font-semibold">53² → (25+3) | 3² = 2809</p>
+            <p className="font-mono bg-card p-2 rounded border font-semibold">47² → (25-3) | 3² = 2209</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (topic === "cubes") {
+    return (
+      <div className="rounded-2xl border-2 border-amber-500/25 bg-card p-5 space-y-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Lightbulb size={20} className="text-amber-500" />
+          <h3 className="font-display font-black text-base text-foreground">
+            Cubes Last Digit Mapping (Unit Digit Rule)
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">1³ → ends in <b>1</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">2³ → ends in <b className="text-primary">8</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">3³ → ends in <b className="text-primary">7</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">4³ → ends in <b>4</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">5³ → ends in <b>5</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">6³ → ends in <b>6</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">7³ → ends in <b className="text-primary">3</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">8³ → ends in <b className="text-primary">2</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">9³ → ends in <b>9</b></div>
+          <div className="p-2 rounded-lg bg-secondary/40 border text-center">0³ → ends in <b>0</b></div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Notice the complementary pairs: <b>2 ↔ 8</b> and <b>3 ↔ 7</b> swap unit digits. All other digits keep the same unit digit!
+        </p>
+      </div>
+    );
+  }
+
+  if (topic === "percentages") {
+    return (
+      <div className="rounded-2xl border-2 border-rose-500/25 bg-card p-5 space-y-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Lightbulb size={20} className="text-rose-500" />
+          <h3 className="font-display font-black text-base text-foreground">
+            Percentage Splitting Method
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="rounded-xl border bg-secondary/30 p-3 space-y-1">
+            <p className="font-bold text-primary">10% Benchmark</p>
+            <p className="text-muted-foreground">Shift decimal point one place left.</p>
+            <p className="font-mono bg-card p-1.5 rounded border">10% of 460 = 46</p>
+          </div>
+          <div className="rounded-xl border bg-secondary/30 p-3 space-y-1">
+            <p className="font-bold text-primary">5% Benchmark</p>
+            <p className="text-muted-foreground">Half of 10% value.</p>
+            <p className="font-mono bg-card p-1.5 rounded border">5% of 460 = 23</p>
+          </div>
+          <div className="rounded-xl border bg-secondary/30 p-3 space-y-1">
+            <p className="font-bold text-primary">1% Benchmark</p>
+            <p className="text-muted-foreground">Shift decimal point two places left.</p>
+            <p className="font-mono bg-card p-1.5 rounded border">1% of 460 = 4.6</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (topic === "mul_div") {
+    return <CalculationTricksView />;
+  }
+
+  return null;
+}
+
+// -------------------------------------------------------------
+// Reference Chart Component
 // -------------------------------------------------------------
 function ReferenceChart({ topic }: { topic: TopicKey }) {
   const [search, setSearch] = useState("");

@@ -43,6 +43,38 @@ export function useQuizScores() {
   }, [q.data]);
 }
 
+// Available active chapter quizzes mapping for direct Syllabus button launch
+export function useChapterQuizMap() {
+  const q = useQuizzes();
+  return useMemo(() => {
+    const out: Record<string, { id: string; title: string; count: number; quiz: Quiz }> = {};
+    const qz = (q.data?.quizzes ?? []) as Quiz[];
+    for (const z of qz) {
+      if (!z.expired && z.chapter) {
+        out[z.chapter] = { id: z.id, title: z.title, count: z.questions.length, quiz: z };
+      }
+    }
+    return out;
+  }, [q.data]);
+}
+
+export function detectQuizSubject(quiz: { chapter?: string | null; title: string }): "maths" | "reasoning" | "english" | "ga" | "test" {
+  const ch = (quiz.chapter || "").toLowerCase();
+  const t = quiz.title.toLowerCase();
+  if (ch.startsWith("test:") || t.includes("mock") || t.includes("full test")) return "test";
+  
+  if (SYLLABUS[0].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "maths";
+  if (SYLLABUS[1].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "reasoning";
+  if (SYLLABUS[2].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "english";
+  if (SYLLABUS[3].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "ga";
+  
+  if (/math|arithmetic|advance|number|ratio|percentage|algebra|geometry|trig|mensuration|si|ci|profit|loss|time|speed|boat|pipe|square|cube|table/i.test(ch + " " + t)) return "maths";
+  if (/reasoning|analogy|syllogism|blood|direction|series|coding|matrix|cube|dice|paper|mirror|pattern/i.test(ch + " " + t)) return "reasoning";
+  if (/english|grammar|vocab|synonym|antonym|idiom|cloze|reading|comprehension|voice|narration|spelling|preposition|noun/i.test(ch + " " + t)) return "english";
+  if (/ga|gk|history|polity|geography|science|physics|chemistry|biology|economics|current affairs|static/i.test(ch + " " + t)) return "ga";
+  return "ga";
+}
+
 export function QuizNudge({ who, onOpen }: { who: string; onOpen: () => void }) {
   const q = useQuizzes();
   const [closed, setClosed] = useState(false);
@@ -87,16 +119,58 @@ type MistakeItem = {
   correctAnswer: number;
 };
 
-export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | "test" }) {
+export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; mode?: "quiz" | "test"; targetChapter?: string }) {
   const qc = useQueryClient();
   const q = useQuizzes();
   const [playing, setPlaying] = useState<{ quiz: Quiz; questions?: QQ[] } | null>(null);
   const [filter, setFilter] = useState<"active" | "past" | "mistakes">("active");
+  const [subjectFilter, setSubjectFilter] = useState<"all" | "maths" | "reasoning" | "english" | "ga" | "test">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTargetChapter, setSelectedTargetChapter] = useState<string | null>(targetChapter ?? null);
+
   const all = ((q.data?.quizzes ?? []) as Quiz[]).filter((z) => (mode === "test") === !!z.chapter?.startsWith("test:"));
   const quizzes = all.filter((z) => !z.expired);
   const attempts = (q.data?.attempts ?? []) as Attempt[];
-  const shown = quizzes;
+
   const refresh = () => qc.invalidateQueries({ queryKey: ["quizzes"] });
+
+  // Update target chapter if prop changes
+  useEffect(() => {
+    if (targetChapter) {
+      setSelectedTargetChapter(targetChapter);
+      setFilter("active");
+    }
+  }, [targetChapter]);
+
+  // Find target quiz if navigating from syllabus
+  const targetQuiz = useMemo(() => {
+    if (!selectedTargetChapter) return null;
+    return quizzes.find((z) => z.chapter === selectedTargetChapter) || null;
+  }, [quizzes, selectedTargetChapter]);
+
+  // Filtered quizzes by subject and sub-topic query
+  const shown = useMemo(() => {
+    return quizzes.filter((z) => {
+      // If targeting a specific chapter from syllabus
+      if (selectedTargetChapter && z.chapter === selectedTargetChapter) return true;
+
+      // Subject filter
+      if (subjectFilter !== "all") {
+        const s = detectQuizSubject(z);
+        if (s !== subjectFilter) return false;
+      }
+
+      // Search query across title and chapter label
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchTitle = z.title.toLowerCase().includes(query);
+        const matchChapter = (z.chapter || "").toLowerCase().includes(query);
+        if (!matchTitle && !matchChapter) return false;
+      }
+
+      return true;
+    });
+  }, [quizzes, subjectFilter, searchQuery, selectedTargetChapter]);
 
   const allMistakes = useMemo(() => {
     const list: MistakeItem[] = [];
@@ -137,7 +211,42 @@ export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | 
   return (
     <div className="space-y-4">
       {who === "arun" && <QuizUpload onCreated={refresh} mode={mode} />}
-      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-2">
+
+      {/* Target Chapter Launcher Banner from Syllabus */}
+      {selectedTargetChapter && (
+        <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm animate-in fade-in">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-black text-primary uppercase tracking-wider">
+              <span>🎯</span>
+              <span>Target Chapter Quiz Selected</span>
+            </div>
+            <p className="font-display font-black text-base text-foreground mt-0.5">
+              {chapterLabel(selectedTargetChapter)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {targetQuiz ? `Uploaded & ready · ${targetQuiz.questions.length} questions` : "No quiz uploaded for this chapter yet."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {targetQuiz && (
+              <Button size="sm" onClick={() => setPlaying({ quiz: targetQuiz })} className="font-bold text-xs shadow-md">
+                <Play size={14} className="mr-1" /> Start Chapter Quiz
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTargetChapter(null)}
+              className="text-xs font-semibold"
+            >
+              Show All Quizzes
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Tabs (Active, Past, Mistakes) */}
+      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1">
         {([
           ["active", "Active quizzes"],
           ["past", "Past results"],
@@ -157,15 +266,67 @@ export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | 
           </Button>
         ))}
       </div>
+
       {filter === "active" && (
-        <p className="text-xs text-muted-foreground">Quizzes are permanently available until deleted by admin. Your scores and mistakes are automatically saved.</p>
+        <div className="space-y-3">
+          {/* Subject-Wise Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {([
+              ["all", "All Subjects"],
+              ["maths", "Maths 🔢"],
+              ["reasoning", "Reasoning 🧩"],
+              ["english", "English 📖"],
+              ["ga", "General Awareness 🌍"],
+              ["test", "Full Tests 📝"],
+            ] as const).map(([sKey, sLabel]) => (
+              <Button
+                variant="unstyled"
+                key={sKey}
+                onClick={() => {
+                  setSubjectFilter(sKey);
+                  setSelectedTargetChapter(null);
+                }}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-bold shrink-0 transition border",
+                  subjectFilter === sKey
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                    : "bg-secondary/60 text-muted-foreground border-border/70 hover:bg-secondary"
+                )}
+              >
+                {sLabel}
+              </Button>
+            ))}
+          </div>
+
+          {/* Sub-Topic / Chapter Search */}
+          <div className="flex items-center gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search quizzes by chapter or topic name (e.g. Percentage, Analogy, Ancient History)..."
+              className="w-full rounded-xl border-2 border-border/70 bg-secondary/40 px-3.5 py-2 text-xs outline-none focus:border-primary transition"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchQuery("")}
+                className="h-8 text-xs text-muted-foreground"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       )}
+
       {filter === "past" && (
         <p className="text-xs text-muted-foreground">Complete history of all attempted quizzes and leaderboard standings.</p>
       )}
       {filter === "mistakes" && (
         <p className="text-xs text-muted-foreground">All questions you answered wrong are saved here chapter-wise. Select one or multiple chapters to start a custom revision quiz.</p>
       )}
+
       {q.isLoading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading quizzes…</p>
       ) : q.isError ? (
@@ -180,7 +341,10 @@ export function QuizZone({ who, mode = "quiz" }: { who: string; mode?: "quiz" | 
           onStartPractice={({ quiz, questions }) => setPlaying({ quiz, questions })}
         />
       ) : shown.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No quizzes available right now.</p>
+        <div className="rounded-xl border border-dashed p-8 text-center bg-card space-y-1">
+          <p className="text-sm font-bold text-foreground">No quizzes found matching your filter.</p>
+          <p className="text-xs text-muted-foreground">Try clearing your search query or selecting "All Subjects".</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {shown.map((z) => (

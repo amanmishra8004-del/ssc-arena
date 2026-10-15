@@ -6,519 +6,109 @@ import {
   Sparkles,
   Trophy,
   Flame,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
   Volume2,
-  Trash2,
   Search,
   CheckCircle2,
   Lightbulb,
+  MessageSquare,
+  Languages,
+  Plus,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { UserData } from "@/lib/syllabus";
+import { BLACKBOOK_EXTENDED_WORDS, type BlackBookWord } from "@/lib/blackbook-words.data";
+import { BLACKBOOK_IDIOMS, type BlackBookIdiom } from "@/lib/blackbook-idioms.data";
 
-export type BlackBookWord = {
-  id: string;
-  word: string;
-  pos: string; // Part of speech, e.g. [adj.], [noun], [verb]
-  meaning: string;
-  synonyms: string[];
-  antonyms: string[];
-  trick: string;
-  sentences: string[];
-  repeatCount: string;
-};
-
-export const BLACKBOOK_POOL: BlackBookWord[] = [
-  {
-    id: "bb-1",
-    word: "Ephemeral",
-    pos: "[adj.]",
-    meaning: "Lasting for a very short time; momentary, fleeting, transient",
-    synonyms: ["Transient", "Fleeting", "Evanescent", "Momentary"],
-    antonyms: ["Eternal", "Permanent", "Perpetual", "Enduring"],
-    trick: "Sounds like 'A-feem-oral' (effects of opium are brief) or E-phantom (ghost disappears fast)",
-    sentences: [
-      "Fashions in modern society are ephemeral, changing with every passing season.",
-      "He realized that wealth and worldly pleasures are purely ephemeral."
-    ],
-    repeatCount: "Repeated 14+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-2",
-    word: "Altruist",
-    pos: "[noun]",
-    meaning: "A person who selflessly cares for and helps others; a philanthropist",
-    synonyms: ["Philanthropist", "Benefactor", "Humanitarian", "Generous"],
-    antonyms: ["Egoist", "Selfish", "Misanthrope"],
-    trick: "All-Trust: a noble person whom everyone trusts because he helps without self-interest",
-    sentences: [
-      "Mother Teresa is revered across the globe as a devoted altruist.",
-      "An altruist finds true fulfillment in easing the suffering of fellow human beings."
-    ],
-    repeatCount: "Repeated 12+ times in SSC CGL",
-  },
-  {
-    id: "bb-3",
-    word: "Ubiquitous",
-    pos: "[adj.]",
-    meaning: "Present, appearing, or found everywhere; omnipresent",
-    synonyms: ["Omnipresent", "Pervasive", "Universal", "Everywhere"],
-    antonyms: ["Rare", "Scarce", "Seldom", "Infrequent"],
-    trick: "Sounds like 'You-be-with-us' everywhere; smartphones and Wi-Fi are now ubiquitous",
-    sentences: [
-      "Smartphones have become ubiquitous across both urban and rural India.",
-      "Coffee shops and street vendors are ubiquitous on almost every city corner."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL / CPO",
-  },
-  {
-    id: "bb-4",
-    word: "Fastidious",
-    pos: "[adj.]",
-    meaning: "Very attentive to accuracy and detail; meticulous, very hard to please",
-    synonyms: ["Meticulous", "Punctilious", "Scrupulous", "Finicky"],
-    antonyms: ["Careless", "Sloppy", "Easygoing", "Lenient"],
-    trick: "Fast + Tedious: Demands fastidious perfection; very difficult to satisfy",
-    sentences: [
-      "He is fastidious about keeping his study desk clean, organized, and dust-free.",
-      "The editor was fastidious regarding grammatical precision and proper citations."
-    ],
-    repeatCount: "Repeated 15+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-5",
-    word: "Obsequious",
-    pos: "[adj.]",
-    meaning: "Obedient or attentive to an excessive or servile degree; flattering, sycophantic",
-    synonyms: ["Sycophantic", "Servile", "Fawning", "Submissive"],
-    antonyms: ["Assertive", "Domineering", "Arrogant", "Defiant"],
-    trick: "Obs-equious: obsessed with flattering the authorities to gain personal favors",
-    sentences: [
-      "The minister was surrounded by obsequious assistants eager to praise his every word.",
-      "His obsequious behavior made all of his genuine coworkers deeply uncomfortable."
-    ],
-    repeatCount: "Repeated 10+ times in SSC CGL",
-  },
-  {
-    id: "bb-6",
-    word: "Panacea",
-    pos: "[noun]",
-    meaning: "A remedy for all difficulties or diseases; a universal cure-all",
-    synonyms: ["Cure-all", "Universal remedy", "Elixir", "Magic bullet"],
-    antonyms: ["Poison", "Bane", "Disease", "Affliction"],
-    trick: "Pan (Greek for All) + Acea (Cure) = Solution for all illnesses and problems",
-    sentences: [
-      "Technology is helpful, but it is not a panacea for all societal problems.",
-      "There is no simple economic panacea to curb inflation overnight."
-    ],
-    repeatCount: "Repeated 16+ times in SSC CGL / CPO / MTS",
-  },
-  {
-    id: "bb-7",
-    word: "Incorrigible",
-    pos: "[adj.]",
-    meaning: "Not able to be corrected, improved, or reformed; habitual",
-    synonyms: ["Irredeemable", "Unreformable", "Incurable", "Habitual"],
-    antonyms: ["Reformable", "Docile", "Repentant", "Correctable"],
-    trick: "In (Not) + Corrigible (Correctable) = A habit or person that cannot be reformed",
-    sentences: [
-      "The mischievous boy was an incorrigible prankster who ignored every warning.",
-      "Despite health issues, his uncle remained an incorrigible smoker."
-    ],
-    repeatCount: "Repeated 13+ times in SSC exams",
-  },
-  {
-    id: "bb-8",
-    word: "Cacophony",
-    pos: "[noun]",
-    meaning: "A harsh, discordant mixture of loud and unpleasant sounds",
-    synonyms: ["Dissonance", "Clamor", "Din", "Racket"],
-    antonyms: ["Harmony", "Euphony", "Symphony", "Melody"],
-    trick: "Caco (Greek for Bad/Ugly) + Phone (Sound) = Harsh and noisy sound",
-    sentences: [
-      "A deafening cacophony of blaring horns and construction drills echoed through the market.",
-      "The peaceful morning was disrupted by a cacophony of barking street dogs."
-    ],
-    repeatCount: "Repeated 10+ times in SSC CGL",
-  },
-  {
-    id: "bb-9",
-    word: "Gregarious",
-    pos: "[adj.]",
-    meaning: "Fond of company; sociable; living in herds or flocks",
-    synonyms: ["Sociable", "Companionable", "Outgoing", "Extroverted"],
-    antonyms: ["Solitary", "Introverted", "Reclusive", "Misanthropic"],
-    trick: "Greg- means flock or herd (congregation); one who loves mingling with people",
-    sentences: [
-      "Elephants and deer are gregarious animals that thrive in large herds.",
-      "Her gregarious nature made her instantly popular at college gatherings."
-    ],
-    repeatCount: "Repeated 12+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-10",
-    word: "Misanthrope",
-    pos: "[noun]",
-    meaning: "A person who dislikes humankind and avoids human society",
-    synonyms: ["Cynic", "Recluse", "Hater of mankind"],
-    antonyms: ["Philanthropist", "Humanitarian", "Altruist"],
-    trick: "Mis (Hate) + Anthrope (Humanity) = One who hates society and people",
-    sentences: [
-      "Cheated repeatedly by partners, the elderly man became a bitter misanthrope.",
-      "Ebenezer Scrooge is classic literature's most famous misanthrope."
-    ],
-    repeatCount: "Repeated 14+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-11",
-    word: "Supercilious",
-    pos: "[adj.]",
-    meaning: "Behaving or looking as though one is superior to others; arrogant, haughty",
-    synonyms: ["Arrogant", "Haughty", "Conceited", "Pompous"],
-    antonyms: ["Humble", "Modest", "Unpretentious", "Meek"],
-    trick: "Super + Cilia (eyebrows): Raising eyebrows in disdain and looking down on others",
-    sentences: [
-      "She gave him a supercilious glance and walked past without acknowledging his greeting.",
-      "His supercilious demeanor quickly alienated his team members."
-    ],
-    repeatCount: "Repeated 9+ times in SSC exams",
-  },
-  {
-    id: "bb-12",
-    word: "Querulous",
-    pos: "[adj.]",
-    meaning: "Complaining in a whining, petulant, or irritable manner",
-    synonyms: ["Whiny", "Petulant", "Grumbling", "Peevish"],
-    antonyms: ["Content", "Cheerful", "Forbearing", "Patient"],
-    trick: "Full of queries and petty complaints; always questioning and grumbling",
-    sentences: [
-      "The exhausted child became increasingly querulous as the long flight progressed.",
-      "He spoke in a thin, querulous tone that irritated the entire office."
-    ],
-    repeatCount: "Repeated 9+ times in SSC CGL",
-  },
-  {
-    id: "bb-13",
-    word: "Reticent",
-    pos: "[adj.]",
-    meaning: "Not revealing one's thoughts or feelings readily; reserved, taciturn",
-    synonyms: ["Reserved", "Taciturn", "Uncommunicative", "Withdrawn"],
-    antonyms: ["Talkative", "Loquacious", "Voluble", "Outspoken"],
-    trick: "Re-silent: maintaining silence and hesitation in expressing opinions",
-    sentences: [
-      "He was remarkably reticent about discussing his past work in public.",
-      "The suspect remained reticent throughout the police interrogation."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-14",
-    word: "Mellifluous",
-    pos: "[adj.]",
-    meaning: "Sweet or musical; pleasant and soothing to hear",
-    synonyms: ["Melodious", "Dulcet", "Harmonious", "Sweet-sounding"],
-    antonyms: ["Cacophonous", "Harsh", "Grating", "Strident"],
-    trick: "Mel (honey) + Fluent (flowing): A voice flowing sweet and soothing like pure honey",
-    sentences: [
-      "The singer possessed a rich, mellifluous voice that spellbound the audience.",
-      "The mellifluous notes of the flute brought peace to the quiet evening."
-    ],
-    repeatCount: "Repeated 8+ times in SSC exams",
-  },
-  {
-    id: "bb-15",
-    word: "Loquacious",
-    pos: "[adj.]",
-    meaning: "Tending to talk a great deal; extremely talkative",
-    synonyms: ["Talkative", "Garrulous", "Voluble", "Chatty"],
-    antonyms: ["Reticent", "Taciturn", "Reserved", "Silent"],
-    trick: "Loqu- means speech/talk (as in eloquent, dialogue): Highly talkative person",
-    sentences: [
-      "The loquacious tour guide kept the tourists entertained during the long bus journey.",
-      "After drinking coffee, he turned from a quiet student into a loquacious speaker."
-    ],
-    repeatCount: "Repeated 12+ times in SSC CGL",
-  },
-  {
-    id: "bb-16",
-    word: "Munificent",
-    pos: "[adj.]",
-    meaning: "Extremely generous; larger or more lavish than usual",
-    synonyms: ["Generous", "Bountiful", "Magnanimous", "Lavish"],
-    antonyms: ["Stingy", "Miserly", "Parsimonious", "Niggardly"],
-    trick: "Money + Sufficient: Giving generous amounts of funds with an open heart",
-    sentences: [
-      "The university received a munificent grant from an anonymous alumnus.",
-      "His munificent hospitality was celebrated by all who visited his estate."
-    ],
-    repeatCount: "Repeated 10+ times in SSC CGL",
-  },
-  {
-    id: "bb-17",
-    word: "Prolific",
-    pos: "[adj.]",
-    meaning: "Producing much fruit or many works/results; highly productive",
-    synonyms: ["Productive", "Fertile", "Fruitful", "Creative"],
-    antonyms: ["Unproductive", "Barren", "Sterile"],
-    trick: "Pro + Life: Creating life and results in great abundance",
-    sentences: [
-      "Rabindranath Tagore was a prolific writer, poet, and composer.",
-      "The striker enjoyed a prolific season, scoring thirty-five goals across tournaments."
-    ],
-    repeatCount: "Repeated 9+ times in SSC exams",
-  },
-  {
-    id: "bb-18",
-    word: "Pragmatic",
-    pos: "[adj.]",
-    meaning: "Dealing with problems sensibly and realistically; practical rather than idealistic",
-    synonyms: ["Practical", "Realistic", "Utilitarian", "Sensible"],
-    antonyms: ["Idealistic", "Impractical", "Visionary", "Unrealistic"],
-    trick: "Pragmatic = Practical logic grounded in everyday reality",
-    sentences: [
-      "The committee adopted a pragmatic approach to balance the budget constraints.",
-      "Her pragmatic advice saved the company from making a risky investment."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL",
-  },
-  {
-    id: "bb-19",
-    word: "Lethargic",
-    pos: "[adj.]",
-    meaning: "Affected by sluggishness; abnormally tired, sluggish, and lacking energy",
-    synonyms: ["Sluggish", "Torpid", "Listless", "Indolent"],
-    antonyms: ["Energetic", "Active", "Dynamic", "Vigorous"],
-    trick: "Late + Allergic: Too tired and sluggish to get out of bed",
-    sentences: [
-      "The humid summer afternoon left everyone feeling sleepy and lethargic.",
-      "A deficiency of vitamin B12 often causes patients to feel weak and lethargic."
-    ],
-    repeatCount: "Repeated 13+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-20",
-    word: "Esoteric",
-    pos: "[adj.]",
-    meaning: "Understood by or intended for only a specialized inner circle; obscure, arcane",
-    synonyms: ["Obscure", "Arcane", "Cryptic", "Abstruse"],
-    antonyms: ["Exoteric", "Common", "Familiar", "Simple"],
-    trick: "Exotic/Secret knowledge meant only for specialists",
-    sentences: [
-      "Quantum physics contains esoteric concepts that baffle non-scientists.",
-      "The ancient manuscript was filled with esoteric philosophical symbols."
-    ],
-    repeatCount: "Repeated 9+ times in SSC exams",
-  },
-  {
-    id: "bb-21",
-    word: "Voracious",
-    pos: "[adj.]",
-    meaning: "Wanting or devouring great quantities of food, information, or knowledge",
-    synonyms: ["Insatiable", "Ravenous", "Rapacious", "Avid"],
-    antonyms: ["Satiated", "Indifferent", "Moderate"],
-    trick: "Vora- (eat/devour as in carnivore): Voracious reader eats up books",
-    sentences: [
-      "He was a voracious reader who devoured two full novels every weekend.",
-      "After the grueling trek, the hikers possessed a voracious appetite."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL",
-  },
-  {
-    id: "bb-22",
-    word: "Nefarious",
-    pos: "[adj.]",
-    meaning: "Wicked, villainous, or criminal in nature",
-    synonyms: ["Wicked", "Evil", "Heinous", "Atrocious"],
-    antonyms: ["Noble", "Righteous", "Virtuous", "Exemplary"],
-    trick: "Not Fair: Evil deeds that destroy honesty and fairness",
-    sentences: [
-      "The intelligence agency foiled a nefarious plot to hack defense networks.",
-      "The dictator became infamous for his nefarious human rights violations."
-    ],
-    repeatCount: "Repeated 10+ times in SSC exams",
-  },
-  {
-    id: "bb-23",
-    word: "Vindictive",
-    pos: "[adj.]",
-    meaning: "Having or showing a strong or unreasoning desire for revenge",
-    synonyms: ["Vengeful", "Spiteful", "Retaliatory", "Resentful"],
-    antonyms: ["Forgiving", "Merciful", "Magnanimous"],
-    trick: "Vindicate through bitter revenge",
-    sentences: [
-      "He refused to help his former partner out of pure vindictive spite.",
-      "A mature leader must rise above vindictive politics and focus on progress."
-    ],
-    repeatCount: "Repeated 9+ times in SSC exams",
-  },
-  {
-    id: "bb-24",
-    word: "Sycophant",
-    pos: "[noun]",
-    meaning: "A person who acts obsequiously toward someone powerful to gain advantages",
-    synonyms: ["Flatterer", "Toady", "Yes-man", "Bootlicker"],
-    antonyms: ["Critic", "Independent thinker"],
-    trick: "Psycho fan: showering hollow praise on superiors to secure favors",
-    sentences: [
-      "The autocratic emperor was surrounded by sycophants who concealed the truth.",
-      "He despised sycophants and welcomed honest constructive feedback."
-    ],
-    repeatCount: "Repeated 15+ times in SSC CGL / CHSL",
-  },
-  {
-    id: "bb-25",
-    word: "Alacrity",
-    pos: "[noun]",
-    meaning: "Brisk, energetic, and cheerful readiness; prompt enthusiasm",
-    synonyms: ["Eagerness", "Promptness", "Keenness", "Zeal"],
-    antonyms: ["Reluctance", "Sluggishness", "Apathy", "Hesitation"],
-    trick: "Alert + Activity: jumping into a task with brisk cheerful speed",
-    sentences: [
-      "She accepted the promotion offer with immense alacrity and gratitude.",
-      "The soldiers responded to the emergency call with disciplined alacrity."
-    ],
-    repeatCount: "Repeated 12+ times in SSC CGL",
-  },
-  {
-    id: "bb-26",
-    word: "Bellicose",
-    pos: "[adj.]",
-    meaning: "Demonstrating aggression and willingness to fight; warlike, belligerent",
-    synonyms: ["Warlike", "Aggressive", "Combative", "Pugnacious"],
-    antonyms: ["Peaceful", "Pacifist", "Conciliatory", "Harmonious"],
-    trick: "Belli- (war as in rebellion): Ready to start a battle at any time",
-    sentences: [
-      "The bellicose rhetoric of the neighboring general heightened border tensions.",
-      "Diplomacy should prevail over bellicose posturing."
-    ],
-    repeatCount: "Repeated 8+ times in SSC exams",
-  },
-  {
-    id: "bb-27",
-    word: "Magnanimous",
-    pos: "[adj.]",
-    meaning: "Very generous or forgiving, especially toward a rival or someone less powerful",
-    synonyms: ["Generous", "Charitable", "Benevolent", "Noble"],
-    antonyms: ["Vindictive", "Petty", "Mean-spirited", "Grudging"],
-    trick: "Magna (great) + Animus (mind/soul): Great-hearted person who forgives readily",
-    sentences: [
-      "He was magnanimous in victory, praising his defeated opponent warmly.",
-      "A magnanimous ruler pardons minor offenses to foster national unity."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL",
-  },
-  {
-    id: "bb-28",
-    word: "Capricious",
-    pos: "[adj.]",
-    meaning: "Given to sudden and unaccountable changes of mood or behavior; fickle",
-    synonyms: ["Fickle", "Volatile", "Unpredictable", "Whimsical"],
-    antonyms: ["Constant", "Predictable", "Stable", "Steadfast"],
-    trick: "Car-price: changing prices unpredictably like moody stock swings",
-    sentences: [
-      "The capricious mountain weather shifted from bright sunshine to hail in minutes.",
-      "Investors grew cautious under the CEO's capricious leadership style."
-    ],
-    repeatCount: "Repeated 10+ times in SSC exams",
-  },
-  {
-    id: "bb-29",
-    word: "Enervate",
-    pos: "[verb]",
-    meaning: "To cause someone to feel drained of energy or vitality; weaken",
-    synonyms: ["Weaken", "Debilitate", "Exhaust", "Fatigue"],
-    antonyms: ["Energize", "Invigorate", "Strengthen", "Vitalize"],
-    trick: "Enter-no-energy: completely draining the energy out of a person",
-    sentences: [
-      "The scorching heat of the desert enervated the stranded travelers.",
-      "Prolonged illness had enervated his once powerful physique."
-    ],
-    repeatCount: "Repeated 9+ times in SSC CGL",
-  },
-  {
-    id: "bb-30",
-    word: "Lugubrious",
-    pos: "[adj.]",
-    meaning: "Looking or sounding sad, dismal, and mournful",
-    synonyms: ["Mournful", "Gloomy", "Melancholy", "Doleful"],
-    antonyms: ["Cheerful", "Jubilant", "Joyous", "Sanguine"],
-    trick: "Lugu sounds like 'Loot gaya': weeping in gloomy despair",
-    sentences: [
-      "The film was filled with dark scenes and lugubrious background music.",
-      "His lugubrious expression dampened the festive celebration."
-    ],
-    repeatCount: "Repeated 8+ times in SSC exams",
-  },
-  {
-    id: "bb-31",
-    word: "Clandestine",
-    pos: "[adj.]",
-    meaning: "Kept secret or done secretively, especially because illicit",
-    synonyms: ["Secret", "Covert", "Surreptitious", "Stealthy"],
-    antonyms: ["Open", "Overt", "Public", "Transparent"],
-    trick: "Clan-destiny: secret meeting of a clan to plan covert operations",
-    sentences: [
-      "The rebels held clandestine meetings in abandoned farmhouses after dark.",
-      "He conducted clandestine business transactions to avoid paying taxes."
-    ],
-    repeatCount: "Repeated 12+ times in SSC CGL",
-  },
-  {
-    id: "bb-32",
-    word: "Taciturn",
-    pos: "[adj.]",
-    meaning: "Reserved or uncommunicative in speech; saying very little",
-    synonyms: ["Untalkative", "Reticent", "Quiet", "Reserved"],
-    antonyms: ["Loquacious", "Garrulous", "Talkative", "Voluble"],
-    trick: "Taxi-turn: the driver makes turns quietly without speaking a single word",
-    sentences: [
-      "My grandfather was a taciturn man who spoke only when strictly necessary.",
-      "Her taciturn response indicated that she did not wish to elaborate further."
-    ],
-    repeatCount: "Repeated 11+ times in SSC CGL",
-  },
-];
+export type { BlackBookWord, BlackBookIdiom };
 
 export function BlackBookVocabZone({
   data,
   update,
   all,
   who,
+  initialMode = "words",
 }: {
   data: UserData;
   update: (fn: (d: UserData) => UserData) => void;
   all: Record<string, UserData>;
   who: string;
+  initialMode?: "words" | "idioms";
 }) {
-  const [tab, setTab] = useState<"deck" | "quiz" | "mastered" | "add">("deck");
+  const [mode, setMode] = useState<"words" | "idioms">(initialMode);
+  const [tab, setTab] = useState<"deck" | "quiz" | "mastered" | "browse" | "add">("deck");
   const [searchQuery, setSearchQuery] = useState("");
+  const [browseQuery, setBrowseQuery] = useState("");
 
-  // Per-user mastered IDs stored in localStorage
-  const [masteredIds, setMasteredIds] = useState<Set<string>>(() => {
+  // Sync mode if initialMode changes
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode]);
+
+  // Reset tab to deck when mode changes
+  const switchMode = (newMode: "words" | "idioms") => {
+    setMode(newMode);
+    setTab("deck");
+    setSearchQuery("");
+  };
+
+  // 1. Vocabulary Words State & Storage
+  const [masteredWordIds, setMasteredWordIds] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem(`arena-bb-mastered-${who}`);
-      return raw ? new Set(JSON.parse(raw)) : new Set();
+      const stored = localStorage.getItem(`arena-bb-words-mastered-${who}`) || localStorage.getItem(`arena-bb-mastered-${who}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch {
       return new Set();
     }
   });
 
-  const toggleMastered = (id: string) => {
-    const next = new Set(masteredIds);
+  const toggleMasteredWord = (id: string) => {
+    const next = new Set(masteredWordIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    setMasteredIds(next);
+    setMasteredWordIds(next);
     try {
-      localStorage.setItem(`arena-bb-mastered-${who}`, JSON.stringify([...next]));
+      localStorage.setItem(`arena-bb-words-mastered-${who}`, JSON.stringify([...next]));
     } catch {}
   };
 
-  // Pool includes system BlackBook pool + custom user-added words
-  const fullPool = useMemo(() => {
-    const customWords = data.vocab.map((v) => ({
+  // 2. Idioms State & Storage
+  const [masteredIdiomIds, setMasteredIdiomIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`arena-bb-idioms-mastered-${who}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const toggleMasteredIdiom = (id: string) => {
+    const next = new Set(masteredIdiomIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setMasteredIdiomIds(next);
+    try {
+      localStorage.setItem(`arena-bb-idioms-mastered-${who}`, JSON.stringify([...next]));
+    } catch {}
+  };
+
+  // Speak helper using Web Speech API
+  const speakText = (text: string) => {
+    try {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch {}
+  };
+
+  // Vocabulary Pool: 1,000 authentic words + user mock words
+  const fullWordsPool = useMemo(() => {
+    const customWords: BlackBookWord[] = data.vocab.map((v) => ({
       id: v.id,
       word: v.word,
       pos: "[user]",
@@ -529,63 +119,127 @@ export function BlackBookVocabZone({
       sentences: v.example ? [v.example] : [],
       repeatCount: "Personal Mock Word",
     }));
-    return [...BLACKBOOK_POOL, ...customWords];
+    return [...BLACKBOOK_EXTENDED_WORDS, ...customWords];
   }, [data.vocab]);
 
-  // Unmastered words: Active deck is ALWAYS the first 10 unmastered words!
-  const unmastered = useMemo(() => fullPool.filter((w) => !masteredIds.has(w.id)), [fullPool, masteredIds]);
-  const active10 = useMemo(() => unmastered.slice(0, 10), [unmastered]);
-  const masteredList = useMemo(() => fullPool.filter((w) => masteredIds.has(w.id)), [fullPool, masteredIds]);
+  const unmasteredWords = useMemo(
+    () => fullWordsPool.filter((w) => !masteredWordIds.has(w.id)),
+    [fullWordsPool, masteredWordIds]
+  );
+  const active10Words = useMemo(() => unmasteredWords.slice(0, 10), [unmasteredWords]);
+  const masteredWordsList = useMemo(
+    () => fullWordsPool.filter((w) => masteredWordIds.has(w.id)),
+    [fullWordsPool, masteredWordIds]
+  );
+
+  // Idioms Pool: 310 authentic BlackBook idioms with Hindi & English meanings
+  const unmasteredIdioms = useMemo(
+    () => BLACKBOOK_IDIOMS.filter((idm) => !masteredIdiomIds.has(idm.id)),
+    [masteredIdiomIds]
+  );
+  const active10Idioms = useMemo(() => unmasteredIdioms.slice(0, 10), [unmasteredIdioms]);
+  const masteredIdiomsList = useMemo(
+    () => BLACKBOOK_IDIOMS.filter((idm) => masteredIdiomIds.has(idm.id)),
+    [masteredIdiomIds]
+  );
+
+  // Current active data depending on mode
+  const activeCount = mode === "words" ? active10Words.length : active10Idioms.length;
+  const masteredCount = mode === "words" ? masteredWordsList.length : masteredIdiomsList.length;
+  const totalAvailable = mode === "words" ? fullWordsPool.length : BLACKBOOK_IDIOMS.length;
 
   return (
     <div className="space-y-4">
-      {/* Top Banner & Stats */}
-      <div className="rounded-xl border bg-card p-4 space-y-3 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      {/* Top Banner & Mode Toggle */}
+      <div className="rounded-xl border bg-card p-4 space-y-3.5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 text-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wider">
-                BlackBook SSC Engine
+              <span className="rounded bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider">
+                BlackBook English Engine
               </span>
               <span className="text-xs text-muted-foreground font-semibold">User: {who}</span>
             </div>
             <p className="font-display text-base font-bold mt-1">
-              Active Learning Deck · Exactly 10 Words
+              {mode === "words"
+                ? "SSC Vocabulary · 1,000 PYQ Master Words"
+                : "SSC Idioms & Phrases · 200+ with Hindi Meanings"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              These 10 words stay in your daily deck until you mark them as Mastered. Once mastered, the next BlackBook word slides in automatically.
+            <p className="text-xs text-muted-foreground max-w-xl">
+              {mode === "words"
+                ? "Active deck contains exactly 10 words. Words never rotate until you mark them as Mastered, after which the next authentic BlackBook word slides in automatically."
+                : "Active deck holds exactly 10 repeated idioms with English & Hindi meanings. They stay until mastered, sliding new BlackBook idioms in as you progress."}
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-secondary/50 p-2.5 rounded-lg shrink-0">
+
+          <div className="flex items-center gap-3 bg-secondary/60 p-2.5 rounded-lg shrink-0 self-start sm:self-center">
             <div className="text-center">
-              <p className="text-xs text-muted-foreground">Active</p>
-              <p className="text-lg font-extrabold text-primary">{active10.length}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Active</p>
+              <p className="text-lg font-extrabold text-primary">{activeCount}</p>
             </div>
             <div className="h-7 w-[1px] bg-border" />
             <div className="text-center">
-              <p className="text-xs text-muted-foreground">Mastered</p>
-              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{masteredList.length}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">Mastered</p>
+              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                {masteredCount} / {totalAvailable}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* Primary Switcher: Words (1000) vs Idioms (300+ with Hindi) */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-secondary/80 rounded-xl">
+          <Button
+            variant="unstyled"
+            aria-pressed={mode === "words"}
+            onClick={() => switchMode("words")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-xs font-bold transition-all",
+              mode === "words"
+                ? "bg-card text-foreground shadow-sm border"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <BookOpen size={15} />
+            <span>Vocabulary (1,000 Words)</span>
+          </Button>
+
+          <Button
+            variant="unstyled"
+            aria-pressed={mode === "idioms"}
+            onClick={() => switchMode("idioms")}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-xs font-bold transition-all",
+              mode === "idioms"
+                ? "bg-card text-foreground shadow-sm border"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Languages size={15} />
+            <span>Idioms & Phrases (Hindi + English)</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Navigation tabs */}
+      {/* Sub-Navigation Tabs */}
       <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1">
         {([
-          ["deck", `Active Deck (${active10.length})`],
-          ["quiz", "10-Word Sprint Quiz"],
-          ["mastered", `Mastered Archive (${masteredList.length})`],
-          ["add", "+ Add Custom Word"],
+          ["deck", `Active 10 Deck (${activeCount})`],
+          ["quiz", mode === "words" ? "10-Word Sprint Quiz" : "10-Idiom Sprint Quiz"],
+          ["mastered", `Mastered Archive (${masteredCount})`],
+          ["browse", mode === "words" ? `Browse All (1,000)` : `Browse All (310)`],
+          ...(mode === "words" ? ([["add", "+ Add Custom Word"]] as const) : []),
         ] as const).map(([k, l]) => (
           <Button
             variant="unstyled"
             key={k}
             aria-pressed={tab === k}
-            onClick={() => setTab(k)}
+            onClick={() => setTab(k as any)}
             className={cn(
               "shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all",
-              tab === k ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              tab === k
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
             )}
           >
             {l}
@@ -593,146 +247,507 @@ export function BlackBookVocabZone({
         ))}
       </div>
 
-      {/* 1. Active 10 Deck View */}
-      {tab === "deck" && (
-        <div className="space-y-3">
-          {active10.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center bg-card">
-              <Trophy size={40} className="mx-auto text-primary mb-2" />
-              <p className="font-bold text-base">All BlackBook Words Mastered!</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You have mastered all available vocabulary words. Visit the Mastered Archive to review or add custom words.
-              </p>
-            </div>
-          ) : (
-            active10.map((w, index) => {
-              const isDone = masteredIds.has(w.id);
-              return (
-                <div key={w.id} className="rounded-xl border bg-card p-4 space-y-2.5 transition-all shadow-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="h-6 w-6 rounded-full bg-secondary text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">
-                        {index + 1}
-                      </span>
-                      <p className="font-display text-lg font-extrabold tracking-wide">{w.word}</p>
-                      <span className="text-xs text-muted-foreground font-semibold">{w.pos}</span>
-                    </div>
-                    <span className="rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-bold px-2 py-0.5">
-                      {w.repeatCount}
-                    </span>
-                  </div>
-
-                  <p className="text-sm font-medium text-foreground">{w.meaning}</p>
-
-                  {/* Synonyms & Antonyms */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {w.synonyms.length > 0 && (
-                      <div className="rounded-md bg-secondary/40 p-2">
-                        <span className="font-bold text-primary mr-1">Synonyms:</span>
-                        <span className="text-muted-foreground">{w.synonyms.join(", ")}</span>
-                      </div>
-                    )}
-                    {w.antonyms.length > 0 && (
-                      <div className="rounded-md bg-secondary/40 p-2">
-                        <span className="font-bold text-destructive mr-1">Antonyms:</span>
-                        <span className="text-muted-foreground">{w.antonyms.join(", ")}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Memory Trick / Mnemonic */}
-                  {w.trick && (
-                    <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-2.5 text-xs">
-                      <Lightbulb size={16} className="text-primary shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-primary">Memory Trick: </span>
-                        <span className="text-muted-foreground">{w.trick}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Example sentences */}
-                  {w.sentences.length > 0 && (
-                    <div className="space-y-1 text-xs text-muted-foreground border-l-2 border-primary/40 pl-3 py-0.5">
-                      {w.sentences.map((st, i) => (
-                        <p key={i} className="italic leading-relaxed">
-                          "{st}"
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Mastered toggle */}
-                  <div className="pt-2 flex justify-end">
-                    <Button
-                      size="sm"
-                      variant={isDone ? "outline" : "default"}
-                      onClick={() => toggleMastered(w.id)}
-                      className={cn("text-xs font-bold", isDone ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10" : "")}
+      {/* ============================================================== */}
+      {/* MODE 1: VOCABULARY WORDS (BLACKBOOK 1,000)                    */}
+      {/* ============================================================== */}
+      {mode === "words" && (
+        <>
+          {/* 1.1 Active 10 Deck */}
+          {tab === "deck" && (
+            <div className="space-y-3">
+              {active10Words.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-8 text-center bg-card space-y-2">
+                  <Trophy size={42} className="mx-auto text-primary" />
+                  <p className="font-bold text-base">All 1,000 BlackBook Words Mastered!</p>
+                  <p className="text-xs text-muted-foreground">
+                    Congratulations! You have mastered every vocabulary word. Review them anytime in the Mastered Archive.
+                  </p>
+                </div>
+              ) : (
+                active10Words.map((w, index) => {
+                  const isDone = masteredWordIds.has(w.id);
+                  return (
+                    <div
+                      key={w.id}
+                      className="rounded-2xl border-2 border-border/85 bg-card p-5 sm:p-6 space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
                     >
-                      <Check size={14} className="mr-1.5" />
-                      {isDone ? "Mastered (Completed)" : "I Know This (Mark Mastered)"}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="h-7 w-7 rounded-full bg-secondary text-muted-foreground text-xs font-black flex items-center justify-center shrink-0 border">
+                            {index + 1}
+                          </span>
+                          <p className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                            {w.word}
+                          </p>
+                          <span className="text-xs text-muted-foreground font-bold px-2 py-0.5 rounded-md bg-secondary/80 border">
+                            {w.pos}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => speakText(w.word)}
+                            title="Listen pronunciation"
+                            className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          >
+                            <Volume2 size={16} />
+                          </Button>
+                        </div>
+                        <span className="rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-2.5 py-0.5 shrink-0">
+                          {w.repeatCount}
+                        </span>
+                      </div>
 
-      {/* 2. 10-Word Sprint Quiz */}
-      {tab === "quiz" && <ActiveDeckQuiz words={active10} onMastered={toggleMastered} />}
+                      {/* Clear Meaning Box */}
+                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3.5">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
+                          Core Meaning
+                        </p>
+                        <p className="text-sm sm:text-base font-bold text-foreground leading-relaxed">
+                          {w.meaning}
+                        </p>
+                      </div>
 
-      {/* 3. Mastered Archive View */}
-      {tab === "mastered" && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Search size={16} className="text-muted-foreground" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search mastered words..."
-              className="w-full rounded-lg border bg-secondary px-3 py-2 text-xs outline-none focus:border-primary"
-            />
-          </div>
+                      {/* Synonyms & Antonyms */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {w.synonyms.length > 0 && (
+                          <div className="rounded-xl bg-secondary/30 p-2.5 border border-border/60">
+                            <span className="font-bold text-primary mr-1">Synonyms:</span>
+                            <span className="text-foreground/80 font-medium">{w.synonyms.join(", ")}</span>
+                          </div>
+                        )}
+                        {w.antonyms.length > 0 && (
+                          <div className="rounded-xl bg-secondary/30 p-2.5 border border-border/60">
+                            <span className="font-bold text-destructive mr-1">Antonyms:</span>
+                            <span className="text-foreground/80 font-medium">{w.antonyms.join(", ")}</span>
+                          </div>
+                        )}
+                      </div>
 
-          {masteredList.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
-              No words marked as mastered yet. Click "I Know This" on words in the Active Deck to move them here.
-            </p>
-          ) : (
-            masteredList
-              .filter((w) => w.word.toLowerCase().includes(searchQuery.toLowerCase()) || w.meaning.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((w) => (
-                <div key={w.id} className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm">{w.word}</p>
-                      <span className="text-xs text-muted-foreground">{w.pos}</span>
-                      <span className="rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-bold px-1.5 py-0.2">
-                        Mastered
-                      </span>
+                      {/* Memory Trick / Mnemonic */}
+                      {w.trick && (
+                        <div className="flex items-start gap-2.5 rounded-xl bg-primary/5 border border-primary/25 p-3 text-xs">
+                          <Lightbulb size={16} className="text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-black text-primary uppercase text-[10px] tracking-wider block">Memory Trick: </span>
+                            <span className="text-foreground/90 font-medium">{w.trick}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Professional Multi-line Example Sentences */}
+                      {w.sentences.length > 0 && (
+                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3.5 sm:p-4 space-y-2">
+                          <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-primary">
+                            <BookOpen size={13} className="shrink-0" />
+                            <span>Exam Usage & Sentences</span>
+                          </div>
+                          <div className="space-y-2">
+                            {w.sentences.map((st, i) => (
+                              <div
+                                key={i}
+                                className="flex items-start gap-2 text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium bg-card/80 p-2.5 rounded-lg border border-border/60 shadow-xs"
+                              >
+                                <span className="font-serif text-base text-primary leading-none select-none">“</span>
+                                <p className="flex-1 italic">{st}</p>
+                                <span className="font-serif text-base text-primary leading-none select-none">”</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mastered toggle button */}
+                      <div className="pt-2 flex justify-end">
+                        <Button
+                          size="sm"
+                          variant={isDone ? "outline" : "default"}
+                          onClick={() => toggleMasteredWord(w.id)}
+                          className={cn(
+                            "text-xs font-bold rounded-xl px-4 py-2",
+                            isDone ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10" : ""
+                          )}
+                        >
+                          <Check size={14} className="mr-1.5" />
+                          {isDone ? "Mastered (Completed)" : "I Know This (Mark Mastered)"}
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{w.meaning}</p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => toggleMastered(w.id)} className="text-xs shrink-0">
-                    <RotateCcw size={13} className="mr-1" /> Re-learn
-                  </Button>
-                </div>
-              ))
+                  );
+                })
+              )}
+            </div>
           )}
-        </div>
+
+          {/* 1.2 10-Word Sprint Quiz */}
+          {tab === "quiz" && (
+            <ActiveDeckWordsQuiz words={active10Words} onMastered={toggleMasteredWord} />
+          )}
+
+          {/* 1.3 Mastered Archive */}
+          {tab === "mastered" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted-foreground" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search mastered words..."
+                  className="w-full rounded-lg border bg-secondary px-3 py-2 text-xs outline-none focus:border-primary"
+                />
+              </div>
+
+              {masteredWordsList.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
+                  No words marked as mastered yet. Click "I Know This" on cards in the Active Deck to save them here.
+                </p>
+              ) : (
+                masteredWordsList
+                  .filter(
+                    (w) =>
+                      w.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      w.meaning.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((w) => (
+                    <div key={w.id} className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm">{w.word}</p>
+                          <span className="text-xs text-muted-foreground">{w.pos}</span>
+                          <span className="rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-bold px-1.5 py-0.2">
+                            Mastered
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{w.meaning}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleMasteredWord(w.id)}
+                        className="text-xs shrink-0"
+                      >
+                        <RotateCcw size={13} className="mr-1" /> Re-learn
+                      </Button>
+                    </div>
+                  ))
+              )}
+            </div>
+          )}
+
+          {/* 1.4 Browse All 1000 Words */}
+          {tab === "browse" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted-foreground" />
+                <input
+                  value={browseQuery}
+                  onChange={(e) => setBrowseQuery(e.target.value)}
+                  placeholder="Search across all 1,000 authentic SSC PYQ words..."
+                  className="w-full rounded-lg border bg-secondary px-3 py-2 text-xs outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {fullWordsPool
+                  .filter(
+                    (w) =>
+                      w.word.toLowerCase().includes(browseQuery.toLowerCase()) ||
+                      w.meaning.toLowerCase().includes(browseQuery.toLowerCase()) ||
+                      w.synonyms.some((s) => s.toLowerCase().includes(browseQuery.toLowerCase()))
+                  )
+                  .slice(0, 100)
+                  .map((w) => {
+                    const isDone = masteredWordIds.has(w.id);
+                    return (
+                      <div key={w.id} className="rounded-lg border bg-card p-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-foreground">{w.word}</p>
+                            <span className="text-xs text-muted-foreground">{w.pos}</span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                              {w.repeatCount}
+                            </span>
+                            {isDone && (
+                              <span className="rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-bold px-1.5 py-0.2">
+                                Mastered
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{w.meaning}</p>
+                          {w.trick && (
+                            <p className="text-[11px] text-primary/80 italic">Trick: {w.trick}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant={isDone ? "outline" : "secondary"}
+                          size="sm"
+                          onClick={() => toggleMasteredWord(w.id)}
+                          className="text-xs shrink-0"
+                        >
+                          {isDone ? "Unmark" : "Mark Mastered"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* 1.5 Add Custom Word */}
+          {tab === "add" && <AddCustomWordForm update={update} onDone={() => setTab("deck")} />}
+        </>
       )}
 
-      {/* 4. Add Custom Word */}
-      {tab === "add" && <AddCustomWordForm update={update} onDone={() => setTab("deck")} />}
+      {/* ============================================================== */}
+      {/* MODE 2: IDIOMS & PHRASES (HINDI + ENGLISH)                    */}
+      {/* ============================================================== */}
+      {mode === "idioms" && (
+        <>
+          {/* 2.1 Active 10 Idioms Deck */}
+          {tab === "deck" && (
+            <div className="space-y-3">
+              {active10Idioms.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-8 text-center bg-card space-y-2">
+                  <Trophy size={42} className="mx-auto text-primary" />
+                  <p className="font-bold text-base">All 310 SSC Idioms Mastered!</p>
+                  <p className="text-xs text-muted-foreground">
+                    Superb achievement! You have mastered all previous year SSC idioms with Hindi and English meanings.
+                  </p>
+                </div>
+              ) : (
+                active10Idioms.map((idm, index) => {
+                  const isDone = masteredIdiomIds.has(idm.id);
+                  return (
+                    <div
+                      key={idm.id}
+                      className="rounded-2xl border-2 border-border/85 bg-card p-5 sm:p-6 space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="h-7 w-7 rounded-full bg-secondary text-muted-foreground text-xs font-black flex items-center justify-center shrink-0 border">
+                            {index + 1}
+                          </span>
+                          <p className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                            {idm.idiom}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => speakText(idm.idiom)}
+                            title="Listen pronunciation"
+                            className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          >
+                            <Volume2 size={16} />
+                          </Button>
+                        </div>
+                        <span className="rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-2.5 py-0.5 shrink-0">
+                          {idm.repeatCount}
+                        </span>
+                      </div>
+
+                      {/* Prominent Hindi Meaning Badge (Crucial user requirement) */}
+                      <div className="rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/10 border-2 border-orange-500/30 p-3.5 flex items-start gap-3">
+                        <span className="text-xl shrink-0 leading-none">🇮🇳</span>
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                            Hindi Meaning (हिंदी अर्थ)
+                          </p>
+                          <p className="text-base sm:text-lg font-black text-foreground tracking-wide font-sans">
+                            {idm.meaningHi}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* English Meaning Box */}
+                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3.5 space-y-1">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                          English Meaning
+                        </p>
+                        <p className="text-sm sm:text-base font-bold text-foreground leading-relaxed">
+                          {idm.meaningEn}
+                        </p>
+                      </div>
+
+                      {/* Origin / Memory Trick */}
+                      {idm.trick && (
+                        <div className="flex items-start gap-2.5 rounded-xl bg-primary/5 border border-primary/25 p-3 text-xs">
+                          <Lightbulb size={16} className="text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-black text-primary uppercase text-[10px] tracking-wider block">Origin / Mnemonic: </span>
+                            <span className="text-foreground/90 font-medium">{idm.trick}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Professional Multi-line Exam Sentence */}
+                      {idm.sentence && (
+                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3.5 sm:p-4 space-y-2">
+                          <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-primary">
+                            <BookOpen size={13} className="shrink-0" />
+                            <span>Exam Usage & Sentence</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium bg-card/80 p-2.5 rounded-lg border border-border/60 shadow-xs">
+                            <span className="font-serif text-base text-primary leading-none select-none">“</span>
+                            <p className="flex-1 italic">{idm.sentence}</p>
+                            <span className="font-serif text-base text-primary leading-none select-none">”</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mastered toggle button */}
+                      <div className="pt-2 flex justify-end">
+                        <Button
+                          size="sm"
+                          variant={isDone ? "outline" : "default"}
+                          onClick={() => toggleMasteredIdiom(idm.id)}
+                          className={cn(
+                            "text-xs font-bold rounded-xl px-4 py-2",
+                            isDone ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10" : ""
+                          )}
+                        >
+                          <Check size={14} className="mr-1.5" />
+                          {isDone ? "Mastered (Completed)" : "I Know This (Mark Mastered)"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* 2.2 10-Idiom Sprint Quiz */}
+          {tab === "quiz" && (
+            <ActiveDeckIdiomsQuiz idioms={active10Idioms} onMastered={toggleMasteredIdiom} />
+          )}
+
+          {/* 2.3 Mastered Archive for Idioms */}
+          {tab === "mastered" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted-foreground" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search mastered idioms..."
+                  className="w-full rounded-lg border bg-secondary px-3 py-2 text-xs outline-none focus:border-primary"
+                />
+              </div>
+
+              {masteredIdiomsList.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
+                  No idioms marked as mastered yet. Click "I Know This" on idioms in the Active Deck to move them here.
+                </p>
+              ) : (
+                masteredIdiomsList
+                  .filter(
+                    (idm) =>
+                      idm.idiom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      idm.meaningEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      idm.meaningHi.includes(searchQuery)
+                  )
+                  .map((idm) => (
+                    <div
+                      key={idm.id}
+                      className="rounded-lg border bg-card p-3 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm">{idm.idiom}</p>
+                          <span className="rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-bold px-1.5 py-0.2">
+                            Mastered
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+                          {idm.meaningHi}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{idm.meaningEn}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleMasteredIdiom(idm.id)}
+                        className="text-xs shrink-0"
+                      >
+                        <RotateCcw size={13} className="mr-1" /> Re-learn
+                      </Button>
+                    </div>
+                  ))
+              )}
+            </div>
+          )}
+
+          {/* 2.4 Browse All 310 Idioms */}
+          {tab === "browse" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted-foreground" />
+                <input
+                  value={browseQuery}
+                  onChange={(e) => setBrowseQuery(e.target.value)}
+                  placeholder="Search across all 310 authentic SSC PYQ idioms (English or Hindi)..."
+                  className="w-full rounded-lg border bg-secondary px-3 py-2 text-xs outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {BLACKBOOK_IDIOMS.filter(
+                  (idm) =>
+                    idm.idiom.toLowerCase().includes(browseQuery.toLowerCase()) ||
+                    idm.meaningEn.toLowerCase().includes(browseQuery.toLowerCase()) ||
+                    idm.meaningHi.includes(browseQuery)
+                )
+                  .slice(0, 100)
+                  .map((idm) => {
+                    const isDone = masteredIdiomIds.has(idm.id);
+                    return (
+                      <div
+                        key={idm.id}
+                        className="rounded-lg border bg-card p-3 flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-foreground">{idm.idiom}</p>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                              {idm.repeatCount}
+                            </span>
+                            {isDone && (
+                              <span className="rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-bold px-1.5 py-0.2">
+                                Mastered
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-orange-600 dark:text-orange-400">
+                            {idm.meaningHi}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{idm.meaningEn}</p>
+                          {idm.trick && (
+                            <p className="text-[11px] text-primary/80 italic">Trick: {idm.trick}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant={isDone ? "outline" : "secondary"}
+                          size="sm"
+                          onClick={() => toggleMasteredIdiom(idm.id)}
+                          className="text-xs shrink-0"
+                        >
+                          {isDone ? "Unmark" : "Mark Mastered"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-// Interactive Quiz on the 10 Active Words
-function ActiveDeckQuiz({
+// --------------------------------------------------------------------------
+// 10-Word Sprint Quiz Component
+// --------------------------------------------------------------------------
+function ActiveDeckWordsQuiz({
   words,
   onMastered,
 }: {
@@ -761,13 +776,15 @@ function ActiveDeckQuiz({
   if (!current || finished || words.length < 2) {
     return (
       <div className="rounded-xl border bg-card p-6 text-center space-y-4">
-        <Trophy size={40} className="mx-auto text-primary" />
-        <p className="font-bold text-lg">Active Deck Quiz Complete</p>
+        <Trophy size={42} className="mx-auto text-primary" />
+        <p className="font-bold text-lg">Active Deck Word Quiz Complete</p>
         <p className="text-3xl font-extrabold text-primary">
           {score} / {words.length}
         </p>
         <p className="text-xs text-muted-foreground">
-          {score === words.length ? "Flawless score! You have mastered these 10 words." : "Keep revising your active deck to master them completely."}
+          {score === words.length
+            ? "Flawless score! You have completely mastered these active words."
+            : "Keep revising your active deck to master them fully."}
         </p>
         <Button
           onClick={() => {
@@ -776,7 +793,7 @@ function ActiveDeckQuiz({
             setSelectedOpt(null);
             setFinished(false);
           }}
-          className="w-full"
+          className="w-full font-bold"
         >
           <RotateCcw size={15} className="mr-1.5" /> Re-take Quiz
         </Button>
@@ -788,9 +805,8 @@ function ActiveDeckQuiz({
     if (selectedOpt !== null) return;
     setSelectedOpt(opt);
     const isCorrect = opt === current.meaning;
-    if (isCorrect) {
-      setScore((s) => s + 1);
-    }
+    if (isCorrect) setScore((s) => s + 1);
+
     setTimeout(() => {
       setSelectedOpt(null);
       if (index < words.length - 1) setIndex((i) => i + 1);
@@ -801,17 +817,22 @@ function ActiveDeckQuiz({
   return (
     <div className="rounded-xl border bg-card p-5 space-y-4">
       <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold">
-        <span>Question {index + 1} of {words.length}</span>
+        <span>
+          Word Question {index + 1} of {words.length}
+        </span>
         <span className="font-bold text-primary">Score: {score}</span>
       </div>
 
       <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((index + 1) / words.length) * 100}%` }} />
+        <div
+          className="h-full bg-primary transition-all duration-300"
+          style={{ width: `${((index + 1) / words.length) * 100}%` }}
+        />
       </div>
 
       <div className="p-4 rounded-lg bg-secondary/30 text-center space-y-1">
         <p className="text-xs text-muted-foreground font-semibold">Select the correct meaning of:</p>
-        <p className="text-2xl font-extrabold text-foreground">{current.word}</p>
+        <p className="text-2xl font-extrabold text-foreground tracking-wide">{current.word}</p>
         <p className="text-xs text-muted-foreground italic">{current.pos}</p>
       </div>
 
@@ -830,10 +851,15 @@ function ActiveDeckQuiz({
               key={opt}
               disabled={selectedOpt !== null}
               onClick={() => handleSelect(opt)}
-              className={cn("w-full rounded-lg p-3 text-left text-sm font-medium transition flex items-center justify-between", cls)}
+              className={cn(
+                "w-full rounded-lg p-3 text-left text-sm font-medium transition flex items-center justify-between",
+                cls
+              )}
             >
-              <span>{opt}</span>
-              {selectedOpt !== null && isCorrect && <Check size={16} className="text-emerald-500 shrink-0" />}
+              <span className="leading-relaxed">{opt}</span>
+              {selectedOpt !== null && isCorrect && (
+                <Check size={16} className="text-emerald-500 shrink-0 ml-2" />
+              )}
             </Button>
           );
         })}
@@ -842,7 +868,140 @@ function ActiveDeckQuiz({
   );
 }
 
-// Add Custom Word Form
+// --------------------------------------------------------------------------
+// 10-Idiom Sprint Quiz Component (Tests Hindi & English Meanings)
+// --------------------------------------------------------------------------
+function ActiveDeckIdiomsQuiz({
+  idioms,
+  onMastered,
+}: {
+  idioms: BlackBookIdiom[];
+  onMastered: (id: string) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
+  const [score, setScore] = useState(0);
+  const [finished, setFinished] = useState(false);
+
+  const current = idioms[index];
+
+  // Alternates between testing Hindi meaning or English definition
+  const testMode = index % 2 === 0 ? "hindi" : "english";
+
+  const options = useMemo(() => {
+    if (!current) return [];
+    const correct = testMode === "hindi" ? current.meaningHi : current.meaningEn;
+    const fakes = idioms
+      .filter((idm) => idm.id !== current.id)
+      .map((idm) => (testMode === "hindi" ? idm.meaningHi : idm.meaningEn))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+    const all = [correct, ...fakes].sort(() => Math.random() - 0.5);
+    return all;
+  }, [current, idioms, testMode]);
+
+  if (!current || finished || idioms.length < 2) {
+    return (
+      <div className="rounded-xl border bg-card p-6 text-center space-y-4">
+        <Trophy size={42} className="mx-auto text-primary" />
+        <p className="font-bold text-lg">Active Deck Idioms Quiz Complete</p>
+        <p className="text-3xl font-extrabold text-primary">
+          {score} / {idioms.length}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {score === idioms.length
+            ? "Outstanding! You know both Hindi and English meanings of these active idioms perfectly."
+            : "Review the Hindi meanings and tricks in the Active Deck to score full marks."}
+        </p>
+        <Button
+          onClick={() => {
+            setIndex(0);
+            setScore(0);
+            setSelectedOpt(null);
+            setFinished(false);
+          }}
+          className="w-full font-bold"
+        >
+          <RotateCcw size={15} className="mr-1.5" /> Re-take Idioms Quiz
+        </Button>
+      </div>
+    );
+  }
+
+  const correctTarget = testMode === "hindi" ? current.meaningHi : current.meaningEn;
+
+  const handleSelect = (opt: string) => {
+    if (selectedOpt !== null) return;
+    setSelectedOpt(opt);
+    const isCorrect = opt === correctTarget;
+    if (isCorrect) setScore((s) => s + 1);
+
+    setTimeout(() => {
+      setSelectedOpt(null);
+      if (index < idioms.length - 1) setIndex((i) => i + 1);
+      else setFinished(true);
+    }, 900);
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-5 space-y-4">
+      <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold">
+        <span>
+          Idiom Question {index + 1} of {idioms.length}
+        </span>
+        <span className="font-bold text-primary">Score: {score}</span>
+      </div>
+
+      <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+        <div
+          className="h-full bg-primary transition-all duration-300"
+          style={{ width: `${((index + 1) / idioms.length) * 100}%` }}
+        />
+      </div>
+
+      <div className="p-4 rounded-lg bg-secondary/30 text-center space-y-1.5">
+        <span className="inline-block rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[11px] font-bold px-2.5 py-0.5">
+          {testMode === "hindi" ? "🇮🇳 What is the Hindi meaning?" : "🇬🇧 What is the English meaning?"}
+        </span>
+        <p className="text-2xl font-extrabold text-foreground tracking-wide">{current.idiom}</p>
+        <p className="text-xs text-muted-foreground italic">SSC Previous Year Question</p>
+      </div>
+
+      <div className="space-y-2">
+        {options.map((opt) => {
+          const isChosen = selectedOpt === opt;
+          const isCorrect = opt === correctTarget;
+          let cls = "border bg-card hover:bg-secondary/50";
+          if (selectedOpt !== null) {
+            if (isCorrect) cls = "border-emerald-500 bg-emerald-500/15 text-emerald-600 font-bold dark:text-emerald-400";
+            else if (isChosen) cls = "border-destructive bg-destructive/15 text-destructive font-bold";
+          }
+          return (
+            <Button
+              variant="unstyled"
+              key={opt}
+              disabled={selectedOpt !== null}
+              onClick={() => handleSelect(opt)}
+              className={cn(
+                "w-full rounded-lg p-3 text-left text-sm font-medium transition flex items-center justify-between",
+                cls
+              )}
+            >
+              <span className="leading-relaxed">{opt}</span>
+              {selectedOpt !== null && isCorrect && (
+                <Check size={16} className="text-emerald-500 shrink-0 ml-2" />
+              )}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Custom Word Addition Form
+// --------------------------------------------------------------------------
 function AddCustomWordForm({
   update,
   onDone,

@@ -8,8 +8,8 @@ import {
   SYLLABUS, USERS, type UserData, type Slot, type CAItem, normalize, stats, todayKey, chapterKey, fmt, TOTAL_CHAPTERS,
 } from "@/lib/syllabus";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff } from "lucide-react";
-import { QuizNudge, QuizZone, useQuizScores } from "@/components/quiz-zone";
+import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff, MessageSquare } from "lucide-react";
+import { QuizNudge, QuizZone, useQuizScores, useChapterQuizMap } from "@/components/quiz-zone";
 import { MathPracticeZone } from "@/components/math-practice";
 import { BlackBookVocabZone } from "@/components/blackbook-vocab";
 import { useSortable } from "@dnd-kit/sortable";
@@ -442,7 +442,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         ) : tab === "syllabus" ? (
           <Syllabus data={mine} update={update} all={all} />
         ) : tab === "quiz" ? (
-          <QuizZone who={auth.username} />
+          <QuizZone who={auth.username} targetChapter={search.chapter} />
         ) : tab === "extras" ? (
           <Extras data={mine} update={update} all={all} who={auth.username} />
         ) : (
@@ -704,6 +704,7 @@ function SlotRow({ s, checked, edit, live, onToggle, onUp, onDown, onChange, onD
 
 function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Record<string, UserData> }) {
   const quizScores = useQuizScores();
+  const chapterQuizzes = useChapterQuizMap();
   const { search, change } = useWorkspaceNavigation();
   const subj = search.subject ?? 0;
   const setSubj = (subject: number) => change({ subject });
@@ -748,12 +749,36 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
                 {sec.chapters.map((c) => {
                   const k = chapterKey(sec.name, c);
                   const st = data.chapters[k] ?? {};
+                  const qz = chapterQuizzes[k];
+                  const sc = quizScores[k];
                   const set = (patch: object) => update((d) => { d.chapters[k] = { ...(d.chapters[k] ?? {}), ...patch }; return d; });
                   const others = USERS.filter((u) => all[u].chapters[k]?.lecture);
                   return (
                     <div key={c} className="space-y-2 px-4 py-3">
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                        <p className="text-sm font-semibold">{c}{quizScores[k] && <span className="ml-2 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">Quiz {quizScores[k].score}/{quizScores[k].total}</span>}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold">{c}</p>
+                          {qz ? (
+                            <Button
+                              variant="unstyled"
+                              onClick={() => change({ tab: "quiz", chapter: k })}
+                              className={cn(
+                                "rounded-lg border px-2 py-0.5 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs active:scale-95",
+                                sc
+                                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25"
+                              )}
+                              title={`Take Quiz for ${c} (${qz.count} Questions)`}
+                            >
+                              <span>🎯</span>
+                              <span>{sc ? `Quiz ${sc.score}/${sc.total}` : `Take Quiz (${qz.count}Q)`}</span>
+                            </Button>
+                          ) : sc ? (
+                            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
+                              Quiz {sc.score}/{sc.total}
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="flex -space-x-1.5">
                           {others.map((u) => (
                             <span key={u} title={cap(u)} className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-accent text-[10px] font-bold text-accent-foreground">{u[0].toUpperCase()}</span>
@@ -767,6 +792,21 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
                             {st[f] ? "✓ " : ""}{f === "lecture" ? " Lecture" : f === "revised" ? " Revised" : " PYQ"}
                           </Button>
                         ))}
+                        {qz && (
+                          <Button
+                            variant="unstyled"
+                            onClick={() => change({ tab: "quiz", chapter: k })}
+                            className={cn(
+                              "min-h-11 rounded-lg border px-3 py-2 text-xs font-bold transition flex items-center gap-1.5",
+                              sc
+                                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "border-primary/40 bg-primary/15 text-primary hover:bg-primary/25"
+                            )}
+                          >
+                            <span>🎯</span>
+                            <span>{sc ? `Quiz: ${sc.score}/${sc.total}` : `🎯 Quiz (${qz.count}Q)`}</span>
+                          </Button>
+                        )}
                         {st.pyq && (
                           <input value={st.marks ?? ""} onChange={(e) => set({ marks: e.target.value })} placeholder="PYQ marks 18/25"
                             className="w-32 rounded-full border border-input bg-secondary px-3 py-2 text-xs outline-none focus:border-primary" />
@@ -812,18 +852,31 @@ function weekLabel(d = new Date()) {
 function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: Record<string, UserData>; who: string }) {
   const { search, change } = useWorkspaceNavigation();
   const view = search.practice === "quiz" || search.practice === "mock" || search.practice === "tests" ? "ca" : search.practice ?? "ca";
-  const setView = (practice: "ca" | "tables" | "vocab") => change({ practice });
+  const setView = (practice: "ca" | "tables" | "vocab" | "idioms") => change({ practice });
   return (
     <div className="space-y-4">
       <Hint icon="" title="Practice" character={practiceRobot} />
       <div className="section-tabs">
-        {([["ca", Newspaper, "Current affairs"], ["tables", Hash, "Maths calculations"], ["vocab", Type, "Vocabulary"],] as const).map(([k, Icon, l]) => (
+        {([
+          ["ca", Newspaper, "Current affairs"],
+          ["tables", Hash, "Maths calculations"],
+          ["vocab", Type, "Vocabulary (1000)"],
+          ["idioms", MessageSquare, "Idioms & Phrases (200+)"],
+        ] as const).map(([k, Icon, l]) => (
           <Button variant="unstyled" aria-pressed={view === k} key={k} onClick={() => setView(k)} className={cn("flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-3 text-sm font-semibold transition", view === k ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground")}>
             <Icon size={18} />{l}
           </Button>
         ))}
       </div>
-      {view === "ca" ? <CAZone data={data} update={update} all={all} who={who} /> : view === "tables" ? <MathPracticeZone data={data} update={update} all={all} /> : <BlackBookVocabZone data={data} update={update} all={all} who={who} />}
+      {view === "ca" ? (
+        <CAZone data={data} update={update} all={all} who={who} />
+      ) : view === "tables" ? (
+        <MathPracticeZone data={data} update={update} all={all} />
+      ) : view === "idioms" ? (
+        <BlackBookVocabZone data={data} update={update} all={all} who={who} initialMode="idioms" />
+      ) : (
+        <BlackBookVocabZone data={data} update={update} all={all} who={who} initialMode="words" />
+      )}
     </div>
   );
 }
@@ -835,27 +888,105 @@ function CAUpload({ onDone }: { onDone: () => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
   const up = useServerFn(uploadDailyCA);
+
+  const detectedCount = useMemo(() => {
+    return text.split("\n").filter((l) => l.trim().length > 4).length;
+  }, [text]);
+
+  const copyChatGptPrompt = async () => {
+    const prompt = `Generate the top 50 high-yield Current Affairs for SSC CGL / CHSL for this month.
+Format EACH news item strictly on a single line separated by pipe symbols (|) in this format:
+Category | Title | Complete Exam Fact | Short Memory Trick
+
+Allowed categories: National, International, Economy, Sports, Defense, Science, Appointments, Awards, Schemes.
+
+Example lines:
+National | 27th RBI Governor Appointed | Sanjay Malhotra appointed as the 27th Governor of RBI succeeding Shaktikanta Das | Trick: Malhotra = Money Holding Authority
+Sports | World Chess Championship 2024 | D Gukesh became the youngest World Chess Champion in Singapore | Trick: Gukesh = Genius King
+Defense | Exercise Malabar 2024 | Quad nations conducted the 28th edition of Exercise Malabar in Visakhapatnam | Trick: Malabar = Quad maritime power`;
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 3000);
+    } catch {}
+  };
+
   const submit = async () => {
     if (!text.trim() || busy) return;
     setBusy(true); setMsg("");
     try {
       const a = JSON.parse(localStorage.getItem("arena-auth") ?? "{}");
       const r = await up({ data: { username: a.username ?? "", password: a.password ?? "", day, text } });
-      setMsg(`✅ Saved ${r.count} points for ${r.day}.`); setText(""); onDone();
-    } catch (e) { setMsg(e instanceof Error ? e.message : "Upload failed."); }
+      setMsg(`✅ Successfully processed & saved ${r.count} news points for ${r.day}.`);
+      setText("");
+      onDone();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Upload failed.");
+    }
     setBusy(false);
   };
+
   return (
-    <div className="space-y-2 rounded-lg border border-border bg-card p-4">
-      <p className="text-sm font-bold">Upload current affairs</p>
-      <p className="text-xs text-muted-foreground">One news point per line. Optional format: Category | Title | Fact | Memory trick. Uploading again for the same date replaces that day’s pack.</p>
-      <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={"National | New RBI governor appointed | XYZ took charge as the 27th RBI governor today | RBI = Reserve Bank of India"}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-      <div className="flex items-center gap-3">
-        <Button variant="unstyled" disabled={busy} onClick={submit} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">{busy ? "Saving…" : "Upload"}</Button>
-        {msg && <p className="text-xs">{msg}</p>}
+    <div className="space-y-3 rounded-2xl border-2 border-primary/30 bg-card p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-base font-black font-display text-foreground">Upload Current Affairs (Daily or Monthly)</p>
+          <p className="text-xs text-muted-foreground">
+            Smart parser automatically separates each news item, detects categories, and stores them in your pack.
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={copyChatGptPrompt}
+          className="rounded-xl border-primary/40 text-xs font-bold shrink-0 hover:bg-primary/10 shadow-2xs"
+        >
+          {copiedPrompt ? "✓ Prompt Copied!" : "📋 Copy ChatGPT Prompt"}
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+          <span>Target Date / Pack:</span>
+          <input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            className="rounded-xl border-2 border-border/80 bg-background px-3 py-1.5 text-xs font-semibold outline-none focus:border-primary"
+          />
+        </div>
+        {detectedCount > 0 && (
+          <span className="rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-black px-3 py-1">
+            {detectedCount} Items Detected
+          </span>
+        )}
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={7}
+        placeholder={`Paste your ChatGPT / text notes here. Supports multiple formats:
+1. Pipe Format: Category | Title | Fact | Memory Trick
+2. Markdown Headers: ## National \n* Title: Detailed fact...
+3. JSON Array: [{"category": "...", "title": "...", "fact": "..."}]`}
+        className="w-full rounded-xl border-2 border-border/70 bg-secondary/30 p-3.5 text-xs font-mono leading-relaxed outline-none focus:border-primary"
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <Button
+          variant="unstyled"
+          disabled={busy || !text.trim()}
+          onClick={submit}
+          className="rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50 shadow-md active:scale-95 transition"
+        >
+          {busy ? "Parsing & Saving…" : `Upload ${detectedCount ? `(${detectedCount} Points)` : "Pack"}`}
+        </Button>
+        {msg && <p className="text-xs font-bold text-primary animate-in fade-in">{msg}</p>}
       </div>
     </div>
   );

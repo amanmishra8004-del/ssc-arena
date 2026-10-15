@@ -5,40 +5,25 @@ import { FileUp, Trash2, Trophy, Play, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SYLLABUS, chapterKey } from "@/lib/syllabus";
-import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, type QQ } from "@/lib/quiz.functions";
+import { createQuiz, deleteQuiz, deleteResults, listQuizzes, submitQuiz, cleanEnglish, type QQ } from "@/lib/quiz.functions";
 
 type Quiz = { id: string; title: string; chapter: string | null; day: string | null; questions: QQ[]; created_at: string; expired: boolean };
 type Attempt = { quiz_id: string; username: string; score: number; total: number; answers: unknown; at: string };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const creds = () => { try { const a = JSON.parse(localStorage.getItem("arena-auth") ?? "{}"); return { username: a.username ?? "", password: a.password ?? "" }; } catch { return { username: "", password: "" }; } };
 // Quizzes are English-only: drop Hindi (Devanagari) text and leftover " / " separators.
-export const en = (raw: string) => {
-  const s = String(raw ?? "").replace(/\s+/g, " ").trim();
-  if (!/[\u0900-\u097F]/.test(s)) return s;
-  // Files use "English / Hindi" per line: skip from a Hindi word or "/" until English text starts again.
-  const dev = (t: string | undefined) => !!t && /[\u0900-\u097F]/.test(t);
-  const word = (t: string | undefined) => !!t && !dev(t) && /[A-Za-z]{2,}/.test(t);
-  const tk = s.split(" ");
-  const keep: string[] = [];
-  let skip = false;
-  tk.forEach((t, i) => {
-    if (skip) {
-      const marker = /^(\d{1,2}|[ivx]{1,4})[.)]$/.test(t) && !!tk[i + 1] && !dev(tk[i + 1]) && tk[i + 1] !== "/";
-      if (!(marker || (word(t) && word(tk[i + 1])) || (/^(Reason|Assertion|Statement)/.test(t)))) return;
-      skip = false;
-    }
-    if (dev(t) || t === "/") { skip = true; return; }
-    keep.push(t);
-  });
-  const out = keep.join(" ").replace(/\s+([?.,:])/g, "$1").replace(/:(\s*:)+/g, ":").replace(/\s{2,}/g, " ").replace(/([?:])\s+[\d\s,]+$/, "$1")
-    .replace(/\s(\d{1,2}|[ivx]{1,4})[.)]\s+(?=[A-Z]|\d+\s[a-z])/g, "\n$1. ").trim();
-  return /[A-Za-z]{2,}/.test(out) ? out : s;
-};
+export const en = (raw: string) => cleanEnglish(raw);
 const chapterLabel = (k: string) => k.startsWith("test:") ? `${k.slice(5)} test` : k.split("|").join(" · ");
 
 function useQuizzes() {
   const list = useServerFn(listQuizzes);
-  return useQuery({ queryKey: ["quizzes"], queryFn: () => list({ data: creds() }), staleTime: 5 * 60000, refetchOnWindowFocus: false });
+  return useQuery({
+    queryKey: ["quizzes"],
+    queryFn: () => list({ data: creds() }),
+    staleTime: 0,
+    refetchInterval: 4000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 // Popup reminding a player about active quizzes they have not attempted yet. Reappears on every app open until attempted.
@@ -247,6 +232,7 @@ function QuizUpload({ onCreated, mode }: { onCreated: () => void; mode: "quiz" |
         const title = f.name.replace(/\.html?$/i, "").replace(/[_-]+/g, " ").trim() || "Quiz";
         const r = await create({ data: { ...creds(), html, title, chapter: target, day: null } });
         log[log.length - 1] = `${f.name}: ${r.count} questions added.`;
+        onCreated();
       } catch (e) { log[log.length - 1] = `${f.name}: ${e instanceof Error ? e.message : "Failed."}`; }
       setStatus([...log]);
     }
@@ -277,6 +263,7 @@ function QuizUpload({ onCreated, mode }: { onCreated: () => void; mode: "quiz" |
 }
 
 function QuizPlayer({ quiz, questions, onDone }: { quiz: Quiz; questions?: QQ[] | undefined; onDone: () => void }) {
+  const qc = useQueryClient();
   const submit = useServerFn(submitQuiz);
   const qs = questions ?? quiz.questions;
   const practice = Boolean(questions); // retry-missed mode: practice only, score is not saved
@@ -332,8 +319,14 @@ function QuizPlayer({ quiz, questions, onDone }: { quiz: Quiz; questions?: QQ[] 
               if (answered < ans.length && !confirm(`${ans.length - answered} questions are unanswered. Submit anyway?`)) return;
               setBusy(true);
               try {
-                if (practice) setResult({ score: ans.filter((a, k) => a === qs[k].answer).length, total: qs.length });
-                else setResult(await submit({ data: { ...creds(), quizId: quiz.id, answers: ans } }));
+                if (practice) {
+                  setResult({ score: ans.filter((a, k) => a === qs[k].answer).length, total: qs.length });
+                } else {
+                  const r = await submit({ data: { ...creds(), quizId: quiz.id, answers: ans } });
+                  setResult(r);
+                  qc.invalidateQueries({ queryKey: ["quizzes"] });
+                  qc.invalidateQueries({ queryKey: ["all"] });
+                }
               } catch (e) { alert(e instanceof Error ? e.message : "Unable to submit."); }
               setBusy(false);
             }}>{busy ? "Submitting…" : "Submit"}</Button>}

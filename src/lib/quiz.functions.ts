@@ -12,158 +12,452 @@ async function db(username: string, password: string, admin = false) {
   return supabaseAdmin;
 }
 
-const clean = (s: unknown) => String(s ?? "")
-  .replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ")
-  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-  .replace(/\s+/g, " ").replace(/\s+([?.,])/g, "$1").trim();
+const hindiRegex = /[\u0900-\u097F\uA8E0-\uA8FF]/;
 
-// Converts a JS array/object literal (unquoted keys, single quotes, trailing commas) into JSON text.
-function jsToJson(src: string) {
-  let out = "", i = 0;
-  while (i < src.length) {
-    const c = src[i]!;
-    if (c === '"' || c === "'" || c === "`") {
-      let j = i + 1, s = "";
-      while (j < src.length && src[j] !== c) { if (src[j] === "\\") { s += src[j]! + src[j + 1]!; j += 2; } else { s += src[j]; j++; } }
-      if (c !== '"') s = s.replace(/\\'/g, "'").replace(/(?<!\\)"/g, '\\"').replace(/\n/g, "\\n");
-      out += `"${s}"`; i = j + 1; continue;
-    }
-    if (c === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
-    if (/[A-Za-z_$]/.test(c)) {
-      const m = /^[A-Za-z_$][\w$]*/.exec(src.slice(i))![0];
-      const rest = src.slice(i + m.length).match(/^\s*(.)/)?.[1];
-      out += rest === ":" ? `"${m}"` : m; i += m.length; continue;
-    }
-    out += c; i++;
-  }
-  return out.replace(/,(\s*[\]}])/g, "$1");
+export function decodeHtml(html: unknown): string {
+  return String(html ?? "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
-// Reads quiz pages that define `const questions = [{q:"..", o:[..], a:2, e:".."}]` in a script.
-function extractJsLiteral(html: string): QQ[] {
-  const m = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[\s*\{/.exec(html);
-  if (!m) return [];
-  const name = m[1]!;
-  let i = html.indexOf("[", m.index), depth = 0, end = -1, q: string | null = null;
-  for (let k = i; k < html.length; k++) {
-    const c = html[k]!;
-    if (q) { if (c === "\\") k++; else if (c === q) q = null; continue; }
-    if (c === '"' || c === "'" || c === "`") q = c; else if (c === "[" || c === "{") depth++; else if (c === "]" || c === "}") { depth--; if (depth === 0) { end = k; break; } }
+export function cleanEnglish(raw: unknown): string {
+  if (!raw) return "";
+  const s = decodeHtml(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  const lines = s.split("\n");
+  const keptLines: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (hindiRegex.test(trimmed) || trimmed.includes("/")) {
+      const parts = trimmed.split(/\s*[\/|]\s*/);
+      if (parts.length > 1) {
+        const unique = [...new Set(parts.map((p) => p.trim()))];
+        if (unique.length === 1 && unique[0]) {
+          keptLines.push(unique[0]);
+          continue;
+        }
+        const enParts = parts.filter((p) => !hindiRegex.test(p) && /[A-Za-z0-9]/.test(p));
+        if (enParts.length > 0 && enParts[0]) {
+          keptLines.push(enParts[0]);
+          continue;
+        }
+      }
+      const stripped = trimmed.replace(/[\u0900-\u097F\uA8E0-\uA8FF।॥]/g, "").trim();
+      if (/[A-Za-z]{2,}/.test(stripped)) {
+        keptLines.push(stripped);
+      }
+    } else {
+      keptLines.push(trimmed);
+    }
   }
-  if (end < 0) return [];
-  let arr: Record<string, unknown>[];
-  try { arr = JSON.parse(jsToJson(html.slice(i, end + 1))); } catch { return []; }
-  if (!Array.isArray(arr)) return [];
-  // Apply later corrections like questions[2].a=2; questions[2].e="...";
-  const re = new RegExp(`${name.replace(/\$/g, "\\$")}\\[(\\d+)\\]\\.(\\w+)\\s*=\\s*("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|-?\\d+)`, "g");
-  for (const o of html.slice(end).matchAll(re)) {
-    const row = arr[Number(o[1])]; if (!row) continue;
-    const v = o[3]!; row[o[2]!] = /^-?\d+$/.test(v) ? Number(v) : v.slice(1, -1).replace(/\\(["'\\])/g, "$1");
-  }
-  return arr.map((x) => {
-    const optsRaw = x["o"] ?? x["options"] ?? x["opts"] ?? x["choices"];
-    const opts = Array.isArray(optsRaw) ? optsRaw.map(clean) : [1, 2, 3, 4, 5, 6].map((n) => clean(x[`option_${n}`])).filter(Boolean);
-    const raw = Number(x["a"] ?? x["answer"] ?? x["ans"] ?? x["correct"]);
-    const answer = Array.isArray(optsRaw) ? raw : raw - 1;
-    return { q: clean(x["q"] ?? x["question"]), options: opts, answer: Math.max(0, Math.min(opts.length - 1, Number.isFinite(answer) ? answer : 0)), explain: clean(x["e"] ?? x["explain"] ?? x["explanation"] ?? x["solution"] ?? "").slice(0, 400) };
-  }).filter((x) => x.q && x.options.length >= 2);
+
+  const res = keptLines
+    .join("\n")
+    .replace(/[\u0900-\u097F\uA8E0-\uA8FF।॥]/g, "")
+    .replace(/\s*[\/|]\s*$/g, "")
+    .replace(/^\s*[\/|]\s*/g, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\[\s*\]/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([?.,:])/g, "$1")
+    .trim();
+
+  return res;
 }
 
-// Direct read of quiz pages that embed questions as JSON (e.g. {"question", "option_1".., "answer": "2"}). Exact and free.
-function extractJson(html: string): QQ[] {
-  const start = html.indexOf('"question"');
-  if (start < 0) return extractJsLiteral(html);
-  let i = html.lastIndexOf("[", start);
-  while (i >= 0) {
-    let depth = 0, inStr = false, end = -1;
-    for (let k = i; k < html.length; k++) {
-      const c = html[k];
-      if (inStr) { if (c === "\\") k++; else if (c === '"') inStr = false; continue; }
-      if (c === '"') inStr = true; else if (c === "[" || c === "{") depth++; else if (c === "]" || c === "}") { depth--; if (depth === 0) { end = k; break; } }
+export function cleanOptionText(raw: unknown): string {
+  let s = cleanEnglish(raw);
+  s = s.replace(/^(?:\([A-Da-d1-4]\)|[A-Da-d1-4][.):]|\bOption\s*[1-4A-Da-d][:.-]?)\s+/i, "").trim();
+  return s;
+}
+
+function stripTags(html: unknown): string {
+  return decodeHtml(
+    String(html ?? "")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|tr|h\d|td)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n\s*\n+/g, "\n")
+      .trim()
+  );
+}
+
+// 1. JSON in Script / HTML
+export function extractJson(html: string): QQ[] {
+  const jsonArrRegex = /\[\s*\{\s*["'][A-Za-z0-9_]+["']\s*:/g;
+  let match: RegExpExecArray | null;
+  while ((match = jsonArrRegex.exec(html)) !== null) {
+    const start = match.index;
+    let depth = 0, inStr = false, escape = false, quoteChar: string | null = null;
+    let end = -1;
+    for (let k = start; k < html.length; k++) {
+      const c = html[k]!;
+      if (inStr) {
+        if (escape) escape = false;
+        else if (c === "\\") escape = true;
+        else if (c === quoteChar) inStr = false;
+        continue;
+      }
+      if (c === '"' || c === "'") { inStr = true; quoteChar = c; continue; }
+      if (c === "[" || c === "{") depth++;
+      else if (c === "]" || c === "}") {
+        depth--;
+        if (depth === 0) { end = k; break; }
+      }
     }
     if (end > start) {
       try {
-        const arr = JSON.parse(html.slice(i, end + 1));
-        if (Array.isArray(arr) && arr.some((x) => x && typeof x === "object" && "question" in x)) {
-          return arr.filter((x) => x && x.question).map((x) => {
-            const opts: string[] = Array.isArray(x.options) ? x.options.map(clean) : [1, 2, 3, 4, 5, 6].map((n) => clean(x[`option_${n}`])).filter(Boolean);
-            const raw = Number(x.answer ?? x.correct ?? x.correct_option);
-            const answer = Array.isArray(x.options) ? raw : raw - 1;
-            return { q: clean(x.question), options: opts, answer: Math.max(0, Math.min(opts.length - 1, Number.isFinite(answer) ? answer : 0)), explain: clean(x.solution_text ?? x.explanation ?? "").slice(0, 400) };
-          }).filter((x) => x.q && x.options.length >= 2);
+        const jsonStr = html.slice(start, end + 1);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          parsed = JSON.parse(jsonStr.replace(/'/g, '"'));
         }
-      } catch { /* try an outer bracket */ }
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sample = parsed[0] as Record<string, unknown> | null;
+          const hasQ = sample && (sample.q || sample.question || sample.question_text || sample.questionText || sample.title);
+          if (hasQ) {
+            const result: QQ[] = [];
+            for (const rawItem of parsed) {
+              const item = rawItem as Record<string, unknown>;
+              const qRaw = item.q || item.question || item.question_text || item.questionText || item.title;
+              const q = cleanEnglish(stripTags(qRaw));
+              if (!q) continue;
+
+              let opts: string[] = [];
+              if (Array.isArray(item.options)) opts = item.options.map((o) => cleanOptionText(stripTags(o)));
+              else if (Array.isArray(item.opts)) opts = item.opts.map((o) => cleanOptionText(stripTags(o)));
+              else if (Array.isArray(item.choices)) opts = item.choices.map((o) => cleanOptionText(stripTags(o)));
+              else {
+                for (let n = 1; n <= 6; n++) {
+                  const val = item[`option_${n}`] ?? item[`option${n}`] ?? item[`opt_${n}`] ?? item[`opt${n}`] ?? item[`choice_${n}`];
+                  if (val != null) opts.push(cleanOptionText(stripTags(val)));
+                }
+              }
+              opts = opts.filter(Boolean);
+              if (opts.length < 2) continue;
+
+              let ansIdx = 0;
+              const ansRaw = item.answer ?? item.ans ?? item.correct ?? item.correct_option ?? item.correctOption ?? item.right_answer;
+              if (typeof ansRaw === "number") {
+                ansIdx = Array.isArray(item.options) ? ansRaw : ansRaw - 1;
+              } else if (typeof ansRaw === "string") {
+                const upper = ansRaw.trim().toUpperCase();
+                if (/^[A-D]$/.test(upper)) ansIdx = upper.charCodeAt(0) - 65;
+                else if (/^[1-6]$/.test(upper)) ansIdx = Number(upper) - 1;
+                else {
+                  const matched = opts.findIndex((o) => o.toLowerCase() === ansRaw.trim().toLowerCase());
+                  if (matched >= 0) ansIdx = matched;
+                }
+              }
+              ansIdx = Math.max(0, Math.min(opts.length - 1, Number.isFinite(ansIdx) ? ansIdx : 0));
+
+              const explainRaw = item.explain ?? item.explanation ?? item.solution ?? item.solution_text ?? "";
+              const explain = cleanEnglish(stripTags(explainRaw)).slice(0, 500);
+
+              result.push({ q, options: opts, answer: ansIdx, explain });
+            }
+            if (result.length > 0) return result;
+          }
+        }
+      } catch {}
     }
-    i = html.lastIndexOf("[", i - 1);
-    if (start - i > 5000) break;
   }
-  return extractJsLiteral(html);
+  return [];
 }
 
-function htmlToText(html: string) {
-  // Many quiz pages keep questions inside <script> data (JSON with \uXXXX escapes): keep and decode it.
-  const decode = (s: string) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\"/g, '"').replace(/\\\//g, "/").replace(/\\n/g, "\n");
-  return html
-    .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (_, js: string) => (/question|option|answer/i.test(js) ? `\n${decode(js)}\n` : " "))
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+// 2. TCS iON / SSC / Exam portal table or container parser
+export function extractFromExamContainers(html: string): QQ[] {
+  const questions: QQ[] = [];
+  const blockRegex = /<(?:table|div)[^>]*class=["'][^"']*(?:questionPnl|menu-tbl|question-block|question-container|test-question|q-item|que\b)[^"']*["'][^>]*>([\s\S]*?)<\/(?:table|div)>/gi;
+  let blockMatch: RegExpExecArray | null;
+
+  while ((blockMatch = blockRegex.exec(html)) !== null) {
+    const block = blockMatch[1]!;
+
+    let qText = "";
+    const qRowMatch = /<td[^>]*>\s*Q\.?\s*\d+[^<]*<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/i.exec(block)
+      || /<(?:td|div|p|span)[^>]*class=["'][^"']*(?:question-text|qtext|q-title|questionTitle|que-text)[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|div|p|span)>/i.exec(block)
+      || /Q\.?\s*\d+[:.)\s]?\s*([^<]+)/i.exec(block);
+
+    if (qRowMatch && qRowMatch[1]) {
+      qText = cleanEnglish(stripTags(qRowMatch[1]));
+    } else {
+      const lines = stripTags(block).split("\n").map((l) => l.trim()).filter(Boolean);
+      const firstNonOpt = lines.find((l) => !/^Option\s*\d/i.test(l));
+      if (firstNonOpt) qText = cleanEnglish(firstNonOpt);
+    }
+    qText = qText.replace(/^(?:Q(?:uestion)?\.?\s*\d+[:.)\s]*|\d+[:.)\s]+)/i, "").trim();
+    if (!qText) continue;
+
+    const options: string[] = [];
+    let correctIdx = -1;
+
+    const rowRegex = /<tr([^>]*)>([\s\S]*?)<\/tr>/gi;
+    let rowMatch: RegExpExecArray | null;
+    while ((rowMatch = rowRegex.exec(block)) !== null) {
+      const trAttrs = rowMatch[1]!;
+      const trContent = rowMatch[2]!;
+      if (/Option\s*\d/i.test(trContent) || /rightAns/i.test(trAttrs)) {
+        const isCorrect = /rightAns|right_ans|correct/i.test(trAttrs) || /rightAns|right_ans|tick\.png/i.test(trContent);
+        const tds = [...trContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => m[1]);
+        const textTd = tds.length > 1 ? tds[tds.length - 1] : tds[0];
+        if (textTd) {
+          const optText = cleanOptionText(stripTags(textTd));
+          if (optText && !/^Option\s*\d$/i.test(optText)) {
+            if (isCorrect) correctIdx = options.length;
+            options.push(optText);
+          }
+        }
+      }
+    }
+
+    if (options.length < 2) {
+      const optRegex = /<(?:li|div|label)[^>]*class=["'][^"']*(?:opt|choice|radio)[^"']*["'][^>]*>([\s\S]*?)<\/(?:li|div|label)>/gi;
+      let optMatch: RegExpExecArray | null;
+      while ((optMatch = optRegex.exec(block)) !== null) {
+        const optHtml = optMatch[0];
+        const isCorrect = /correct|right|is-correct|text-success|data-correct=["']true["']/i.test(optHtml);
+        const optText = cleanOptionText(stripTags(optMatch[1]));
+        if (optText) {
+          if (isCorrect) correctIdx = options.length;
+          options.push(optText);
+        }
+      }
+    }
+
+    let explain = "";
+    const expMatch = /<(?:div|p|span)[^>]*class=["'][^"']*(?:explanation|solution|sol)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p|span)>/i.exec(block);
+    if (expMatch && expMatch[1]) explain = cleanEnglish(stripTags(expMatch[1])).slice(0, 500);
+
+    if (options.length >= 2) {
+      questions.push({
+        q: qText,
+        options,
+        answer: Math.max(0, correctIdx),
+        explain,
+      });
+    }
+  }
+
+  return questions;
+}
+
+// 3. Radio inputs parser (common in web forms and saved online mock tests)
+export function extractFromRadioInputs(html: string): QQ[] {
+  const radioRegex = /<input[^>]*type=["']radio["'][^>]*>/gi;
+  if (!radioRegex.test(html)) return [];
+
+  const nameRegex = /<input[^>]*name=["']([^"']+)["'][^>]*type=["']radio["'][^>]*>|<input[^>]*type=["']radio["'][^>]*name=["']([^"']+)["'][^>]*>/gi;
+  const groups = new Map<string, Array<{ index: number; fullTag: string }>>();
+  let m: RegExpExecArray | null;
+  while ((m = nameRegex.exec(html)) !== null) {
+    const groupName = m[1] || m[2];
+    if (!groupName) continue;
+    if (!groups.has(groupName)) groups.set(groupName, []);
+    groups.get(groupName)!.push({ index: m.index, fullTag: m[0] });
+  }
+
+  const questions: QQ[] = [];
+  let prevEnd = 0;
+
+  for (const [, inputs] of groups) {
+    if (inputs.length < 2) continue;
+    const firstInputIdx = inputs[0]!.index;
+
+    const beforeHtml = html.slice(prevEnd, firstInputIdx);
+    const pMatches = [...beforeHtml.matchAll(/<(?:p|div|h\d|td|legend|label)[^>]*>([\s\S]*?)<\/(?:p|div|h\d|td|legend|label)>/gi)];
+    const qRaw = pMatches.length > 0 ? pMatches[pMatches.length - 1]![1] : beforeHtml.slice(-500);
+    const q = cleanEnglish(stripTags(qRaw)).replace(/^(?:Q(?:uestion)?\.?\s*\d+[:.)\s]*|\d+[:.)\s]+)/i, "").trim();
+
+    const options: string[] = [];
+    let correctIdx = -1;
+
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i]!;
+      const isCorrect = /checked|data-correct|rightAns|correct/i.test(input.fullTag);
+      const afterStart = input.index + input.fullTag.length;
+      const nextInputIdx = i < inputs.length - 1 ? inputs[i + 1]!.index : html.indexOf("</form>", afterStart);
+      const sliceEnd = nextInputIdx > afterStart ? nextInputIdx : afterStart + 300;
+      const optHtml = html.slice(afterStart, sliceEnd);
+
+      const idMatch = /id=["']([^"']+)["']/i.exec(input.fullTag);
+      let optText = "";
+      if (idMatch && idMatch[1]) {
+        const forRegex = new RegExp(`<label[^>]*for=["']${idMatch[1]}["'][^>]*>([\\s\\S]*?)<\\/label>`, "i");
+        const forMatch = forRegex.exec(html);
+        if (forMatch && forMatch[1]) optText = cleanOptionText(stripTags(forMatch[1]));
+      }
+
+      if (!optText) {
+        const cut = optHtml.split(/<br\s*\/?>|<\/label>|<\/p>|<\/div>|<\/li>/i)[0];
+        optText = cleanOptionText(stripTags(cut));
+      }
+
+      if (optText) {
+        if (isCorrect) correctIdx = options.length;
+        options.push(optText);
+      }
+    }
+
+    prevEnd = inputs[inputs.length - 1]!.index;
+
+    if (q && options.length >= 2) {
+      questions.push({
+        q,
+        options,
+        answer: Math.max(0, correctIdx),
+        explain: "",
+      });
+    }
+  }
+
+  return questions;
+}
+
+// 4. Fallback: Full Text / HTML Heuristic Parser
+export function extractFromText(html: string): QQ[] {
+  const text = String(html ?? "")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<(input|option)[^>]*?(checked|selected|data-correct|correct)[^>]*>/gi, " [MARKED-CORRECT] ")
-    .replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d)[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
-}
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<(?:input|option|tr|li|div)[^>]*?(?:rightAns|right_ans|is-correct|data-correct|checked|selected)[^>]*>/gi, " [CORRECT-MARK] ")
+    .replace(/<img[^>]*?(?:tick|correct|right)[^>]*>/gi, " [CORRECT-MARK] ")
+    .replace(/<(?:[a-z0-9]+)[^>]*?(?:color:\s*(?:green|#00[89a-f]|#0[89a-f]0)|color=["']green["'])[^>]*>/gi, " [CORRECT-MARK] ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h\d|td|article|section)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
 
-async function ai(system: string, user: string) {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("Quiz reading is unavailable.");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "fetch" },
-    body: JSON.stringify({
-      model: "openai/gpt-6-astra", stream: true, store: false,
-      reasoning: { effort: "low", summary: "auto" }, include: ["reasoning.encrypted_content"],
-      input: [{ role: "system", content: system }, { role: "user", content: user }],
-    }),
-  });
-  if (!res.ok || !res.body) {
-    console.error(`Quiz AI failed [${res.status}]: ${await res.text().catch(() => "")}`);
-    throw new Error(res.status === 402 ? "AI credits are exhausted." : res.status === 429 ? "Service is busy. Please try again later." : `AI error ${res.status}`);
+  const decoded = decodeHtml(text);
+  const rawLines = decoded.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  const qBlocks: string[][] = [];
+  let currentBlock: string[] = [];
+
+  const isQStart = (l: string) => /^(?:Q(?:uestion)?\.?\s*\d+[:.)\s]|\(?\s*\d+\s*\)\s+|\d+[:.)]\s+)/i.test(l);
+
+  for (const line of rawLines) {
+    if (isQStart(line) && currentBlock.length > 0) {
+      const hasOpts = currentBlock.some((l) => /^(?:\[CORRECT-MARK\]\s*)?(?:\(?\s*[A-Da-d1-4]\s*[.):]|\bOption\s*[1-4A-Da-d]\b)/i.test(l));
+      if (hasOpts) {
+        qBlocks.push(currentBlock);
+        currentBlock = [line];
+        continue;
+      }
+    }
+    currentBlock.push(line);
   }
-  const reader = res.body.getReader(); const dec = new TextDecoder();
-  let buf = "", text = "";
-  for (;;) {
-    const { done, value } = await reader.read(); if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split("\n"); buf = lines.pop() ?? "";
-    for (const l of lines) {
-      if (!l.startsWith("data:")) continue;
-      try { const ev = JSON.parse(l.slice(5).trim()); if (ev.type === "response.output_text.delta") text += ev.delta; } catch { /* skip */ }
+  if (currentBlock.length > 0) qBlocks.push(currentBlock);
+
+  const parsedQuestions: QQ[] = [];
+
+  for (const block of qBlocks) {
+    const qLines: string[] = [];
+    const options: string[] = [];
+    let ansIdx = -1;
+    const explainLines: string[] = [];
+    let state: "q" | "opts" | "exp" = "q";
+
+    for (const rawLine of block) {
+      const line = rawLine.trim();
+
+      const ansMatch = /(?:(?:Ans(?:wer)?|Correct(?:\s+Option|\s+Answer)?|Right(?:\s+Option|\s+Answer)?)\s*(?:is\s*)?[:.-]?\s*\(?\s*([A-Da-d1-4])|Option\s*\(?\s*([A-Da-d1-4])\s*\)?\s*(?:is\s*correct|is\s*the\s*correct)|(?:^|\s)Key\s*[:.-]\s*([A-Da-d1-4]))/i.exec(line);
+      if (ansMatch) {
+        const val = (ansMatch[1] || ansMatch[2] || ansMatch[3])!.toUpperCase();
+        if (/^[A-D]$/.test(val)) ansIdx = val.charCodeAt(0) - 65;
+        else if (/^[1-4]$/.test(val)) ansIdx = Number(val) - 1;
+        state = "exp";
+        continue;
+      }
+
+      if (/^(?:Explanation|Solution|Sol|Detail)\s*[:.-]/i.test(line)) {
+        state = "exp";
+        explainLines.push(line.replace(/^(?:Explanation|Solution|Sol|Detail)\s*[:.-]?\s*/i, ""));
+        continue;
+      }
+
+      if (state === "exp") {
+        explainLines.push(line);
+        continue;
+      }
+
+      const isCorrectMarked = /\[CORRECT-MARK\]|^\s*[*✓✔]/i.test(line);
+      const cleanLine = line.replace(/\[CORRECT-MARK\]|^\s*[*✓✔]\s*/gi, "").trim();
+
+      const optMatch = /^(?:\(?\s*([A-Da-d1-4])\s*[.):]|\bOption\s*([1-4A-Da-d])\s*[:.-]?)\s*(.*)/i.exec(cleanLine);
+      if (optMatch) {
+        state = "opts";
+        const optText = cleanOptionText(optMatch[3] || cleanLine);
+        if (optText) {
+          if (isCorrectMarked) ansIdx = options.length;
+          options.push(optText);
+        }
+        continue;
+      }
+
+      if (state === "opts") {
+        if (options.length > 0 && !isQStart(cleanLine)) {
+          options[options.length - 1] += " " + cleanOptionText(cleanLine);
+        }
+      } else {
+        qLines.push(cleanLine);
+      }
+    }
+
+    const q = cleanEnglish(qLines.join("\n")).replace(/^(?:Q(?:uestion)?\.?\s*\d+[:.)\s]*|\d+[:.)\s]+)/i, "").trim();
+    if (q && options.length >= 2) {
+      parsedQuestions.push({
+        q,
+        options,
+        answer: Math.max(0, ansIdx >= 0 ? ansIdx : 0),
+        explain: cleanEnglish(explainLines.join(" ")).slice(0, 500),
+      });
     }
   }
-  return text;
+
+  return parsedQuestions;
+}
+
+// Master parser that runs through all strategies
+export function parseQuizHtml(html: string): QQ[] {
+  // 1. Try embedded JSON / script literal
+  const jsonQs = extractJson(html);
+  if (jsonQs.length > 0) return jsonQs;
+
+  // 2. Try exam containers (TCS iON / SSC / Testbook / portal markup)
+  const domQs = extractFromExamContainers(html);
+  if (domQs.length > 0) return domQs;
+
+  // 3. Try radio input groups
+  const radioQs = extractFromRadioInputs(html);
+  if (radioQs.length > 0) return radioQs;
+
+  // 4. Try text heuristic parsing
+  const textQs = extractFromText(html);
+  if (textQs.length > 0) return textQs;
+
+  return [];
 }
 
 export const createQuiz = createServerFn({ method: "POST" })
-  .inputValidator((d) => cred.extend({ html: z.string().min(20).max(3_000_000), title: z.string().trim().min(1).max(120), chapter: z.string().max(200).nullable(), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }).parse(d))
+  .inputValidator((d) => cred.extend({ html: z.string().min(20).max(5_000_000), title: z.string().trim().min(1).max(120), chapter: z.string().max(200).nullable(), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }).parse(d))
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password, true);
-    let qs: QQ[] = extractJson(data.html);
-    if (!qs.length && data.chapter?.startsWith("test:")) throw new Error("No questions could be read from this file. Please check the file format.");
+    const qs: QQ[] = parseQuizHtml(data.html);
     if (!qs.length) {
-      const text = htmlToText(data.html).slice(0, 120_000);
-      const out = await ai(
-        `You extract multiple-choice questions from a quiz page (converted from HTML to text). Extract EVERY question exactly as written with its 4 options (if more or fewer, keep them as given, 2-6 options). Use the correct answer given in the file (answer keys, "Correct answer", "Ans", [MARKED-CORRECT] markers, solutions). Only if no answer is given anywhere for a question, work it out yourself. Keep the original language. If a short solution/explanation exists, include it (max 40 words).
-Reply ONLY JSON: {"questions":[{"q": string, "options": string[], "answer": 0-based index, "explain": string}]}. No markdown.`,
-        text,
-      );
-      const m = out.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("No questions were found in this file.");
-      qs = ((JSON.parse(m[0]).questions ?? []) as QQ[])
-        .filter((x) => x?.q && Array.isArray(x.options) && x.options.length >= 2)
-        .map((x) => ({ q: String(x.q), options: x.options.map(String), answer: Math.max(0, Math.min(x.options.length - 1, Number(x.answer) || 0)), explain: x.explain ? String(x.explain) : "" }));
+      throw new Error("No questions could be read from this file. Please verify that the HTML file contains questions with options.");
     }
-    if (!qs.length) throw new Error("No questions were found in this file.");
     const { data: row, error } = await sb.from("quizzes").insert({ title: data.title, chapter: data.chapter, day: data.day, questions: qs }).select("id").single();
     if (error) throw new Error(error.message);
     return { id: row.id, count: qs.length };
@@ -200,7 +494,6 @@ export const deleteQuiz = createServerFn({ method: "POST" })
   .inputValidator((d) => cred.extend({ quizId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password, true);
-    // Hard delete: remove attempts first, then the quiz — gone from the cloud instantly.
     await sb.from("quiz_attempts").delete().eq("quiz_id", data.quizId);
     const { error } = await sb.from("quizzes").delete().eq("id", data.quizId);
     if (error) throw new Error(error.message);

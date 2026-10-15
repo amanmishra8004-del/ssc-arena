@@ -269,36 +269,34 @@ export function BlackBookVocabZone({
                   return (
                     <div
                       key={w.id}
-                      className="rounded-2xl border-2 border-border/85 bg-card p-5 sm:p-6 space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
+                      className="rounded-2xl border-2 border-border/85 bg-card p-4 sm:p-6 space-y-3.5 sm:space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
+                      {/* Top Header: Number, Complete Word on One Line, Part of Speech, Audio Pronunciation */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-x-auto scrollbar-none py-0.5">
                           <span className="h-7 w-7 rounded-full bg-secondary text-muted-foreground text-xs font-black flex items-center justify-center shrink-0 border">
                             {index + 1}
                           </span>
-                          <p className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                          <span className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground whitespace-nowrap">
                             {w.word}
-                          </p>
-                          <span className="text-xs text-muted-foreground font-bold px-2 py-0.5 rounded-md bg-secondary/80 border">
+                          </span>
+                          <span className="text-[11px] text-muted-foreground font-bold px-2 py-0.5 rounded-md bg-secondary/80 border shrink-0">
                             {w.pos}
                           </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => speakText(w.word)}
-                            title="Listen pronunciation"
-                            className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          >
-                            <Volume2 size={16} />
-                          </Button>
                         </div>
-                        <span className="rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-2.5 py-0.5 shrink-0">
-                          {w.repeatCount}
-                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => speakText(w.word)}
+                          title="Listen pronunciation"
+                          className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                        >
+                          <Volume2 size={16} />
+                        </Button>
                       </div>
 
                       {/* Clear Meaning Box */}
-                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3.5">
+                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3 sm:p-3.5">
                         <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
                           Core Meaning
                         </p>
@@ -336,7 +334,7 @@ export function BlackBookVocabZone({
 
                       {/* Professional Multi-line Example Sentences */}
                       {w.sentences.length > 0 && (
-                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3.5 sm:p-4 space-y-2">
+                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3 sm:p-4 space-y-2">
                           <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-primary">
                             <BookOpen size={13} className="shrink-0" />
                             <span>Exam Usage & Sentences</span>
@@ -356,14 +354,18 @@ export function BlackBookVocabZone({
                         </div>
                       )}
 
-                      {/* Mastered toggle button */}
-                      <div className="pt-2 flex justify-end">
+                      {/* Card Footer: Repeated in SSC PYQ (last) + Mastered toggle button */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 self-start rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-3 py-1">
+                          <Flame size={13} className="text-amber-500 fill-amber-500 shrink-0" />
+                          <span>{w.repeatCount}</span>
+                        </div>
                         <Button
                           size="sm"
                           variant={isDone ? "outline" : "default"}
                           onClick={() => toggleMasteredWord(w.id)}
                           className={cn(
-                            "text-xs font-bold rounded-xl px-4 py-2",
+                            "text-xs font-bold rounded-xl px-4 py-2 w-full sm:w-auto shadow-xs",
                             isDone ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10" : ""
                           )}
                         >
@@ -460,7 +462,7 @@ export function BlackBookVocabZone({
                     return (
                       <div key={w.id} className="rounded-lg border bg-card p-3 flex items-start justify-between gap-3">
                         <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold text-sm text-foreground">{w.word}</p>
                             <span className="text-xs text-muted-foreground">{w.pos}</span>
                             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
@@ -519,33 +521,31 @@ export function BlackBookVocabZone({
                   return (
                     <div
                       key={idm.id}
-                      className="rounded-2xl border-2 border-border/85 bg-card p-5 sm:p-6 space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
+                      className="rounded-2xl border-2 border-border/85 bg-card p-4 sm:p-6 space-y-3.5 sm:space-y-4 transition-all shadow-sm hover:shadow-md hover:border-primary/50"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
+                      {/* Top Header: Number, Full Idiom, Audio Pronunciation */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-x-auto scrollbar-none py-0.5">
                           <span className="h-7 w-7 rounded-full bg-secondary text-muted-foreground text-xs font-black flex items-center justify-center shrink-0 border">
                             {index + 1}
                           </span>
-                          <p className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                          <span className="font-display text-lg sm:text-2xl font-black tracking-tight text-foreground whitespace-nowrap">
                             {idm.idiom}
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => speakText(idm.idiom)}
-                            title="Listen pronunciation"
-                            className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          >
-                            <Volume2 size={16} />
-                          </Button>
+                          </span>
                         </div>
-                        <span className="rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-2.5 py-0.5 shrink-0">
-                          {idm.repeatCount}
-                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => speakText(idm.idiom)}
+                          title="Listen pronunciation"
+                          className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                        >
+                          <Volume2 size={16} />
+                        </Button>
                       </div>
 
                       {/* Prominent Hindi Meaning Badge (Crucial user requirement) */}
-                      <div className="rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/10 border-2 border-orange-500/30 p-3.5 flex items-start gap-3">
+                      <div className="rounded-xl bg-gradient-to-r from-orange-500/15 to-amber-500/10 border-2 border-orange-500/30 p-3 sm:p-3.5 flex items-start gap-3">
                         <span className="text-xl shrink-0 leading-none">🇮🇳</span>
                         <div className="space-y-0.5">
                           <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">
@@ -558,7 +558,7 @@ export function BlackBookVocabZone({
                       </div>
 
                       {/* English Meaning Box */}
-                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3.5 space-y-1">
+                      <div className="rounded-xl bg-secondary/40 border border-border/70 p-3 sm:p-3.5 space-y-1">
                         <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
                           English Meaning
                         </p>
@@ -580,7 +580,7 @@ export function BlackBookVocabZone({
 
                       {/* Professional Multi-line Exam Sentence */}
                       {idm.sentence && (
-                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3.5 sm:p-4 space-y-2">
+                        <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-r from-primary/5 via-secondary/20 to-card p-3 sm:p-4 space-y-2">
                           <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-primary">
                             <BookOpen size={13} className="shrink-0" />
                             <span>Exam Usage & Sentence</span>
@@ -593,14 +593,18 @@ export function BlackBookVocabZone({
                         </div>
                       )}
 
-                      {/* Mastered toggle button */}
-                      <div className="pt-2 flex justify-end">
+                      {/* Card Footer: Repeated in SSC PYQ (last) + Mastered toggle button */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 self-start rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-black px-3 py-1">
+                          <Flame size={13} className="text-amber-500 fill-amber-500 shrink-0" />
+                          <span>{idm.repeatCount}</span>
+                        </div>
                         <Button
                           size="sm"
                           variant={isDone ? "outline" : "default"}
                           onClick={() => toggleMasteredIdiom(idm.id)}
                           className={cn(
-                            "text-xs font-bold rounded-xl px-4 py-2",
+                            "text-xs font-bold rounded-xl px-4 py-2 w-full sm:w-auto shadow-xs",
                             isDone ? "text-emerald-600 border-emerald-500/40 bg-emerald-500/10" : ""
                           )}
                         >
@@ -705,7 +709,7 @@ export function BlackBookVocabZone({
                         className="rounded-lg border bg-card p-3 flex items-start justify-between gap-3"
                       >
                         <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold text-sm text-foreground">{idm.idiom}</p>
                             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
                               {idm.repeatCount}

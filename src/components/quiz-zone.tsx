@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileUp, Trash2, Trophy, Play, Check, X } from "lucide-react";
@@ -37,7 +37,7 @@ export function useQuizScores() {
     for (const a of (q.data?.attempts ?? []) as Attempt[]) {
       if (a.username !== who) continue;
       const ch = qz.find((z) => z.id === a.quiz_id)?.chapter;
-      if (ch && (!out[ch] || a.score / a.total > out[ch].score / out[ch].total)) out[ch] = { score: a.score, total: a.total };
+      if (ch && (!out[ch] || (a.total > 0 && a.score / a.total > out[ch].score / out[ch].total))) out[ch] = { score: a.score, total: a.total };
     }
     return out;
   }, [q.data]);
@@ -51,22 +51,25 @@ export function useChapterQuizMap() {
     const qz = (q.data?.quizzes ?? []) as Quiz[];
     for (const z of qz) {
       if (!z.expired && z.chapter) {
-        out[z.chapter] = { id: z.id, title: z.title, count: z.questions.length, quiz: z };
+        const qCount = Array.isArray(z.questions) ? z.questions.length : 0;
+        out[z.chapter] = { id: z.id, title: z.title || "", count: qCount, quiz: z };
       }
     }
     return out;
   }, [q.data]);
 }
 
-export function detectQuizSubject(quiz: { chapter?: string | null; title: string }): "maths" | "reasoning" | "english" | "ga" | "test" {
-  const ch = (quiz.chapter || "").toLowerCase();
-  const t = quiz.title.toLowerCase();
+export function detectQuizSubject(quiz?: { chapter?: string | null; title?: string | null } | null): "maths" | "reasoning" | "english" | "ga" | "test" {
+  if (!quiz) return "ga";
+  const ch = String(quiz.chapter || "").toLowerCase();
+  const t = String(quiz.title || "").toLowerCase();
   if (ch.startsWith("test:") || t.includes("mock") || t.includes("full test")) return "test";
   
-  if (SYLLABUS[0].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "maths";
-  if (SYLLABUS[1].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "reasoning";
-  if (SYLLABUS[2].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "english";
-  if (SYLLABUS[3].sections.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "ga";
+  // SYLLABUS: [0] = Maths, [1] = GS, [2] = Reasoning, [3] = English
+  if (SYLLABUS[0]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "maths";
+  if (SYLLABUS[1]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "ga";
+  if (SYLLABUS[2]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "reasoning";
+  if (SYLLABUS[3]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "english";
   
   if (/math|arithmetic|advance|number|ratio|percentage|algebra|geometry|trig|mensuration|si|ci|profit|loss|time|speed|boat|pipe|square|cube|table/i.test(ch + " " + t)) return "maths";
   if (/reasoning|analogy|syllogism|blood|direction|series|coding|matrix|cube|dice|paper|mirror|pattern/i.test(ch + " " + t)) return "reasoning";
@@ -89,10 +92,11 @@ export function QuizNudge({ who, onOpen }: { who: string; onOpen: () => void }) 
         <div className="max-h-72 space-y-2 overflow-y-auto">
           {pending.slice(0, 5).map((z) => {
             const done = [...new Set(attempts.filter((a) => a.quiz_id === z.id).map((a) => a.username))];
+            const qCount = Array.isArray(z.questions) ? z.questions.length : 0;
             return (
               <div key={z.id} className="rounded-lg bg-secondary/60 p-3">
-                <p className="font-semibold">{z.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{z.questions.length} questions{z.chapter ? ` · ${chapterLabel(z.chapter)}` : ""}</p>
+                <p className="font-semibold">{z.title || "Quiz"}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{qCount} questions{z.chapter ? ` · ${chapterLabel(z.chapter)}` : ""}</p>
                 <p className="mt-1.5 text-sm">{done.length ? `Already attempted by ${done.map(cap).join(", ")}. Attempt it now.` : "No one has attempted it yet. Be the first."}</p>
               </div>
             );
@@ -163,8 +167,8 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       // Search query across title and chapter label
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchTitle = z.title.toLowerCase().includes(query);
-        const matchChapter = (z.chapter || "").toLowerCase().includes(query);
+        const matchTitle = String(z.title || "").toLowerCase().includes(query);
+        const matchChapter = String(z.chapter || "").toLowerCase().includes(query);
         if (!matchTitle && !matchChapter) return false;
       }
 
@@ -178,15 +182,16 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
       const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
       if (!mine || !Array.isArray(mine.answers)) continue;
       const ans = mine.answers as number[];
-      z.questions.forEach((x, i) => {
+      const qList = Array.isArray(z.questions) ? z.questions : [];
+      qList.forEach((x, i) => {
         const a = ans[i] ?? -1;
         if (a !== x.answer) {
           list.push({
             id: `${z.id}-${i}`,
             quizId: z.id,
-            quizTitle: z.title,
-            chapterKey: z.chapter || z.title,
-            chapterLabel: z.chapter ? chapterLabel(z.chapter) : z.title,
+            quizTitle: z.title || "Quiz",
+            chapterKey: z.chapter || z.title || "General",
+            chapterLabel: z.chapter ? chapterLabel(z.chapter) : (z.title || "General"),
             qIndex: i,
             question: x,
             userAnswer: a,
@@ -202,7 +207,8 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
     const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
     if (!mine || !Array.isArray(mine.answers)) return;
     const ans = mine.answers as number[];
-    const wrong = z.questions.filter((x, i) => (ans[i] ?? -1) !== x.answer);
+    const qList = Array.isArray(z.questions) ? z.questions : [];
+    const wrong = qList.filter((x, i) => (ans[i] ?? -1) !== x.answer);
     if (wrong.length) setPlaying({ quiz: z, questions: wrong });
   };
 
@@ -224,7 +230,7 @@ export function QuizZone({ who, mode = "quiz", targetChapter }: { who: string; m
               {chapterLabel(selectedTargetChapter)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {targetQuiz ? `Uploaded & ready · ${targetQuiz.questions.length} questions` : "No quiz uploaded for this chapter yet."}
+              {targetQuiz ? `Uploaded & ready · ${Array.isArray(targetQuiz.questions) ? targetQuiz.questions.length : 0} questions` : "No quiz uploaded for this chapter yet."}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -603,14 +609,15 @@ function PastResults({ quizzes, attempts, who, onRetry, onChanged }: { quizzes: 
         const rows = Object.values(best).sort((a, b) => b.score - a.score);
         const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
         const ans = Array.isArray(mine?.answers) ? (mine!.answers as number[]) : [];
-        const wrong = mine ? z.questions.map((x, i) => ({ x, i, a: ans[i] ?? -1 })).filter((w) => w.a !== w.x.answer) : [];
+        const qList = Array.isArray(z.questions) ? z.questions : [];
+        const wrong = mine ? qList.map((x, i) => ({ x, i, a: ans[i] ?? -1 })).filter((w) => w.a !== w.x.answer) : [];
         return (
           <div key={z.id} className="rounded-lg border bg-card p-4">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-semibold">{z.title}</p>
+              <p className="font-semibold">{z.title || "Quiz"}</p>
               {who === "arun" && <Button variant="ghost" size="sm" aria-label="Delete results" onClick={() => void removeResults(z)}><Trash2 size={16} className="text-destructive" /></Button>}
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">{z.questions.length} questions · {new Date(z.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{qList.length} questions · {new Date(z.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
             <div className="mt-3 space-y-1">
               {rows.map((b, i) => (
                 <div key={b.username} className={cn("flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm", b.username === who ? "bg-primary/10" : "bg-secondary/60")}>
@@ -651,16 +658,17 @@ function QuizCard({ quiz, attempts, who, onPlay, onRetry, onDeleted }: { quiz: Q
   }, [attempts]);
   const mine = best.find((b) => b.username === who);
   const lastMine = attempts.filter((a) => a.username === who).at(-1);
+  const qList = Array.isArray(quiz.questions) ? quiz.questions : [];
   const missed = lastMine && Array.isArray(lastMine.answers)
-    ? quiz.questions.filter((x, i) => ((lastMine.answers as number[])[i] ?? -1) !== x.answer).length
+    ? qList.filter((x, i) => ((lastMine.answers as number[])[i] ?? -1) !== x.answer).length
     : 0;
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-semibold">{quiz.title}</p>
+          <p className="font-semibold">{quiz.title || "Quiz"}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {quiz.questions.length} questions · {quiz.chapter ? chapterLabel(quiz.chapter)  : "General"}
+            {qList.length} questions · {quiz.chapter ? chapterLabel(quiz.chapter)  : "General"}
           </p>
         </div>
         {who === "arun" && <Button variant="ghost" size="icon" aria-label="Delete quiz" onClick={async () => { if (confirm("Delete this quiz and all of its scores?")) { await del({ data: { ...creds(), quizId: quiz.id } }); onDeleted(); } }}><Trash2 size={18} /></Button>}

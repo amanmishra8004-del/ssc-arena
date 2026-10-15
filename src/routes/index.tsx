@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff } from "lucide-react";
 import { QuizNudge, QuizZone, useQuizScores } from "@/components/quiz-zone";
 import { MathPracticeZone } from "@/components/math-practice";
+import { BlackBookVocabZone } from "@/components/blackbook-vocab";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TimetableSortable } from "@/components/timetable-sortable";
@@ -822,7 +823,7 @@ function Extras({ data, update, all, who }: { data: UserData; update: Upd; all: 
           </Button>
         ))}
       </div>
-      {view === "ca" ? <CAZone data={data} update={update} all={all} who={who} /> : view === "tables" ? <MathPracticeZone data={data} update={update} all={all} /> : <VocabBox me={data} update={update} all={all} who={who} />}
+      {view === "ca" ? <CAZone data={data} update={update} all={all} who={who} /> : view === "tables" ? <MathPracticeZone data={data} update={update} all={all} /> : <BlackBookVocabZone data={data} update={update} all={all} who={who} />}
     </div>
   );
 }

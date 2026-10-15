@@ -14,17 +14,86 @@ async function db(username: string, password: string, admin = false) {
 
 const hindiRegex = /[\u0900-\u097F\uA8E0-\uA8FF]/;
 
+const ENTITY_MAP: Record<string, string> = {
+  "&nbsp;": " ",
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&rsquo;": "'",
+  "&lsquo;": "'",
+  "&ndash;": "-",
+  "&mdash;": " - ",
+  "&ldquo;": '"',
+  "&rdquo;": '"',
+  "&hellip;": "...",
+  "&bull;": "•",
+  "&minus;": "-",
+  "&times;": "×",
+  "&divide;": "÷",
+  "&deg;": "°",
+  "&plusmn;": "±",
+  "&prime;": "'",
+  "&Prime;": '"',
+  "&copy;": "©",
+  "&reg;": "®",
+  "&trade;": "™",
+  "&#8217;": "'",
+  "&#8216;": "'",
+  "&#8220;": '"',
+  "&#8221;": '"',
+  "&#8211;": "-",
+  "&#8212;": " - ",
+  "&#8230;": "...",
+  "&#8722;": "-",
+  "&#160;": " ",
+};
+
 export function decodeHtml(html: unknown): string {
-  return String(html ?? "")
+  let str = String(html ?? "");
+  for (const [entity, replacement] of Object.entries(ENTITY_MAP)) {
+    if (str.includes(entity)) {
+      str = str.split(entity).join(replacement);
+    }
+  }
+  str = str
+    .replace(/&rsquo;/gi, "'")
+    .replace(/&lsquo;/gi, "'")
+    .replace(/&ndash;/gi, "-")
+    .replace(/&mdash;/gi, " - ")
+    .replace(/&ldquo;/gi, '"')
+    .replace(/&rdquo;/gi, '"')
+    .replace(/&hellip;/gi, "...")
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+    .replace(/&#(\d+);/g, (_, n) => {
+      try {
+        const code = parseInt(n, 10);
+        if (code === 8217 || code === 8216) return "'";
+        if (code === 8220 || code === 8221) return '"';
+        if (code === 8211) return "-";
+        if (code === 8212) return " - ";
+        if (code === 8230) return "...";
+        if (code === 160) return " ";
+        return String.fromCharCode(code);
+      } catch {
+        return "";
+      }
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      try {
+        const code = parseInt(h, 16);
+        if (code === 8217 || code === 8216) return "'";
+        if (code === 8220 || code === 8221) return '"';
+        if (code === 8211) return "-";
+        if (code === 8212) return " - ";
+        return String.fromCharCode(code);
+      } catch {
+        return "";
+      }
+    });
+  return str;
 }
 
 export function cleanText(raw: unknown): string {

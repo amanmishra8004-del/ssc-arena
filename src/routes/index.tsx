@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addUser, changePassword, getActivity, getAll, listUsers, login, ping, registerPush, removeUser, resetPassword, saveData, testPush } from "@/lib/data.functions";
 import { enablePush, pushSupported } from "@/lib/push";
+import { sendDeviceNotification, checkTimetableAlerts } from "@/lib/local-notify";
 import {
   SYLLABUS, USERS, type UserData, type Slot, type CAItem, normalize, stats, todayKey, chapterKey, fmt, TOTAL_CHAPTERS,
 } from "@/lib/syllabus";
@@ -176,31 +177,54 @@ function NotifPopup({ auth, onClose }: { auth: Auth; onClose: () => void }) {
   const allow = async () => {
     setBusy(true); setMsg("");
     localStorage.setItem("arena-notif-asked", "1");
+
+    // 1. Send immediate native device alert so the user sees/hears it right now!
+    const shown = await sendDeviceNotification(
+      "🔔 Study Arena: Notifications Chalu!",
+      "Ab daily timetable slot reminders aur study updates yahin aayenge! 🔥"
+    );
+
+    // 2. Also register FCM push token in background for cloud push
     const r = await enablePush(true);
     if (r.status === "registered") {
       await reg({ data: { username: auth.username, password: auth.password, token: r.token } }).catch(() => {});
-      const t = await test({ data: { username: auth.username, password: auth.password } }).catch(() => null);
-      setMsg(t && t.sent ? "A test notification has been sent." : "Notifications are enabled.");
-    } else if (r.status === "open-in-new-tab") setMsg("Open the app in a separate tab or as an installed app to enable notifications.");
-    else if (r.status === "denied") setMsg("Notifications are blocked. Allow notifications in your browser’s site settings, then try again.");
-    else if (r.status === "unsupported") setMsg("This browser does not support notifications. Use Chrome, or add the app to your iPhone Home Screen.");
-    else if (r.status === "not-configured") setMsg("Notifications are not configured yet. Please try again later.");
-    else setMsg("Something went wrong. Please try again later.");
+      test({ data: { username: auth.username, password: auth.password } }).catch(() => null);
+    }
+
+    if (shown) {
+      setMsg("✅ Notification bhej di gayi hai! Apna notification tray / lock screen check karein.");
+    } else if (r.status === "registered") {
+      setMsg("✅ Notifications enable ho gaye hain!");
+    } else if (r.status === "open-in-new-tab") {
+      setMsg("PWA ya separate browser tab me open karke notifications enable karein.");
+    } else if (r.status === "denied") {
+      setMsg("❌ Browser me notifications block hain. URL bar ke paas lock/settings icon par click karke Notifications allow karein.");
+    } else if (r.status === "unsupported") {
+      setMsg("Aapka browser notifications support nahi karta. Chrome use karein.");
+    } else {
+      setMsg("Browser ne notification block kar diya. Browser site settings me jaakar allow karein.");
+    }
     setBusy(false);
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-5 backdrop-blur-sm" onClick={close}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-card p-6 shadow-elevated">
         <Bell size={28} className="text-primary" />
-        <h2 className="font-display text-lg font-bold">Enable notifications</h2>
+        <h2 className="font-display text-lg font-bold">Study Notifications</h2>
         <p className="text-sm text-muted-foreground">
-          Receive study reminders and updates on your ranking.
+          Timetable slots shuru hone se pehle alerts aur daily progress reminders prapt karein.
         </p>
-        {msg && <p className="rounded-lg bg-secondary p-3 text-sm">{msg}</p>}
+        {granted && (
+          <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary font-semibold flex items-center gap-2">
+            <span>✅</span>
+            <span>Browser notification permission is granted</span>
+          </div>
+        )}
+        {msg && <p className="rounded-lg bg-secondary p-3 text-xs leading-relaxed font-medium">{msg}</p>}
         <div className="flex gap-2 pt-1">
           <Button variant="unstyled" onClick={close} className="flex-1 rounded-lg bg-secondary py-2.5 text-sm font-semibold">{msg ? "Close" : "Not now"}</Button>
           <Button variant="unstyled" disabled={busy} onClick={allow} className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60">
-            {busy ? "Please wait…" : granted ? "Send test" : "Enable"}
+            {busy ? "Sending…" : granted ? "Send test alert" : "Enable"}
           </Button>
         </div>
       </div>
@@ -289,6 +313,16 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     }
     return undefined;
   }, [auth.username, auth.password]);
+
+  // Periodic local timetable & checkpoint notifications
+  useEffect(() => {
+    if (!auth?.username) return;
+    checkTimetableAlerts(mine, auth.username);
+    const t = setInterval(() => {
+      checkTimetableAlerts(mine, auth.username);
+    }, 25000);
+    return () => clearInterval(t);
+  }, [mine, auth?.username]);
 
   // Sync server data when available
   useEffect(() => {
@@ -422,6 +456,12 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
           <Button variant="unstyled" aria-label="Open leaderboard" onClick={() => setTab("arena")} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-bold">
             <Trophy size={14} className="text-primary" />
             {me.rank ? <> <span className="text-primary">#{me.rank}</span></> : " No rank"} · {me.score}
+          </Button>
+          <Button variant="unstyled" onClick={() => setNotif(true)} aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+            <Bell size={20} className={typeof Notification !== "undefined" && Notification.permission === "granted" ? "text-primary" : "text-muted-foreground"} />
+            {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
           </Button>
           <Button variant="unstyled" onClick={() => setMenu(true)} aria-label="Menu" className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary"><Menu size={20} /></Button>
         </div>

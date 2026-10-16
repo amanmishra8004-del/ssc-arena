@@ -2,7 +2,6 @@
 import { normalize, slotsFor, type UserData } from "./syllabus";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/firebase_messaging";
-const APP_URL = "https://ssc-arena.lovable.app/";
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 // India time (UTC+5:30)
@@ -90,29 +89,57 @@ export function buildMessages(users: string[], rows: { username: string; data: u
   return out;
 }
 
+const APP_URL = process.env["APP_URL"] || "https://ssc-arena.amanmishra8004.workers.dev/";
+
+async function getCredentials() {
+  let lovableKey = process.env["LOVABLE_API_KEY"] || (globalThis as any)?.LOVABLE_API_KEY;
+  let fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"] || (globalThis as any)?.FIREBASE_MESSAGING_API_KEY;
+
+  if (!lovableKey || !fcmKey) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data } = await supabaseAdmin.from("app_secrets" as any).select("name,value");
+      if (Array.isArray(data)) {
+        for (const s of data as { name: string; value: string }[]) {
+          if (s.name === "lovable_api_key" && !lovableKey) lovableKey = s.value;
+          if (s.name === "firebase_messaging_api_key" && !fcmKey) fcmKey = s.value;
+        }
+      }
+    } catch {}
+  }
+
+  return { lovableKey, fcmKey };
+}
+
 export async function sendAll(messages: Msg[], tokens: { token: string; username: string }[]) {
-  const LOVABLE_API_KEY = process.env["LOVABLE_API_KEY"];
-  const FCM_KEY = process.env["FIREBASE_MESSAGING_API_KEY"];
-  if (!LOVABLE_API_KEY || !FCM_KEY) throw new Error("Push credentials not configured");
-  const headers = { Authorization: `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": FCM_KEY, "Content-Type": "application/json" };
+  const { lovableKey, fcmKey } = await getCredentials();
+  if (!lovableKey || !fcmKey) {
+    console.warn("[Push] Cloud push gateway credentials not set (LOVABLE_API_KEY / FIREBASE_MESSAGING_API_KEY). In-app local notifications will handle alerts.");
+    return { sent: 0, stale: [], notConfigured: true };
+  }
+  const headers = { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": fcmKey, "Content-Type": "application/json" };
 
   const jobs = messages.flatMap((m) => tokens.filter((t) => t.username === m.username).map((t) => ({ m, token: t.token })));
   const stale: string[] = [];
   let sent = 0;
   for (let i = 0; i < jobs.length; i += 6) {
     await Promise.all(jobs.slice(i, i + 6).map(async ({ m, token }) => {
-      const res = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
-        method: "POST", headers,
-        body: JSON.stringify({ message: {
-          token,
-          notification: { title: m.title, body: m.body },
-          webpush: { notification: { icon: "/icon-192.png" }, fcm_options: { link: APP_URL } },
-        } }),
-      });
-      if (res.ok) { sent++; return; }
-      const text = await res.text();
-      if (res.status === 404 || (res.status === 400 && text.includes("INVALID_ARGUMENT")) || text.includes("UNREGISTERED")) stale.push(token);
-      else console.error(`FCM send failed [${res.status}]: ${text}`);
+      try {
+        const res = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
+          method: "POST", headers,
+          body: JSON.stringify({ message: {
+            token,
+            notification: { title: m.title, body: m.body },
+            webpush: { notification: { icon: "/icon-192.png" }, fcm_options: { link: APP_URL } },
+          } }),
+        });
+        if (res.ok) { sent++; return; }
+        const text = await res.text();
+        if (res.status === 404 || (res.status === 400 && text.includes("INVALID_ARGUMENT")) || text.includes("UNREGISTERED")) stale.push(token);
+        else console.error(`FCM send failed [${res.status}]: ${text}`);
+      } catch (fetchErr) {
+        console.error("FCM gateway fetch error:", fetchErr);
+      }
     }));
   }
   return { sent, stale };

@@ -19,10 +19,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { TimetableSortable } from "@/components/timetable-sortable";
 import { cn } from "@/lib/utils";
 import { getDailyCA, uploadDailyCA } from "@/lib/ca.functions";
-import studyCompanion from "@/assets/study-companion.png";
-import syllabusFox from "@/assets/syllabus-fox.png";
-import practiceRobot from "@/assets/practice-robot.png";
-import rankingTiger from "@/assets/ranking-tiger.png";
 import { MotionPresence } from "@/components/motion-presence";
 import { useWorkspaceNavigation, validateWorkspaceSearch } from "@/lib/workspace-navigation";
 
@@ -140,9 +136,8 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
         }}
       >
         <div className="text-center space-y-2">
-          <div className="relative mx-auto h-24 w-24">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
-            <img src={studyCompanion} width={768} height={768} alt="Study Arena companion" className="companion relative z-10 mx-auto h-24 w-24 object-contain drop-shadow-md" />
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-tr from-primary via-indigo-500 to-accent shadow-xl shadow-primary/30 ring-1 ring-white/20">
+            <Sparkles size={36} className="text-white drop-shadow" />
           </div>
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
@@ -641,18 +636,16 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   );
 }
 
-function Hint({ title, character }: { icon: string; title: string; character?: string; children?: React.ReactNode }) {
+function Hint({ title, subtitle }: { icon?: string; title: string; subtitle?: string; character?: string; children?: React.ReactNode }) {
   return (
-    <div className="page-heading flex items-center justify-between gap-3 pb-1">
+    <div className="page-heading flex items-center justify-between gap-3 pb-1 pt-0.5">
       <div>
-        <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-primary">
+        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-primary">
           <Sparkles size={11} /> Study Arena
         </span>
-        <h2 className="mt-0.5 text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-foreground">{title}</h2>
+        <h2 className="mt-0.5 text-2xl sm:text-3xl font-black tracking-tight font-display text-foreground">{title}</h2>
+        {subtitle && <p className="text-xs text-muted-foreground font-semibold mt-0.5">{subtitle}</p>}
       </div>
-      {character && (
-        <img src={character} alt="" loading="lazy" width={768} height={768} className="companion section-companion h-16 w-16 shrink-0 object-contain drop-shadow-sm" />
-      )}
     </div>
   );
 }
@@ -702,87 +695,70 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
 
   return (
     <div className="today-workspace space-y-4">
-      {/* Hero Greeting Card */}
-      <div className="today-welcome relative overflow-hidden rounded-3xl border border-border/80 bg-card p-5 shadow-elevated">
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
-        <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[11px] font-black text-primary">
-              <CalendarDays size={12} />
-              {new Date(tk + "T00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+      {/* Unified Focus & Daily Target Hero Card */}
+      <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card/95 via-card to-card p-5 shadow-elevated">
+        <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-2.5 w-2.5 rounded-full", current ? "bg-accent animate-ping" : "bg-primary")} />
+            <span className="text-[11px] font-black uppercase tracking-wider text-accent">
+              {current ? (done[current.id] ? "Session Complete" : "Live Focus Session") : next ? "Up Next" : "Daily Goal"}
             </span>
-            <h1 className="mt-2 text-2xl font-black tracking-tight font-display text-foreground">
-              {(() => {
-                const hr = new Date().getHours();
-                return hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
-              })()}, {cap(me.u)}! 👋
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground font-semibold">
-              {doneCount === slots.length && slots.length ? "🎉 All tasks finished! Outstanding consistency." : `${doneCount} of ${slots.length} tasks completed today`}
-            </p>
-            <div className="mt-2.5 h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-secondary">
-              <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500" style={{ width: `${(doneCount / (slots.length || 1)) * 100}%` }} />
-            </div>
           </div>
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
-            <img src={studyCompanion} alt="Study companion" width={768} height={768} className="companion relative z-10 h-20 w-20 object-contain drop-shadow-md" />
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-black text-amber-500">
+              <Flame size={13} className="fill-amber-500" />
+              <span>{me.streak}d</span>
+            </span>
+            <Button
+              variant="unstyled"
+              onClick={() => onNavigate("arena")}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-xs font-black text-primary active:scale-95"
+            >
+              <Trophy size={12} />
+              <span>{me.rank ? `#${me.rank}` : "—"}</span>
+            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Quick Launchpad */}
-      <div className="grid grid-cols-4 gap-2">
-        {([
-          ["syllabus", BookOpen, "Syllabus", "from-primary/15 to-primary/5 text-primary border-primary/25"],
-          ["quiz", FileQuestion, "Quizzes", "from-accent/15 to-accent/5 text-accent border-accent/25"],
-          ["extras", Brain, "Practice", "from-amber-500/15 to-amber-500/5 text-amber-500 border-amber-500/25"],
-          ["arena", Trophy, "Ranks", "from-blue-500/15 to-blue-500/5 text-blue-400 border-blue-500/25"]
-        ] as const).map(([target, Icon, label, cls]) => (
-          <Button variant="unstyled" key={target} onClick={() => onNavigate(target)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/80 bg-card p-2.5 text-xs font-bold transition shadow-soft active:scale-92">
-            <span className={cn("flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br border shadow-2xs", cls)}>
-              <Icon size={22} strokeWidth={2.2} />
-            </span>
-            <span className="text-[11px] font-extrabold text-foreground">{label}</span>
-          </Button>
-        ))}
-      </div>
-
-      {/* Focus Session Live Card */}
-      {!edit && nowMin !== null && (
-        <section aria-label="Current session" className={cn("focus-session relative overflow-hidden rounded-3xl border-2 p-5 shadow-elevated", current ? "border-accent/40 bg-gradient-to-b from-accent/10 via-card to-card" : "border-border/80 bg-card")}>
-          <div className="flex items-center justify-between gap-3">
-            <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide", current ? "bg-accent/15 border border-accent/30 text-accent" : "bg-primary/10 border border-primary/20 text-primary")}>
-              <span className={cn("h-2 w-2 shrink-0 rounded-full", current ? "bg-accent animate-ping" : "bg-primary")} />
-              {current ? done[current.id] ? "Current session · Done" : "Live focus session" : next ? "Up next" : "Schedule complete"}
-            </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary border border-border text-foreground shadow-2xs">
-              <Clock3 size={16} className="shrink-0" />
-            </span>
+        {/* Focus Task & Large Tabular Countdown */}
+        <div className="py-3.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary">
+                {(current ?? next)?.subject ?? "Focus Routine"}
+              </span>
+              <h2 className="truncate text-xl sm:text-2xl font-black font-display text-foreground mt-0.5">
+                {current?.label ?? next?.label ?? "All Tasks Complete! 🎉"}
+              </h2>
+            </div>
+            {current ? (
+              <div className="text-right shrink-0">
+                <span className="font-mono tabular-nums text-3xl sm:text-4xl font-black tracking-tight text-accent">
+                  {fmt(remaining)}
+                </span>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">left</span>
+              </div>
+            ) : next && nowMin !== null ? (
+              <div className="text-right shrink-0">
+                <span className="text-xs font-extrabold text-muted-foreground tabular-nums">
+                  in {fmt(toMin(next.start) - nowMin)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
-          <h2 className="mt-3 text-xl sm:text-2xl font-black font-display text-foreground">{current?.label ?? next?.label ?? "No session scheduled"}</h2>
-
           {(current ?? next) && (
-            <p className="mt-1 text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <span className="text-primary font-extrabold uppercase tracking-wide">{(current ?? next)?.subject}</span>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground flex items-center gap-1.5 tabular-nums">
+              <Clock3 size={12} />
+              <span>{(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)}</span>
               <span>·</span>
-              <span className="tabular-nums">{(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)}</span>
-              <span>({fmt((current ?? next)?.minutes ?? 0)})</span>
+              <span>{fmt((current ?? next)?.minutes ?? 0)} target</span>
             </p>
           )}
 
-          {current ? (
-            <>
-              <div className="mt-4 flex items-baseline justify-between">
-                <div>
-                  <span className="font-mono tabular-nums text-4xl sm:text-5xl font-black tracking-tight text-foreground">{fmt(remaining)}</span>
-                  <span className="ml-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">remaining</span>
-                </div>
-                <span className="text-xs font-extrabold text-accent tabular-nums">{fmt(current.minutes)} target</span>
-              </div>
-              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-secondary border border-border/40">
+          {current && (
+            <div className="mt-3 space-y-2.5">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary border border-border/50">
                 <div
                   className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(0, ((current.minutes - remaining) / (current.minutes || 1)) * 100))}%` }}
@@ -792,7 +768,7 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
                 variant="unstyled"
                 onClick={() => toggle(current.id)}
                 className={cn(
-                  "mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black transition active:scale-98 shadow-md",
+                  "w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black transition active:scale-98 shadow-md",
                   done[current.id]
                     ? "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
                     : "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-primary/25"
@@ -801,41 +777,32 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
                 <Check size={18} strokeWidth={3} />
                 {done[current.id] ? "Completed · Click to undo" : "Complete session (+10 pts)"}
               </Button>
-            </>
-          ) : (
-            <p className="mt-3 text-xs text-muted-foreground font-semibold">
-              {next ? `Starts in ${fmt(toMin(next.start) - nowMin)}` : doneCount === slots.length && slots.length ? "All tasks completed for today. Great job!" : "No study session is currently active."}
-            </p>
+            </div>
           )}
-        </section>
-      )}
-
-      {/* Progress & Streak Card */}
-      <section className="study-summary grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft">
-        <Ring pct={me.planMin ? me.todayMin / me.planMin : 0}>
-          <span className="font-display text-lg font-black">{Math.round((me.todayMin / (me.planMin || 1)) * 100)}%</span>
-        </Ring>
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Study Time Today</p>
-          <p className="font-display text-2xl font-black text-foreground">{fmt(me.todayMin) || "0h"}</p>
-          <p className="text-xs text-muted-foreground font-semibold mt-0.5">{doneCount}/{slots.length} tasks · target {fmt(me.planMin)}</p>
         </div>
-        <div className="streak-stat flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-center">
-          <Flame size={20} className="text-amber-500 fill-amber-500" />
-          <span className="font-display text-lg font-black text-amber-600 dark:text-amber-400">{me.streak}</span>
-          <span className="text-[9px] font-extrabold uppercase text-amber-600/80 tracking-tight">Day Streak</span>
+
+        {/* 3 Clean Bottom Metrics */}
+        <div className="grid grid-cols-3 gap-2 border-t border-border/60 pt-3 text-center">
+          <div className="rounded-2xl bg-secondary/50 p-2 border border-border/40">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground block">Tasks</span>
+            <span className="font-display text-base font-black text-foreground tabular-nums">
+              {doneCount} / {slots.length}
+            </span>
+          </div>
+          <div className="rounded-2xl bg-secondary/50 p-2 border border-border/40">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground block">Studied</span>
+            <span className="font-display text-base font-black text-primary tabular-nums">
+              {fmt(me.todayMin) || "0h"}
+            </span>
+          </div>
+          <div className="rounded-2xl bg-secondary/50 p-2 border border-border/40">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground block">Target</span>
+            <span className="font-display text-base font-black text-foreground tabular-nums">
+              {Math.round((me.todayMin / (me.planMin || 1)) * 100)}%
+            </span>
+          </div>
         </div>
       </section>
-
-      {/* Leaderboard Motivation Pill */}
-      <div className="flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/8 px-3.5 py-2.5 text-xs font-semibold text-foreground">
-        <Trophy size={16} className="shrink-0 text-amber-500" />
-        <p className="min-w-0 flex-1 truncate">
-          {!me.rank ? "Complete your first task to join the leaderboard."
-            : me.rank === 1 ? `👑 Ranked #1! ${board[1]?.score ? `${cap(board[1].u)} is ${me.score - board[1].score} pts behind.` : "Keep defending your lead!"}`
-            : above ? `${above.score - me.score + 1} pts needed to overtake ${cap(above.u)}.` : ""}
-        </p>
-      </div>
 
       {/* Timetable Header */}
       <div className="flex items-center justify-between gap-2 pt-1">
@@ -876,7 +843,15 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
           return d;
         })} className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-3 text-sm font-bold text-muted-foreground"><Plus size={17} />Add task</Button>
       )}
-      <DayPlans data={data} update={update} />
+      <details className="group rounded-2xl border border-border/80 bg-card p-4 transition shadow-soft">
+        <summary className="flex cursor-pointer items-center justify-between text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground">
+          <span>📅 Date-Specific Custom Timetables</span>
+          <span className="transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="pt-3">
+          <DayPlans data={data} update={update} />
+        </div>
+      </details>
     </div>
   );
 }
@@ -1012,164 +987,145 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
   const S = SYLLABUS[subj];
   return (
     <div className="space-y-4">
-      <Hint icon="" title="Syllabus" character={syllabusFox} />
-      <div className="section-tabs">
+      <Hint title="Syllabus Tracker" subtitle="Subject-wise syllabus, chapter tracking & quizzes" />
+      {/* Clean Subject Segmented Control */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {SYLLABUS.map((x, i) => {
           const total = x.sections.reduce((n, s) => n + s.chapters.length, 0);
           const doneN = x.sections.reduce((n, s) => n + s.chapters.filter((c) => data.chapters[chapterKey(s.name, c)]?.lecture).length, 0);
-          const totalQuizzes = x.sections.reduce((n, s) => n + s.chapters.filter((c) => !!chapterQuizzes[chapterKey(s.name, c)]).length, 0);
           const pct = Math.round((doneN / (total || 1)) * 100);
+          const active = subj === i;
           return (
             <Button
               variant="unstyled"
-              aria-pressed={subj === i}
+              aria-pressed={active}
               key={x.subject}
               onClick={() => { setSubj(i); setOpen(x.sections[0].name); }}
               className={cn(
-                "rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-95",
-                subj === i
+                "flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-black transition active:scale-95 shadow-soft",
+                active
                   ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                  : "border-border/80 bg-card hover:border-border text-foreground"
+                  : "border-border/80 bg-card text-muted-foreground hover:text-foreground"
               )}
             >
-              <div className="flex items-center justify-between gap-1">
-                <p className="font-display text-sm font-extrabold">{x.subject}</p>
-                {totalQuizzes > 0 && (
-                  <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full border", subj === i ? "bg-white/20 border-white/30 text-white" : "bg-primary/10 border-primary/20 text-primary")}>
-                    🎯 {totalQuizzes}Q
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 flex items-center justify-between text-xs">
-                <span className={cn(subj === i ? "text-primary-foreground/90 font-bold" : "text-muted-foreground font-semibold")}>{doneN}/{total} chapters</span>
-                <span className={cn("text-[11px] font-black", subj === i ? "text-white" : "text-primary")}>{pct}%</span>
-              </div>
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                <div className={cn("h-full rounded-full transition-all", subj === i ? "bg-white" : "bg-primary")} style={{ width: `${pct}%` }} />
-              </div>
+              <span>{x.subject}</span>
+              <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full tabular-nums", active ? "bg-white/20 text-white" : "bg-primary/10 text-primary")}>
+                {doneN}/{total} · {pct}%
+              </span>
             </Button>
           );
         })}
       </div>
-      {S.sections.map((sec) => {
-        const doneN = sec.chapters.filter((c) => data.chapters[chapterKey(sec.name, c)]?.lecture).length;
-        const secQuizCount = sec.chapters.filter((c) => !!chapterQuizzes[chapterKey(sec.name, c)]).length;
-        const isOpen = open === sec.name;
-        return (
-          <div key={sec.name} className="chapter-section overflow-hidden">
-            <Button variant="unstyled" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : sec.name)} className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-4 text-left">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-display font-bold">{sec.name}</p>
-                  {secQuizCount > 0 && (
-                    <span className="rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-black px-2 py-0.5 shrink-0">
-                      🎯 {secQuizCount} {secQuizCount === 1 ? "Quiz" : "Quizzes"}
-                    </span>
-                  )}
+
+      <div className="space-y-3">
+        {S.sections.map((sec) => {
+          const doneN = sec.chapters.filter((c) => data.chapters[chapterKey(sec.name, c)]?.lecture).length;
+          const secQuizCount = sec.chapters.filter((c) => !!chapterQuizzes[chapterKey(sec.name, c)]).length;
+          const isOpen = open === sec.name;
+          return (
+            <div key={sec.name} className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-soft">
+              <Button
+                variant="unstyled"
+                aria-expanded={isOpen}
+                onClick={() => setOpen(isOpen ? null : sec.name)}
+                className="flex w-full items-center justify-between p-4 text-left transition hover:bg-secondary/30"
+              >
+                <div className="min-w-0 flex-1 pr-3">
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-black text-sm text-foreground">{sec.name}</p>
+                    {secQuizCount > 0 && (
+                      <span className="rounded-full bg-accent/10 border border-accent/25 text-accent text-[10px] font-black px-2 py-0.5 shrink-0">
+                        🎯 {secQuizCount}Q
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(doneN / sec.chapters.length) * 100}%` }} />
+                  </div>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(doneN / sec.chapters.length) * 100}%` }} />
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-black text-muted-foreground tabular-nums">{doneN}/{sec.chapters.length}</span>
+                  <span className={cn("text-xs transition-transform duration-200 text-muted-foreground", isOpen && "rotate-180")}>⌄</span>
                 </div>
-              </div>
-              <span className="text-sm font-bold text-muted-foreground">{doneN}/{sec.chapters.length}</span>
-              <span className={cn("transition", isOpen && "rotate-180")}>⌄</span>
-            </Button>
-            {isOpen && (
-              <div className="divide-y divide-border border-t border-border">
-                {sec.chapters.map((c) => {
-                  const k = chapterKey(sec.name, c);
-                  const st = data.chapters[k] ?? {};
-                  const qz = chapterQuizzes[k];
-                  const sc = quizScores[k];
-                  const set = (patch: object) => update((d) => { d.chapters[k] = { ...(d.chapters[k] ?? {}), ...patch }; return d; });
-                  const others = USERS.filter((u) => all[u].chapters[k]?.lecture);
-                  return (
-                    <div key={c} className="space-y-2 px-4 py-3">
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold">{c}</p>
-                          <Button
-                            variant="unstyled"
-                            onClick={() => change({ tab: "quiz", chapter: k })}
-                            className={cn(
-                              "rounded-lg border px-2 py-0.5 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs active:scale-95",
-                              qz
-                                ? (sc
-                                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                    : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
-                                : "border-border/60 bg-secondary/60 text-muted-foreground hover:text-foreground hover:border-primary/40"
+              </Button>
+              {isOpen && (
+                <div className="divide-y divide-border/60 border-t border-border/60 bg-secondary/20">
+                  {sec.chapters.map((c) => {
+                    const k = chapterKey(sec.name, c);
+                    const st = data.chapters[k] ?? {};
+                    const qz = chapterQuizzes[k];
+                    const sc = quizScores[k];
+                    const set = (patch: object) => update((d) => { d.chapters[k] = { ...(d.chapters[k] ?? {}), ...patch }; return d; });
+                    const others = USERS.filter((u) => all[u].chapters[k]?.lecture);
+                    return (
+                      <div key={c} className="p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-bold text-sm text-foreground leading-snug flex-1 min-w-0">{c}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              variant="unstyled"
+                              onClick={() => change({ tab: "quiz", chapter: k })}
+                              className={cn(
+                                "rounded-xl border px-2.5 py-1 text-[11px] font-black transition flex items-center gap-1 shadow-2xs active:scale-95",
+                                qz
+                                  ? (sc
+                                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
+                                      : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
+                                  : "border-border/60 bg-secondary text-muted-foreground hover:text-foreground"
+                              )}
+                              title={`Take Quiz for ${c}`}
+                            >
+                              <span>🎯</span>
+                              <span>{sc ? `Quiz ${sc.score}/${sc.total}` : qz ? `Quiz (${qz.count}Q)` : "Quiz"}</span>
+                            </Button>
+                            {others.length > 0 && (
+                              <div className="flex -space-x-1.5">
+                                {others.slice(0, 3).map((u) => (
+                                  <span key={u} title={cap(u)} className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-primary/20 text-[9px] font-black text-primary">
+                                    {u[0].toUpperCase()}
+                                  </span>
+                                ))}
+                              </div>
                             )}
-                            title={`Take Quiz for ${c}${qz ? ` (${qz.count} Questions)` : ""}`}
-                          >
-                            <span>🎯</span>
-                            <span>{sc ? `Quiz ${sc.score}/${sc.total}` : qz ? `Take Quiz (${qz.count}Q)` : "Quiz"}</span>
-                          </Button>
-                        </div>
-                        <div className="flex -space-x-1.5">
-                          {others.map((u) => (
-                            <span key={u} title={cap(u)} className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-accent text-[10px] font-bold text-accent-foreground">{u[0].toUpperCase()}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {(["lecture", "revised", "pyq"] as const).map((f) => (
-                          <Button variant="unstyled" key={f} onClick={() => set({ [f]: !st[f] })}
-                            aria-pressed={!!st[f]} className={cn("min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition", st[f] ? "border-primary/40 bg-primary/15 text-primary" : "border-border bg-secondary text-muted-foreground")}>
-                            {st[f] ? "✓ " : ""}{f === "lecture" ? " Lecture" : f === "revised" ? " Revised" : " PYQ"}
-                          </Button>
-                        ))}
-                        {/* 4th Action: Direct Chapter Quiz Launch Button - ALWAYS VISIBLE */}
-                        <Button
-                          variant="unstyled"
-                          onClick={() => change({ tab: "quiz", chapter: k })}
-                          className={cn(
-                            "min-h-11 rounded-lg border px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs active:scale-95",
-                            qz
-                              ? (sc
-                                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                  : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
-                              : "border-border bg-secondary/80 text-foreground/80 hover:bg-secondary hover:border-primary/40"
-                          )}
-                          title={`Directly open quiz for ${c}`}
-                        >
-                          <span>🎯</span>
-                          <span>
-                            {sc
-                              ? `Quiz: ${sc.score}/${sc.total}`
-                              : qz
-                              ? `Quiz (${qz.count}Q)`
-                              : "Chapter Quiz"}
-                          </span>
-                        </Button>
-                        {st.pyq && (
-                          <input value={st.marks ?? ""} onChange={(e) => set({ marks: e.target.value })} placeholder="PYQ marks 18/25"
-                            className="w-32 rounded-full border border-input bg-secondary px-3 py-2 text-xs outline-none focus:border-primary" />
-                        )}
-                      </div>
-                      {(() => {
-                        const mk = USERS.filter((u) => all[u].chapters[k]?.marks || all[u].chapters[k]?.quiz);
-                        return mk.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                            {mk.map((u) => {
-                              const x = all[u].chapters[k];
-                              if (!x) return null;
-                              return (
-                                <span key={u} className="rounded-full bg-secondary px-2 py-0.5">
-                                  <b className="text-foreground">{cap(u)}</b>{x.marks ? ` · PYQ ${x.marks}` : ""}{x.quiz ? ` · Quiz ${x.quiz}` : ""}
-                                </span>
-                              );
-                            })}
                           </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {(["lecture", "revised", "pyq"] as const).map((f) => (
+                            <Button
+                              variant="unstyled"
+                              key={f}
+                              onClick={() => set({ [f]: !st[f] })}
+                              aria-pressed={!!st[f]}
+                              className={cn(
+                                "h-8 rounded-xl border px-3 text-xs font-black transition active:scale-95 flex items-center gap-1",
+                                st[f]
+                                  ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                                  : "border-border/80 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                              )}
+                            >
+                              {st[f] ? <Check size={12} strokeWidth={3} /> : null}
+                              <span>{f === "lecture" ? "Lecture" : f === "revised" ? "Revised" : "PYQ"}</span>
+                            </Button>
+                          ))}
+                          {st.pyq && (
+                            <input
+                              value={st.marks ?? ""}
+                              onChange={(e) => set({ marks: e.target.value })}
+                              placeholder="Marks (e.g. 18/25)"
+                              className="h-8 w-28 rounded-xl border border-input bg-card px-2.5 text-xs font-semibold outline-none focus:border-primary"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1187,7 +1143,7 @@ function Extras({ data, update, all, who, targetQuizId }: { data: UserData; upda
   const setView = (practice: "pyq" | "ca" | "tables" | "vocab" | "idioms") => change({ practice });
   return (
     <div className="space-y-4">
-      <Hint icon="" title="Practice" character={practiceRobot} />
+      <Hint title="Practice Hub" subtitle="High-yield SSC preparation tools, vocab, tests & maths" />
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {([
           ["pyq", FileText, "PYQ Tests"],
@@ -1352,8 +1308,18 @@ function CAZone({ data, update, all, who }: { data: UserData; update: Upd; all: 
   const tabs = [["today", "Today"], ["cards", "Flashcards"], ["quiz", "Quiz"], ["week", "This week"], ["notes", "My notes"]] as const;
   return (
     <div className="space-y-4">
-      <Hint icon="" title="Daily current affairs"></Hint>
-      {who === "arun" && <CAUpload onDone={() => q.refetch()} />}
+      <Hint title="Daily Current Affairs" subtitle="High-yield exam news, flashcards & daily revision" />
+      {who === "arun" && (
+        <details className="group rounded-2xl border border-border/80 bg-card p-4 transition shadow-soft">
+          <summary className="flex cursor-pointer items-center justify-between text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            <span>➕ Admin: Upload Current Affairs News Pack</span>
+            <span className="transition-transform group-open:rotate-180">⌄</span>
+          </summary>
+          <div className="pt-3">
+            <CAUpload onDone={() => q.refetch()} />
+          </div>
+        </details>
+      )}
       <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-2">
         {tabs.map(([k, l]) => (
           <Button variant="unstyled" aria-pressed={tab === k} key={k} onClick={() => setTab(k)} className={cn("shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold", tab === k ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>{l}</Button>
@@ -1592,44 +1558,33 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/15 via-primary/10 to-transparent border border-amber-500/20 p-5 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
-              <Trophy size={13} /> Live Arena
-            </span>
-            <h1 className="mt-1 text-2xl font-extrabold font-display">Leaderboard</h1>
-            <p className="mt-1 text-xs text-muted-foreground font-medium">Daily tasks, chapter revisions & mock points.</p>
-          </div>
-          <img src={rankingTiger} alt="" className="companion h-20 w-20 shrink-0 object-contain drop-shadow-md" />
-        </div>
-      </div>
+      <Hint title="Arena Leaderboard" subtitle="Compete on daily study, syllabus progress & quiz scores" />
 
       {/* Top 3 Podium (if players ranked) */}
       {ranked.length >= 2 && (
-        <div className="grid grid-cols-3 gap-2 items-end pt-3 pb-1">
+        <div className="grid grid-cols-3 gap-2 items-end pt-2 pb-1">
           {/* #2 Rank */}
           {second ? (
             <Button variant="unstyled" onClick={() => onView(second.u)}
-              className="flex flex-col items-center rounded-3xl border border-slate-300 dark:border-slate-700 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+              className="flex flex-col items-center rounded-3xl border border-slate-700 bg-card p-3 shadow-soft transition active:scale-95 text-center">
               <div className="relative">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-display text-lg font-black shadow-sm ring-2 ring-slate-400/40">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800 text-slate-200 font-display text-lg font-black shadow-sm ring-2 ring-slate-500/40">
                   {second.u[0].toUpperCase()}
                 </div>
-                <span className="absolute -top-2 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-400 text-[10px] font-black text-white shadow-xs">
+                <span className="absolute -top-1.5 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-500 text-[10px] font-black text-white shadow-xs">
                   2
                 </span>
               </div>
-              <p className="mt-2 font-display text-xs font-extrabold truncate w-full">{cap(second.u)}</p>
-              <p className="text-[11px] font-black text-primary mt-0.5">{second.score} pts</p>
-              <div className="mt-2 w-full h-12 rounded-2xl bg-slate-200/50 dark:bg-slate-800/50 flex items-center justify-center text-xs font-black text-muted-foreground">🥈 2nd</div>
+              <p className="mt-2 font-display text-xs font-black truncate w-full text-foreground">{cap(second.u)}</p>
+              <p className="text-[11px] font-black text-primary mt-0.5 tabular-nums">{second.score} pts</p>
+              <div className="mt-2 w-full h-10 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center text-[11px] font-black text-slate-300">🥈 2nd</div>
             </Button>
           ) : <div />}
 
-          {/* #1 Rank (Center, Highest) */}
+          {/* #1 Rank (Center, Elevated) */}
           {first ? (
             <Button variant="unstyled" onClick={() => onView(first.u)}
-              className="flex flex-col items-center rounded-3xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-3.5 shadow-elevated transition active:scale-95 text-center -translate-y-2">
+              className="flex flex-col items-center rounded-3xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-500/15 via-card to-card p-3.5 shadow-elevated transition active:scale-95 text-center -translate-y-2">
               <div className="relative">
                 <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-lg">👑</span>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 text-white font-display text-xl font-black shadow-md ring-4 ring-amber-500/30">
@@ -1639,27 +1594,27 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
                   1
                 </span>
               </div>
-              <p className="mt-2 font-display text-sm font-extrabold truncate w-full">{cap(first.u)}</p>
-              <p className="text-xs font-black text-amber-600 dark:text-amber-400 mt-0.5">{first.score} pts</p>
-              <div className="mt-2 w-full h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xs font-black text-amber-600 dark:text-amber-400">🏆 1st</div>
+              <p className="mt-2 font-display text-sm font-black truncate w-full text-foreground">{cap(first.u)}</p>
+              <p className="text-xs font-black text-amber-500 mt-0.5 tabular-nums">{first.score} pts</p>
+              <div className="mt-2 w-full h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-black text-amber-400">🏆 1st</div>
             </Button>
           ) : <div />}
 
           {/* #3 Rank */}
           {third ? (
             <Button variant="unstyled" onClick={() => onView(third.u)}
-              className="flex flex-col items-center rounded-3xl border border-amber-700/30 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+              className="flex flex-col items-center rounded-3xl border border-amber-800/40 bg-card p-3 shadow-soft transition active:scale-95 text-center">
               <div className="relative">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-display text-lg font-black shadow-sm ring-2 ring-amber-700/30">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-950/50 text-amber-400 font-display text-lg font-black shadow-sm ring-2 ring-amber-700/30">
                   {third.u[0].toUpperCase()}
                 </div>
-                <span className="absolute -top-2 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-700 text-[10px] font-black text-white shadow-xs">
+                <span className="absolute -top-1.5 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-700 text-[10px] font-black text-white shadow-xs">
                   3
                 </span>
               </div>
-              <p className="mt-2 font-display text-xs font-extrabold truncate w-full">{cap(third.u)}</p>
-              <p className="text-[11px] font-black text-primary mt-0.5">{third.score} pts</p>
-              <div className="mt-2 w-full h-8 rounded-2xl bg-amber-100/50 dark:bg-amber-950/30 flex items-center justify-center text-xs font-black text-muted-foreground">🥉 3rd</div>
+              <p className="mt-2 font-display text-xs font-black truncate w-full text-foreground">{cap(third.u)}</p>
+              <p className="text-[11px] font-black text-primary mt-0.5 tabular-nums">{third.score} pts</p>
+              <div className="mt-2 w-full h-8 rounded-2xl bg-amber-950/40 border border-amber-800/40 flex items-center justify-center text-[11px] font-black text-amber-500">🥉 3rd</div>
             </Button>
           ) : <div />}
         </div>
@@ -1683,8 +1638,8 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
           <Button variant="unstyled" key={b.u} onClick={() => onView(b.u)}
             className={cn("flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-[0.98]",
               b.rank === 1 ? "border-amber-500/40 bg-amber-500/6" : "border-border/80 bg-card hover:border-border",
-              b.u === me && "ring-2 ring-primary/30 border-primary/50")}>
-            <div className="w-8 text-center font-display text-base font-black text-muted-foreground">
+              b.u === me && "ring-2 ring-primary/40 border-primary/60")}>
+            <div className="w-8 text-center font-display text-base font-black text-muted-foreground tabular-nums">
               {b.rank ? (b.rank === 1 ? "🥇" : b.rank === 2 ? "🥈" : b.rank === 3 ? "🥉" : `#${b.rank}`) : "—"}
             </div>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary font-display text-base font-black text-foreground shadow-2xs">
@@ -1694,19 +1649,30 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
               <p className="font-display font-extrabold text-sm text-foreground">
                 {cap(b.u)} {b.u === me && <span className="text-xs text-primary font-bold">(You)</span>}
               </p>
-              <p className="text-[11px] text-muted-foreground font-semibold">
+              <p className="text-[11px] text-muted-foreground font-semibold tabular-nums">
                 {fmt(b.todayMin) || "0h"} today · {b.lec} chapters · {b.streak}d streak
               </p>
             </div>
             <div className="text-right shrink-0">
-              <p className="font-display text-lg font-black text-primary">{b.score}</p>
+              <p className="font-display text-lg font-black text-primary tabular-nums">{b.score}</p>
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">points</p>
             </div>
             <ChevronRight size={16} className="text-muted-foreground/60 shrink-0" />
           </Button>
         ))}
       </div>
-      {auth.username === "arun" && <Activity auth={auth} />}
+
+      {auth.username === "arun" && (
+        <details className="group rounded-2xl border border-border/80 bg-card p-4 transition shadow-soft">
+          <summary className="flex cursor-pointer items-center justify-between text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            <span>⚙️ Admin & Player Activity Console</span>
+            <span className="transition-transform group-open:rotate-180">⌄</span>
+          </summary>
+          <div className="pt-3">
+            <Activity auth={auth} />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -1747,27 +1713,33 @@ function Profile({ user, data, entry, onBack, onSwitch, me, openPass }: { user: 
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {USERS.map((u) => (
           <Button variant="unstyled" key={u} onClick={() => onSwitch(u)}
-            className={cn("flex-1 rounded-2xl border py-2 text-xs font-extrabold transition shadow-2xs active:scale-95",
+            className={cn("flex-1 min-w-[70px] rounded-2xl border py-2.5 text-xs font-black transition shadow-2xs active:scale-95 text-center",
               u === user ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25" : "border-border/80 bg-card text-muted-foreground hover:text-foreground")}>
             {cap(u)}
           </Button>
         ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-2 text-center">
-        <Stat label="Today" value={fmt(entry.todayMin) || "0h"} />
-        <Stat label="Lectures" value={entry.lec} />
-        <Stat label="Revised" value={entry.rev} />
-        <Stat label="PYQs" value={entry.pyq} />
-      </div>
-      <div className="grid grid-cols-4 gap-2 text-center">
-        <Stat label="Total Time" value={fmt(entry.totalMin) || "0h"} />
-        <Stat label="Tables" value={data.tables.table} />
-        <Stat label="Squares" value={data.tables.square} />
-        <Stat label="CA Notes" value={entry.caCount} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="rounded-2xl border border-border/80 bg-card p-3.5 text-center shadow-soft">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Today's Time</span>
+          <span className="font-display text-xl font-black text-primary tabular-nums mt-0.5 block">{fmt(entry.todayMin) || "0h"}</span>
+        </div>
+        <div className="rounded-2xl border border-border/80 bg-card p-3.5 text-center shadow-soft">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Total Studied</span>
+          <span className="font-display text-xl font-black text-foreground tabular-nums mt-0.5 block">{fmt(entry.totalMin) || "0h"}</span>
+        </div>
+        <div className="rounded-2xl border border-border/80 bg-card p-3.5 text-center shadow-soft">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Lectures Done</span>
+          <span className="font-display text-xl font-black text-emerald-400 tabular-nums mt-0.5 block">{entry.lec}</span>
+        </div>
+        <div className="rounded-2xl border border-border/80 bg-card p-3.5 text-center shadow-soft">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">PYQs Solved</span>
+          <span className="font-display text-xl font-black text-accent tabular-nums mt-0.5 block">{entry.pyq}</span>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft">

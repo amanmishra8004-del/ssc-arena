@@ -213,39 +213,27 @@ export function BlackBookVocabZone({
 
   return (
     <div className="space-y-4">
-      {/* Top Banner & Mode Toggle */}
-      <div className="rounded-xl border bg-card p-4 space-y-3.5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider">
-                BlackBook English Engine
-              </span>
-              <span className="text-xs text-muted-foreground font-semibold">User: {who}</span>
-            </div>
-            <p className="font-display text-base font-bold mt-1">
-              {mode === "words"
-                ? "SSC Vocabulary · 1,000 PYQ Master Words"
-                : "SSC Idioms & Phrases · 200+ with Hindi Meanings"}
-            </p>
-            <p className="text-xs text-muted-foreground max-w-xl">
-              {mode === "words"
-                ? "Active deck contains exactly 10 words. Words never rotate until you mark them as Mastered, after which the next authentic BlackBook word slides in automatically."
-                : "Active deck holds exactly 10 repeated idioms with English & Hindi meanings. They stay until mastered, sliding new BlackBook idioms in as you progress."}
-            </p>
+      {/* Clean Top Header & Stats */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-soft">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-primary">BlackBook English</span>
+            <h2 className="text-lg sm:text-xl font-black font-display text-foreground truncate">
+              {mode === "words" ? "1,000 PYQ Vocab Master" : "200+ Repeated Idioms & Phrases"}
+            </h2>
           </div>
 
-          <div className="flex items-center gap-3 bg-secondary/60 p-2.5 rounded-lg shrink-0 self-start sm:self-center">
+          <div className="flex items-center gap-2 bg-secondary/80 px-3 py-1.5 rounded-xl border border-border/60 shrink-0">
             <div className="text-center">
-              <p className="text-[11px] font-semibold text-muted-foreground">Active</p>
-              <p className="text-lg font-extrabold text-primary">{activeCount}</p>
+              <span className="text-[10px] font-bold text-muted-foreground block">Active</span>
+              <span className="text-base font-black text-primary tabular-nums">{activeCount}</span>
             </div>
-            <div className="h-7 w-[1px] bg-border" />
+            <div className="h-6 w-px bg-border/80 mx-1" />
             <div className="text-center">
-              <p className="text-[11px] font-semibold text-muted-foreground">Mastered</p>
-              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-                {masteredCount} / {totalAvailable}
-              </p>
+              <span className="text-[10px] font-bold text-muted-foreground block">Mastered</span>
+              <span className="text-base font-black text-emerald-400 tabular-nums">
+                {masteredCount}/{totalAvailable}
+              </span>
             </div>
           </div>
         </div>

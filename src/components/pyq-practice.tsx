@@ -288,20 +288,15 @@ export function PYQPracticeZone({ who, targetQuizId }: { who: string; targetQuiz
         </div>
       )}
 
-      {/* Top Header Banner */}
-      <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 space-y-2 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-primary/15 text-primary text-xs font-black uppercase tracking-wider px-2.5 py-0.5">
-            Previous Year Question Arena
-          </span>
-          <span className="text-xs text-muted-foreground font-semibold">User: {cap(who)}</span>
+      {/* Clean Top Header */}
+      <div className="flex items-center justify-between gap-3 pt-0.5">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-primary">Previous Year Papers</span>
+          <h2 className="text-xl sm:text-2xl font-black font-display text-foreground">SSC PYQ Drills</h2>
         </div>
-        <p className="font-display text-lg sm:text-xl font-black text-foreground">
-          SSC PYQ Papers & Timed Exam Drills
-        </p>
-        <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-          Attempt authentic SSC CGL, CHSL, CPO & MTS shift papers. Choose between <b>No Timer (Untimed Practice)</b>, <b>15 Minutes (Sprint Speed)</b>, or <b>25 Minutes (Sectional Exam Mode)</b>.
-        </p>
+        <span className="rounded-full bg-secondary border border-border px-3 py-1 text-xs font-bold text-muted-foreground tabular-nums">
+          {activePYQs.length} Shift Papers
+        </span>
       </div>
 
       {/* Admin Upload Section for PYQ */}
@@ -699,84 +694,84 @@ function PYQUpload({ onCreated }: { onCreated: () => void }) {
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 sm:p-5 shadow-xs">
-      <div className="flex items-center gap-2">
-        <span className="rounded bg-primary text-primary-foreground text-[10px] font-black uppercase px-2 py-0.5">
-          Admin Uploader
+    <details className="group rounded-2xl border border-border/80 bg-card/60 overflow-hidden transition shadow-soft">
+      <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground">
+        <span className="flex items-center gap-2">
+          <FileUp size={15} className="text-primary" />
+          <span>➕ Admin: Upload SSC PYQ Papers from HTML</span>
         </span>
-        <p className="font-display font-black text-sm text-foreground">
-          Upload SSC PYQ Papers from HTML Files
-        </p>
+        <span className="text-xs transition-transform group-open:rotate-180">⌄</span>
+      </summary>
+      <div className="p-4 pt-2 border-t border-border/60 space-y-3 bg-secondary/20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+              Exam Name
+            </label>
+            <select
+              className="w-full h-10 rounded-xl border bg-card px-3 text-xs font-semibold"
+              value={exam}
+              onChange={(e) => setExam(e.target.value)}
+            >
+              <option value="cgl">SSC CGL</option>
+              <option value="chsl">SSC CHSL</option>
+              <option value="cpo">SSC CPO</option>
+              <option value="mts">SSC MTS</option>
+              <option value="general">General / Other SSC</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+              Paper Content / Subject
+            </label>
+            <select
+              className="w-full h-10 rounded-xl border bg-card px-3 text-xs font-semibold"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            >
+              <option value="full">Full Paper (All 4 Subjects)</option>
+              <option value="maths">Maths Section</option>
+              <option value="reasoning">Reasoning Section</option>
+              <option value="english">English Section</option>
+              <option value="ga">General Awareness (GS)</option>
+            </select>
+          </div>
+        </div>
+
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/80 bg-card py-3.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/50 transition">
+          <FileUp size={16} className="text-primary" />
+          {files.length
+            ? `${files.length} file${files.length > 1 ? "s" : ""} selected for upload`
+            : "Choose HTML PYQ shift files"}
+          <input
+            type="file"
+            accept=".html,.htm,text/html"
+            multiple
+            className="hidden"
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+          />
+        </label>
+
+        <Button
+          className="w-full font-bold rounded-xl py-2.5 text-xs shadow-xs"
+          disabled={busy || !files.length}
+          onClick={run}
+        >
+          {busy ? "Parsing & creating PYQ papers…" : `Upload & Create ${files.length ? `(${files.length} Files)` : "PYQ Papers"}`}
+        </Button>
+
+        {status.length > 0 && (
+          <div className="space-y-1 text-xs bg-card/60 p-2.5 rounded-lg border">
+            {status.map((s, i) => (
+              <p key={i} className="font-medium">
+                {s}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
-            Exam Name
-          </label>
-          <select
-            className="w-full h-10 rounded-xl border bg-card px-3 text-xs font-semibold"
-            value={exam}
-            onChange={(e) => setExam(e.target.value)}
-          >
-            <option value="cgl">SSC CGL</option>
-            <option value="chsl">SSC CHSL</option>
-            <option value="cpo">SSC CPO</option>
-            <option value="mts">SSC MTS</option>
-            <option value="general">General / Other SSC</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[11px] font-bold text-muted-foreground block mb-1">
-            Paper Content / Subject
-          </label>
-          <select
-            className="w-full h-10 rounded-xl border bg-card px-3 text-xs font-semibold"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          >
-            <option value="full">Full Paper (All 4 Subjects)</option>
-            <option value="maths">Maths Section</option>
-            <option value="reasoning">Reasoning Section</option>
-            <option value="english">English Section</option>
-            <option value="ga">General Awareness (GS)</option>
-          </select>
-        </div>
-      </div>
-
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-card py-4 text-xs font-bold text-muted-foreground hover:border-primary transition">
-        <FileUp size={16} className="text-primary" />
-        {files.length
-          ? `${files.length} file${files.length > 1 ? "s" : ""} selected for upload`
-          : "Choose HTML PYQ shift files"}
-        <input
-          type="file"
-          accept=".html,.htm,text/html"
-          multiple
-          className="hidden"
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-        />
-      </label>
-
-      <Button
-        className="w-full font-bold rounded-xl shadow-xs"
-        disabled={busy || !files.length}
-        onClick={run}
-      >
-        {busy ? "Parsing & creating PYQ papers…" : `Upload & Create ${files.length ? `(${files.length} Files)` : "PYQ Papers"}`}
-      </Button>
-
-      {status.length > 0 && (
-        <div className="space-y-1 text-xs bg-card/60 p-2.5 rounded-lg border">
-          {status.map((s, i) => (
-            <p key={i} className="font-medium">
-              {s}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
+    </details>
   );
 }
 

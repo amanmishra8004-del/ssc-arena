@@ -357,34 +357,30 @@ export function MathPracticeZone({
   if (!selectedTopic) {
     return (
       <div className="space-y-5">
-        {/* Hero Card: Speed Math Arena */}
-        <div className="relative overflow-hidden rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-card via-card/95 to-primary/10 p-5 sm:p-6 shadow-md backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary tracking-wide">
-                  <Zap size={13} /> SSC Speed Math Arena
-                </span>
-                <span className="text-xs font-semibold text-muted-foreground">High-Yield Arithmetic Lab</span>
-              </div>
-              <h2 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-                Calculation Practice Hub
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
-                Choose any calculation section below to start. Each section includes complete reference charts, 3D flash cards, rapid speed practice, and sprint MCQ quizzes.
-              </p>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTargets(!showTargets)}
-              className="flex items-center gap-1.5 rounded-xl border-primary/30 text-xs font-bold shadow-sm shrink-0"
-            >
-              <Sliders size={14} className="text-primary" />
-              {showTargets ? "Hide Target Sliders" : "Set Target Milestones"}
-            </Button>
+        {/* Clean Hero Card: Speed Math Arena */}
+        <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-primary">
+              <Zap size={11} /> Speed Math Arena
+            </span>
+            <h2 className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground mt-0.5">
+              Calculation Drills & Speed Lab
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              7 calculation labs with interactive speed drills, flashcards, and sprint quizzes.
+            </p>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTargets(!showTargets)}
+            className="flex items-center gap-1.5 rounded-xl border-border text-xs font-bold shadow-2xs shrink-0"
+          >
+            <Sliders size={13} className="text-primary" />
+            <span>{showTargets ? "Hide Sliders" : "Milestones"}</span>
+          </Button>
+        </div>
 
           {/* Target Milestone Sliders (Collapsible Drawer) */}
           {showTargets && (

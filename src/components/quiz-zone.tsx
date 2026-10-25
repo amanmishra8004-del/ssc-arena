@@ -1132,25 +1132,33 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <p className="font-semibold">{mode === "test" ? "Create a subject test from HTML files" : "Create a quiz from HTML files"}</p>
+    <details className="group rounded-2xl border border-border/80 bg-card/60 overflow-hidden transition shadow-soft">
+      <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground">
+        <span className="flex items-center gap-2">
+          <FileUp size={15} className="text-primary" />
+          <span>{mode === "test" ? "➕ Admin: Upload Subject Tests from HTML" : "➕ Admin: Upload Quizzes from HTML"}</span>
+        </span>
+        <span className="text-xs transition-transform group-open:rotate-180">⌄</span>
+      </summary>
+      <div className="p-4 pt-2 border-t border-border/60 space-y-3 bg-secondary/20">
         <div className="grid gap-2 sm:grid-cols-2">
-          <select className="h-11 rounded-lg border bg-card px-3 text-sm" value={subj} onChange={(e) => { setSubj(Number(e.target.value)); setChap(""); }}>
+          <select className="h-10 rounded-xl border bg-card px-3 text-xs font-semibold" value={subj} onChange={(e) => { setSubj(Number(e.target.value)); setChap(""); }}>
             {SYLLABUS.map((s, i) => <option key={s.subject} value={i}>{s.subject}</option>)}
           </select>
-          {mode === "quiz" && <select className="h-11 rounded-lg border bg-card px-3 text-sm" value={chap} onChange={(e) => setChap(e.target.value)}>
+          {mode === "quiz" && <select className="h-10 rounded-xl border bg-card px-3 text-xs font-semibold" value={chap} onChange={(e) => setChap(e.target.value)}>
             <option value="">Select chapter</option>
             {chapters.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>}
         </div>
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed bg-card py-4 text-sm font-semibold text-muted-foreground">
-        <FileUp size={18} />{files.length ? `${files.length} file${files.length > 1 ? "s" : ""} selected` : "Choose HTML files"}
-        <input type="file" accept=".html,.htm,text/html" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
-      </label>
-      <Button className="w-full" disabled={busy || !files.length} onClick={run}>{busy ? "Creating quizzes… this may take a minute" : "Create quizzes"}</Button>
-      <p className="text-xs text-muted-foreground">Each file becomes a separate quiz. Questions and correct answers are read from the file automatically.</p>
-      {status.length > 0 && <div className="space-y-1 text-xs">{status.map((s, i) => <p key={i}>{s}</p>)}</div>}
-    </div>
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/80 bg-card py-3.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/50 transition">
+          <FileUp size={16} />{files.length ? `${files.length} file${files.length > 1 ? "s" : ""} selected` : "Choose HTML files"}
+          <input type="file" accept=".html,.htm,text/html" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        </label>
+        <Button className="w-full rounded-xl py-2.5 text-xs font-bold" disabled={busy || !files.length} onClick={run}>{busy ? "Creating quizzes… this may take a minute" : "Create quizzes"}</Button>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">Each file becomes a separate quiz. Questions and correct answers are extracted automatically.</p>
+        {status.length > 0 && <div className="space-y-1 text-xs">{status.map((s, i) => <p key={i}>{s}</p>)}</div>}
+      </div>
+    </details>
   );
 }
 

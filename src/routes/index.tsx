@@ -10,7 +10,7 @@ import {
   Trophy, Award, Check, Play, RotateCcw, Swords, Sparkles, Plus,
   Search, ChevronRight, KeyRound, LogOut, Menu, X,
   BarChart3, Users, Eye, EyeOff, Trash2, CheckCircle2,
-  Compass, Shield, Flame
+  Compass, Shield, Flame, Share2, Download, Smartphone, Copy, CheckCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MotionPresence } from "@/components/motion-presence";
@@ -21,8 +21,12 @@ export const Route = createFileRoute("/")({
   head: () => ({
     title: "GK/GS Quiz Arena — Arun, Ali, Naveen, Devansh",
     meta: [
-      { property: "og:title", content: "GK/GS Quiz Arena" },
-      { name: "description", content: "SSC GK/GS Quizzes by subjects, leaderboard, attempt tracker & player scoreboard." },
+      { property: "og:title", content: "🎯 SSC GK/GS Quiz Arena" },
+      { name: "description", content: "SSC GK/GS Quizzes by subjects, leaderboard, attempt tracker & player scoreboard for Arun, Ali, Naveen and Devansh." },
+      { property: "og:description", content: "Compete on uploaded SSC GK/GS Quizzes, track marks and live leaderboard." },
+      { property: "og:image", content: "/icon-512.png" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: App,
@@ -155,6 +159,20 @@ const SUBJECT_BOXES: SubjectBox[] = [
   },
 ];
 
+function WhatsAppIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+    </svg>
+  );
+}
+
+function getShareData() {
+  const url = typeof window !== "undefined" ? window.location.origin : "https://ssc-arena.pages.dev";
+  const text = `🎯 *SSC GK/GS Quiz Arena*\n\n🔥 Compete on uploaded GK/GS Quizzes, check live marks & scoreboard!\n\n👥 *Players:* Arun, Ali, Naveen, Devansh\n🔑 *Default Password:* 1234\n\n👉 *Join Arena:* ${url}`;
+  return { url, text };
+}
+
 function App() {
   return <ArenaApp />;
 }
@@ -162,15 +180,35 @@ function App() {
 function ArenaApp() {
   const [auth, setAuth] = useState<Auth | null>(null);
   const [ready, setReady] = useState(false);
+  const [showApkModal, setShowApkModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
   const { search, change } = useWorkspaceNavigation();
   const popup = search.panel === "password";
   const setPopup = (open: boolean) => change({ panel: open ? "password" : undefined }, !open);
+
+  // Listen for native PWA install prompt
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+  }, []);
 
   useEffect(() => {
     const raw = localStorage.getItem("arena-auth");
     if (raw) {
       try {
-        setAuth(JSON.parse(raw));
+        const parsed = JSON.parse(raw);
+        setAuth(parsed);
+        // Show APK modal once on first-time login/visit
+        const apkPromptShown = localStorage.getItem("arena-apk-prompt-shown");
+        if (!apkPromptShown) {
+          setTimeout(() => setShowApkModal(true), 1200);
+        }
       } catch {}
     }
     setReady(true);
@@ -179,6 +217,11 @@ function ArenaApp() {
   const store = (a: Auth) => {
     localStorage.setItem("arena-auth", JSON.stringify(a));
     setAuth(a);
+    // Show APK modal on first login
+    const apkPromptShown = localStorage.getItem("arena-apk-prompt-shown");
+    if (!apkPromptShown) {
+      setTimeout(() => setShowApkModal(true), 800);
+    }
   };
 
   if (!ready) return null;
@@ -190,6 +233,8 @@ function ArenaApp() {
           store(a);
           if (a.isDefault) setPopup(true);
         }}
+        onOpenShare={() => setShowShareModal(true)}
+        onOpenInstall={() => setShowApkModal(true)}
       />
     );
   }
@@ -199,11 +244,29 @@ function ArenaApp() {
       <Main
         auth={auth}
         openPass={() => setPopup(true)}
+        openInstall={() => setShowApkModal(true)}
+        openShare={() => setShowShareModal(true)}
         logout={() => {
           localStorage.removeItem("arena-auth");
           setAuth(null);
         }}
       />
+
+      {/* Install as APK / Mobile App Modal */}
+      <MotionPresence open={showApkModal}>
+        <ApkInstallModal
+          deferredPrompt={deferredPrompt}
+          onClose={() => {
+            localStorage.setItem("arena-apk-prompt-shown", "true");
+            setShowApkModal(false);
+          }}
+        />
+      </MotionPresence>
+
+      {/* WhatsApp Share Modal */}
+      <MotionPresence open={showShareModal}>
+        <ShareModal onClose={() => setShowShareModal(false)} />
+      </MotionPresence>
 
       {/* Change Password Modal */}
       <MotionPresence open={popup}>
@@ -217,6 +280,211 @@ function ArenaApp() {
         />
       </MotionPresence>
     </>
+  );
+}
+
+function ApkInstallModal({
+  deferredPrompt,
+  onClose,
+}: {
+  deferredPrompt: any;
+  onClose: () => void;
+}) {
+  const [installed, setInstalled] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === "accepted") {
+          setInstalled(true);
+          setTimeout(() => onClose(), 1500);
+          return;
+        }
+      } catch {}
+    }
+    setShowSteps(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 p-4 backdrop-blur-md" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card p-6 shadow-2xl backdrop-blur-2xl text-center"
+      >
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent shadow-xl shadow-primary/30 ring-4 ring-primary/20">
+          <Smartphone className="h-8 w-8 text-white" />
+        </div>
+
+        <div>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
+            <Sparkles size={11} /> Mobile APK Ready
+          </div>
+          <h2 className="mt-2 text-xl font-black font-display text-foreground tracking-tight">Install as Mobile App</h2>
+          <p className="mt-1 text-xs text-muted-foreground font-semibold">
+            Run SSC GK Arena like a native Android APK directly on your phone
+          </p>
+        </div>
+
+        {/* Perks list */}
+        <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 text-left space-y-2 text-xs font-semibold">
+          <div className="flex items-center gap-2 text-foreground">
+            <span className="text-emerald-400 font-black">✓</span>
+            <span><strong>Fullscreen view</strong> (bina browser address bar ke)</span>
+          </div>
+          <div className="flex items-center gap-2 text-foreground">
+            <span className="text-emerald-400 font-black">✓</span>
+            <span><strong>1-Tap Home Screen Icon</strong> (Seedhe app khulega)</span>
+          </div>
+          <div className="flex items-center gap-2 text-foreground">
+            <span className="text-emerald-400 font-black">✓</span>
+            <span><strong>Fast offline caching</strong> & instant score sync</span>
+          </div>
+        </div>
+
+        {/* Step by step guidance if direct prompt not available */}
+        {showSteps && (
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-3 text-left space-y-2 text-xs text-primary-foreground">
+            <p className="font-extrabold text-primary text-[11px] uppercase tracking-wider">📱 How to Install on Phone:</p>
+            <div className="text-[11px] space-y-1 text-foreground font-medium">
+              <p><strong>Android Chrome:</strong> Tap <strong className="text-primary">⋮ (3 dots)</strong> at top right ➔ Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</p>
+              <p><strong>iPhone Safari:</strong> Tap <strong className="text-primary">Share icon</strong> ➔ Tap <strong>"Add to Home Screen"</strong>.</p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2 pt-1">
+          <Button
+            variant="unstyled"
+            onClick={handleInstallClick}
+            className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 flex items-center justify-center gap-2"
+          >
+            {installed ? (
+              <>
+                <CheckCircle2 size={16} />
+                <span>Installed Successfully!</span>
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                <span>📲 Install App on Phone</span>
+              </>
+            )}
+          </Button>
+
+          <Button
+            variant="unstyled"
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-2xl border border-border/80 bg-secondary/60 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground active:scale-95"
+          >
+            Continue in Browser
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareModal({ onClose }: { onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const { url, text } = getShareData();
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: "SSC GK/GS Quiz Arena",
+          text,
+          url,
+        });
+        onClose();
+      } catch {}
+    } else {
+      window.open(whatsappUrl, "_blank");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 p-4 backdrop-blur-md" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card p-6 shadow-2xl backdrop-blur-2xl"
+      >
+        <div className="flex items-center justify-between pb-1">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <WhatsAppIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-display text-base font-extrabold text-foreground">Share SSC GK Arena</h2>
+              <p className="text-[11px] font-semibold text-muted-foreground">Invite Arun, Ali, Naveen & Devansh</p>
+            </div>
+          </div>
+          <Button variant="unstyled" onClick={onClose} type="button" className="p-1 rounded-full text-muted-foreground hover:bg-secondary">
+            <X size={18} />
+          </Button>
+        </div>
+
+        {/* Clean URL Box */}
+        <div className="rounded-2xl border border-border/80 bg-secondary/50 p-3 space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+            Arena Invite Link
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={url}
+              className="w-full rounded-xl border border-input bg-background/80 px-3 py-2 text-xs font-bold text-foreground outline-none select-all truncate"
+            />
+            <Button
+              variant="unstyled"
+              onClick={handleCopy}
+              className="shrink-0 rounded-xl bg-secondary border border-border px-3 py-2 text-xs font-bold text-foreground active:scale-95 flex items-center gap-1"
+            >
+              {copied ? <CheckCheck size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              <span>{copied ? "Copied" : "Copy"}</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-2 pt-1">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 py-3.5 text-xs font-black text-white shadow-lg shadow-emerald-500/25 active:scale-95 flex items-center justify-center gap-2 transition"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            <span>Share Directly on WhatsApp</span>
+          </a>
+
+          {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+            <Button
+              variant="unstyled"
+              onClick={handleNativeShare}
+              className="w-full rounded-2xl border border-border/80 bg-secondary/70 py-3 text-xs font-bold text-foreground hover:bg-secondary active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Share2 size={15} />
+              <span>Share via Other Apps</span>
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -289,7 +557,15 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
   );
 }
 
-function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
+function Login({
+  onLogin,
+  onOpenShare,
+  onOpenInstall,
+}: {
+  onLogin: (a: Auth) => void;
+  onOpenShare: () => void;
+  onOpenInstall: () => void;
+}) {
   const doLogin = useServerFn(login);
   const [u, setU] = useState<string>("arun");
   const [p, setP] = useState<string>("1234");
@@ -314,7 +590,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           }
           setBusy(false);
         }}
-        className="w-full max-w-sm space-y-5 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur-2xl"
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur-2xl"
       >
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent shadow-lg shadow-primary/30">
@@ -324,7 +600,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           <p className="mt-1 text-xs font-semibold text-muted-foreground">Select your player profile to enter</p>
         </div>
 
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-2 text-center">
               Choose Player
@@ -405,6 +681,27 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
         >
           {busy ? "Signing in…" : `Sign In as ${cap(u)}`}
         </Button>
+
+        {/* Quick Utility Row */}
+        <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs font-bold">
+          <button
+            type="button"
+            onClick={onOpenShare}
+            className="text-emerald-400 hover:underline flex items-center gap-1.5"
+          >
+            <WhatsAppIcon className="h-3.5 w-3.5" />
+            <span>Share on WhatsApp</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenInstall}
+            className="text-primary hover:underline flex items-center gap-1"
+          >
+            <Download size={13} />
+            <span>Install as App</span>
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -414,10 +711,14 @@ function Main({
   auth,
   logout,
   openPass,
+  openInstall,
+  openShare,
 }: {
   auth: Auth;
   logout: () => void;
   openPass: () => void;
+  openInstall: () => void;
+  openShare: () => void;
 }) {
   const qc = useQueryClient();
   const q = useQuizzes();
@@ -444,6 +745,22 @@ function Main({
   const quizzes = (q.data?.quizzes ?? []) as Quiz[];
   const attempts = (q.data?.attempts ?? []) as Attempt[];
 
+  // Auto-launch quiz if URL contains ?quiz= or ?quizId=
+  useEffect(() => {
+    if (search.quizId && quizzes.length > 0 && !playingQuiz) {
+      const found = quizzes.find((x) => x.id === search.quizId);
+      if (found) {
+        setPlayingQuiz(found);
+      }
+    }
+  }, [search.quizId, quizzes]);
+
+  const handleExitQuiz = () => {
+    setPlayingQuiz(null);
+    change({ quizId: undefined }, true);
+    qc.invalidateQueries({ queryKey: ["quizzes"] });
+  };
+
   return (
     <div className="arena-shell min-h-screen pb-28 selection:bg-primary/30">
       {/* Fullscreen Quiz Player Overlay */}
@@ -453,10 +770,7 @@ function Main({
             <div className="flex items-center justify-between pb-2 border-b border-border/80">
               <Button
                 variant="unstyled"
-                onClick={() => {
-                  setPlayingQuiz(null);
-                  qc.invalidateQueries({ queryKey: ["quizzes"] });
-                }}
+                onClick={handleExitQuiz}
                 className="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground hover:text-foreground active:scale-95 py-1 px-2.5 rounded-xl bg-secondary/80 border border-border/80"
               >
                 ← Exit Quiz
@@ -468,10 +782,7 @@ function Main({
 
             <QuizPlayer
               quiz={playingQuiz}
-              onDone={() => {
-                setPlayingQuiz(null);
-                qc.invalidateQueries({ queryKey: ["quizzes"] });
-              }}
+              onDone={handleExitQuiz}
             />
           </div>
         </div>
@@ -495,6 +806,28 @@ function Main({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* WhatsApp Share Button */}
+          <Button
+            variant="unstyled"
+            onClick={openShare}
+            title="Share with friends on WhatsApp"
+            className="flex items-center gap-1.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-extrabold text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">WhatsApp</span>
+          </Button>
+
+          {/* Install as APK App Button */}
+          <Button
+            variant="unstyled"
+            onClick={openInstall}
+            title="Install Mobile App"
+            className="flex items-center gap-1.5 rounded-2xl border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-extrabold text-primary hover:bg-primary/20 active:scale-95 transition"
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">App</span>
+          </Button>
+
           <Button
             variant="unstyled"
             onClick={() => setMenu(true)}
@@ -511,11 +844,47 @@ function Main({
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-background/70 backdrop-blur-md sm:items-center p-0 sm:p-4" onClick={() => setMenu(false)}>
           <div className="w-full max-w-sm space-y-3 rounded-t-[32px] sm:rounded-3xl border border-border/80 bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-1">
-              <h3 className="font-display text-base font-extrabold text-foreground">Menu & Account</h3>
+              <h3 className="font-display text-base font-extrabold text-foreground">Menu & Quick Links</h3>
               <Button variant="unstyled" onClick={() => setMenu(false)} className="p-1 rounded-full text-muted-foreground hover:bg-secondary">
                 <X size={18} />
               </Button>
             </div>
+
+            <Button
+              variant="unstyled"
+              onClick={() => {
+                setMenu(false);
+                openShare();
+              }}
+              className="flex w-full items-center gap-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 p-3.5 text-left active:scale-98 transition border border-emerald-500/25"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 text-white shrink-0">
+                <WhatsAppIcon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-emerald-400">Share on WhatsApp</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Send invite link with clean URL</p>
+              </div>
+              <ChevronRight size={15} className="text-emerald-400" />
+            </Button>
+
+            <Button
+              variant="unstyled"
+              onClick={() => {
+                setMenu(false);
+                openInstall();
+              }}
+              className="flex w-full items-center gap-3 rounded-2xl bg-primary/10 hover:bg-primary/15 p-3.5 text-left active:scale-98 transition border border-primary/25"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0">
+                <Smartphone size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-primary">Install as Mobile APK</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Direct fullscreen app on mobile home screen</p>
+              </div>
+              <ChevronRight size={15} className="text-primary" />
+            </Button>
 
             <Button
               variant="unstyled"
@@ -559,6 +928,8 @@ function Main({
             quizzes={quizzes}
             attempts={attempts}
             onPlayQuiz={(z) => setPlayingQuiz(z)}
+            onOpenShare={openShare}
+            onOpenInstall={openInstall}
             onRefresh={() => qc.invalidateQueries({ queryKey: ["quizzes"] })}
           />
         ) : (
@@ -566,6 +937,7 @@ function Main({
             auth={auth}
             quizzes={quizzes}
             attempts={attempts}
+            onOpenShare={openShare}
             onPlayQuiz={(z) => setPlayingQuiz(z)}
           />
         )}
@@ -618,12 +990,16 @@ function GKQuizSection({
   quizzes,
   attempts,
   onPlayQuiz,
+  onOpenShare,
+  onOpenInstall,
   onRefresh,
 }: {
   auth: Auth;
   quizzes: Quiz[];
   attempts: Attempt[];
   onPlayQuiz: (z: Quiz) => void;
+  onOpenShare: () => void;
+  onOpenInstall: () => void;
   onRefresh: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -689,6 +1065,47 @@ function GKQuizSection({
     });
   }, [gkQuizzes, search, selectedSubjectId, activeSubject]);
 
+  // Sort quizzes: earliest added at TOP, newest at bottom, ordered chapter-wise
+  const sortedQuizzes = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      // Compare chapters if both have defined chapter names
+      const chapA = (a.chapter || "").trim();
+      const chapB = (b.chapter || "").trim();
+      if (chapA && chapB && chapA !== chapB) {
+        return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: "base" });
+      }
+      // Earliest added first (at TOP)
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeA - timeB;
+    });
+  }, [filtered]);
+
+  const [copiedQuizId, setCopiedQuizId] = useState<string | null>(null);
+
+  const handleShareParticularQuiz = (z: Quiz) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://ssc-arena.pages.dev";
+    const link = `${origin}/?quiz=${z.id}`;
+    const text = `🎯 *SSC GK/GS Quiz Challenge!*\n\n📝 *Quiz:* ${z.title}\n📚 *Chapter:* ${z.chapter || "GK/GS"}\n❓ *Questions:* ${z.questions.length} Qs (${z.questions.length * 2} Marks)\n\n⚔️ *Players:* Arun, Ali, Naveen, Devansh\n\n👉 *Direct Quiz Link (Click to attempt):* \n${link}`;
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        navigator.clipboard.writeText(link);
+        setCopiedQuizId(z.id);
+        setTimeout(() => setCopiedQuizId(null), 2500);
+      }
+    } catch {}
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({ title: z.title, text, url: link }).catch(() => {
+        window.open(waUrl, "_blank");
+      });
+    } else {
+      window.open(waUrl, "_blank");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Hero Stats Card */}
@@ -733,6 +1150,27 @@ function GKQuizSection({
         </div>
       </div>
 
+      {/* WhatsApp Invite Banner */}
+      <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-card to-card p-3.5 flex items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+            <WhatsAppIcon className="h-4.5 w-4.5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold text-foreground truncate">Play with Friends on WhatsApp</p>
+            <p className="text-[10px] text-muted-foreground font-semibold truncate">Invite Ali, Naveen & Devansh to solve quizzes</p>
+          </div>
+        </div>
+        <Button
+          variant="unstyled"
+          onClick={onOpenShare}
+          className="shrink-0 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 text-[11px] font-black text-white shadow-md shadow-emerald-500/20 active:scale-95 flex items-center gap-1.5"
+        >
+          <WhatsAppIcon className="h-3.5 w-3.5" />
+          <span>Share Link</span>
+        </Button>
+      </div>
+
       {/* Admin Upload Drawer */}
       {showUpload && auth.username === "arun" && (
         <div className="rounded-3xl border border-primary/40 bg-card p-5 shadow-2xl">
@@ -751,7 +1189,7 @@ function GKQuizSection({
       )}
 
       {/* ============================================================ */}
-      {/* SUBJECT BOXES GRID (As requested: "subject ke box hoo")       */}
+      {/* SUBJECT BOXES GRID (7 Categories)                            */}
       {/* ============================================================ */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
@@ -860,10 +1298,10 @@ function GKQuizSection({
       </div>
 
       {/* ============================================================ */}
-      {/* QUIZZES LIST (As requested: "badya see format me hoo quiz")  */}
+      {/* QUIZZES LIST                                                 */}
       {/* ============================================================ */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {sortedQuizzes.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border/90 p-8 text-center space-y-2 bg-card/50">
             <p className="text-sm font-bold text-foreground">No quizzes found for this subject.</p>
             <p className="text-xs text-muted-foreground">Try selecting a different subject box above or upload new quiz.</p>
@@ -878,7 +1316,7 @@ function GKQuizSection({
             )}
           </div>
         ) : (
-          filtered.map((z) => {
+          sortedQuizzes.map((z, idx) => {
             const myAttempts = attempts.filter((a) => a.username === auth.username && a.quiz_id === z.id);
             const bestAttempt = myAttempts.reduce(
               (best, cur) => (cur.score > (best?.score ?? -1) ? cur : best),
@@ -909,6 +1347,9 @@ function GKQuizSection({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="rounded-full bg-secondary/80 border border-border px-2 py-0.5 text-[10px] font-black text-muted-foreground">
+                        #{idx + 1}
+                      </span>
                       <span className="rounded-full bg-secondary border border-border px-2 py-0.5 text-[10px] font-black text-foreground inline-flex items-center gap-1">
                         <span>{quizSubject.icon}</span>
                         <span>{quizSubject.name}</span>
@@ -949,7 +1390,7 @@ function GKQuizSection({
                   )}
                 </div>
 
-                {/* Row 2: Your Performance on this Quiz (Clean Score Box) */}
+                {/* Row 2: Your Performance on this Quiz */}
                 <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-muted-foreground flex items-center gap-1">
@@ -1007,24 +1448,34 @@ function GKQuizSection({
                   </div>
                 )}
 
-                {/* Row 4: Action Button */}
-                <div className="pt-1">
+                {/* Row 4: Action Button + Particular Quiz WhatsApp Share */}
+                <div className="pt-1 flex items-center gap-2">
                   <Button
                     variant="unstyled"
                     onClick={() => onPlayQuiz(z)}
-                    className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-98 flex items-center justify-center gap-2 transition"
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-98 flex items-center justify-center gap-2 transition"
                   >
                     {timesAttempted > 0 ? (
                       <>
                         <RotateCcw size={14} />
-                        <span>Re-attempt Quiz (Improve Score)</span>
+                        <span>Re-attempt Quiz</span>
                       </>
                     ) : (
                       <>
                         <Play size={14} fill="currentColor" />
-                        <span>Start Quiz Now</span>
+                        <span>Start Quiz</span>
                       </>
                     )}
+                  </Button>
+
+                  <Button
+                    variant="unstyled"
+                    onClick={() => handleShareParticularQuiz(z)}
+                    title="Send this quiz challenge on WhatsApp"
+                    className="shrink-0 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-3 text-xs font-black text-emerald-400 active:scale-95 flex items-center gap-1.5 transition"
+                  >
+                    <WhatsAppIcon className="h-4 w-4" />
+                    <span>{copiedQuizId === z.id ? "Copied Link!" : "Share Quiz"}</span>
                   </Button>
                 </div>
               </div>
@@ -1040,11 +1491,13 @@ function LeaderboardSection({
   auth,
   quizzes,
   attempts,
+  onOpenShare,
   onPlayQuiz,
 }: {
   auth: Auth;
   quizzes: Quiz[];
   attempts: Attempt[];
+  onOpenShare: () => void;
   onPlayQuiz: (z: Quiz) => void;
 }) {
   const [selectedQuizId, setSelectedQuizId] = useState<string>(() => quizzes[0]?.id ?? "");
@@ -1123,13 +1576,24 @@ function LeaderboardSection({
 
   return (
     <div className="space-y-4">
-      {/* Top Banner */}
-      <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-          <Trophy size={11} /> Live GK/GS Leaderboard
+      {/* Top Banner with WhatsApp Share */}
+      <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft flex items-center justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+            <Trophy size={11} /> Live GK/GS Leaderboard
+          </div>
+          <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground">Scoreboard & Comparison</h2>
+          <p className="text-xs text-muted-foreground font-semibold mt-0.5">Player rankings for Arun, Ali, Naveen & Devansh</p>
         </div>
-        <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground">Scoreboard & Comparison</h2>
-        <p className="text-xs text-muted-foreground font-semibold mt-0.5">Player rankings for Arun, Ali, Naveen & Devansh</p>
+
+        <Button
+          variant="unstyled"
+          onClick={onOpenShare}
+          className="shrink-0 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-xs font-black text-emerald-400 hover:bg-emerald-500/20 active:scale-95 flex items-center gap-1.5 transition"
+        >
+          <WhatsAppIcon className="h-4 w-4" />
+          <span>Share</span>
+        </Button>
       </div>
 
       {/* Top 3 Podium */}

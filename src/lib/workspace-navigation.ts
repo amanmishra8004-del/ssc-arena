@@ -22,7 +22,8 @@ export function validateWorkspaceSearch(raw: Record<string, unknown>): Workspace
   const subject = Number(raw['subject']);
   if (raw['subject'] !== undefined && Number.isInteger(subject) && subject >= 0 && subject < 4) result.subject = subject;
   if (typeof raw['chapter'] === "string" && raw['chapter'].length > 0 && raw['chapter'].length <= 200) result.chapter = raw['chapter'];
-  if (typeof raw['quizId'] === "string" && raw['quizId'].length > 0 && raw['quizId'].length <= 128) result.quizId = raw['quizId'];
+  const qId = raw['quizId'] || raw['quiz'];
+  if (typeof qId === "string" && qId.length > 0 && qId.length <= 128) result.quizId = qId;
   return result;
 }
 

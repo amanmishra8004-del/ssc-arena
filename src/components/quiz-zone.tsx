@@ -498,10 +498,10 @@ export function QuizZone({
       )}
 
       {/* Main Tabs (Active, Past, Mistakes) */}
-      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1">
+      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {([
-          ["active", "Active quizzes"],
-          ["past", "Past results"],
+          ["active", "Active Quizzes"],
+          ["past", "Past Results"],
           ["mistakes", `Mistake Bank (${allMistakes.length})`],
         ] as const).map(([k, l]) => (
           <Button
@@ -510,8 +510,10 @@ export function QuizZone({
             aria-pressed={filter === k}
             onClick={() => setFilter(k)}
             className={cn(
-              "shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors",
-              filter === k ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              "shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all active:scale-[0.97] border",
+              filter === k
+                ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                : "bg-secondary/70 text-muted-foreground border-border/70 hover:bg-secondary"
             )}
           >
             {l}
@@ -977,13 +979,18 @@ function QuizCard({
     ? qList.filter((x, i) => ((lastMine.answers as number[])[i] ?? -1) !== x.answer).length
     : 0;
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 space-y-3 transition-all shadow-xs hover:border-primary/50">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold">{quiz.title || "Quiz"}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {qList.length} questions · {quiz.chapter ? chapterLabel(quiz.chapter)  : "General"}
-          </p>
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5 uppercase tracking-wide">
+              {quiz.chapter ? chapterLabel(quiz.chapter) : "General Quiz"}
+            </span>
+            <span className="text-xs text-muted-foreground font-semibold">
+              {qList.length} Questions
+            </span>
+          </div>
+          <p className="font-display font-black text-base text-foreground leading-snug">{quiz.title || "Quiz"}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button
@@ -991,7 +998,7 @@ function QuizCard({
             size="sm"
             onClick={() => onShare(quiz)}
             title="Share quiz link with friends"
-            className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 gap-1.5"
+            className="h-8 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10 gap-1.5 rounded-full"
           >
             {isCopied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
             <span>{isCopied ? "Copied" : "Share"}</span>
@@ -1000,7 +1007,7 @@ function QuizCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
               aria-label="Delete quiz"
               onClick={async () => {
                 if (confirm("Delete this quiz and all of its scores?")) {
@@ -1009,24 +1016,37 @@ function QuizCard({
                 }
               }}
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
             </Button>
           )}
         </div>
       </div>
       {best.length > 0 && (
-        <div className="mt-3 space-y-1">
+        <div className="space-y-1 bg-secondary/35 rounded-xl p-2.5 border border-border/50">
+          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider mb-1">
+            Top Attempts
+          </p>
           {best.map((b, i) => (
-            <div key={b.username} className={cn("flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm", b.username === who ? "bg-primary/10" : "bg-secondary/60")}>
-              <span className="flex items-center gap-2">{i === 0 ? <Trophy size={14} className="text-accent" /> : <span className="w-3.5 text-center text-xs text-muted-foreground">{i + 1}</span>}{cap(b.username)}</span>
-              <span className="font-semibold">{b.score}/{b.total} <span className="text-xs font-normal text-muted-foreground">· {b.tries} {b.tries === 1 ? "attempt" : "attempts"}</span></span>
+            <div key={b.username} className={cn("flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs", b.username === who ? "bg-primary/15 font-semibold text-foreground" : "bg-card/70")}>
+              <span className="flex items-center gap-2">
+                {i === 0 ? <Trophy size={13} className="text-amber-500" /> : <span className="w-3.5 text-center text-xs text-muted-foreground font-bold">{i + 1}</span>}
+                {cap(b.username)}
+              </span>
+              <span className="font-bold">{b.score}/{b.total} <span className="text-[10px] font-normal text-muted-foreground">· {b.tries} {b.tries === 1 ? "try" : "tries"}</span></span>
             </div>
           ))}
         </div>
       )}
-      <div className={cn("mt-3 gap-2", missed ? "grid grid-cols-2" : "")}>
-        <Button className="w-full" onClick={onPlay}><Play size={16} />{mine ? "Attempt again" : "Start quiz"}</Button>
-        {missed > 0 && <Button variant="outline" className="w-full" onClick={onRetry}>Retry missed ({missed})</Button>}
+      <div className={cn("gap-2 pt-1", missed ? "grid grid-cols-2" : "flex")}>
+        <Button className="w-full h-11 rounded-xl font-bold shadow-xs active:scale-[0.98]" onClick={onPlay}>
+          <Play size={15} className="mr-1 fill-current" />
+          {mine ? "Attempt Again" : "Start Quiz"}
+        </Button>
+        {missed > 0 && (
+          <Button variant="outline" className="w-full h-11 rounded-xl font-bold border-2 active:scale-[0.98]" onClick={onRetry}>
+            Retry Missed ({missed})
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -1147,23 +1167,23 @@ export function TimerPromptModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+      <div className="w-full max-w-sm rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-2xl space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-primary">
               <Clock size={13} />
               <span>Timer Settings</span>
             </div>
-            <h3 className="text-base font-bold text-foreground mt-0.5">Choose Test Time</h3>
+            <h3 className="text-base font-black text-foreground mt-0.5">Choose Test Time</h3>
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
               {title || "Set a time limit or practice freely"}
             </p>
             {questionCount !== undefined && questionCount > 0 && (
-              <span className="inline-block mt-1 rounded bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+              <span className="inline-block mt-1.5 rounded-full bg-secondary/80 px-2.5 py-0.5 text-[10px] font-black text-muted-foreground border">
                 {questionCount} Questions
               </span>
             )}
@@ -1171,19 +1191,19 @@ export function TimerPromptModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
             aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2.5 pt-1">
           {/* Option 1: No Timer */}
           <button
             type="button"
             onClick={() => onStart(null)}
-            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-primary/50 transition text-left group"
+            className="w-full flex items-center justify-between rounded-2xl border-2 border-border/80 bg-secondary/30 p-3.5 hover:bg-secondary/70 hover:border-primary/50 transition active:scale-[0.98] text-left group"
           >
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg">
@@ -1196,14 +1216,14 @@ export function TimerPromptModal({
                 <p className="text-[11px] text-muted-foreground">Solve calmly without time limit</p>
               </div>
             </div>
-            <span className="text-xs font-semibold text-muted-foreground">Untimed</span>
+            <span className="text-xs font-bold text-muted-foreground">Untimed</span>
           </button>
 
           {/* Option 2: 15 Minutes */}
           <button
             type="button"
             onClick={() => onStart(15)}
-            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-amber-500/50 transition text-left group"
+            className="w-full flex items-center justify-between rounded-2xl border-2 border-border/80 bg-secondary/30 p-3.5 hover:bg-secondary/70 hover:border-amber-500/50 transition active:scale-[0.98] text-left group"
           >
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 text-lg">
@@ -1225,26 +1245,26 @@ export function TimerPromptModal({
           <button
             type="button"
             onClick={() => onStart(25)}
-            className="w-full flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3 hover:bg-secondary/70 hover:border-red-500/50 transition text-left group"
+            className="w-full flex items-center justify-between rounded-2xl border-2 border-border/80 bg-secondary/30 p-3.5 hover:bg-secondary/70 hover:border-rose-500/50 transition active:scale-[0.98] text-left group"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500 text-lg">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 text-lg">
                 ⏳
               </span>
               <div>
-                <p className="text-sm font-bold text-foreground group-hover:text-red-500">
+                <p className="text-sm font-bold text-foreground group-hover:text-rose-500">
                   25 Minutes
                 </p>
                 <p className="text-[11px] text-muted-foreground">Standard SSC Tier 1 section time</p>
               </div>
             </div>
-            <span className="rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-black text-red-500">
+            <span className="rounded-md bg-rose-500/15 px-2 py-0.5 text-xs font-black text-rose-500">
               25 min
             </span>
           </button>
         </div>
 
-        <Button variant="ghost" size="sm" className="w-full text-xs font-semibold" onClick={onClose}>
+        <Button variant="ghost" size="sm" className="w-full h-10 rounded-xl text-xs font-bold" onClick={onClose}>
           Cancel
         </Button>
       </div>
@@ -1338,65 +1358,84 @@ export function QuizPlayer({
 
   if (result)
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl border bg-card p-6 text-center space-y-2">
+      <div className="space-y-4 animate-in fade-in">
+        <div className="rounded-3xl border border-border/80 bg-gradient-to-b from-card via-card to-primary/5 p-6 sm:p-8 text-center space-y-3.5 shadow-sm">
           {timeExpired && (
-            <span className="inline-block rounded-full bg-destructive/15 text-destructive px-3 py-1 text-xs font-bold mb-1">
+            <span className="inline-block rounded-full bg-destructive/15 text-destructive border border-destructive/30 px-3 py-1 text-xs font-bold mb-1">
               ⏰ Time Expired — Auto-Submitted
             </span>
           )}
           {timerMinutes && (
-            <span className="inline-block rounded-full bg-secondary text-muted-foreground px-2.5 py-0.5 text-xs font-semibold">
+            <span className="inline-block rounded-full bg-secondary/80 text-muted-foreground border border-border/70 px-3 py-0.5 text-xs font-semibold">
               Timed Test ({timerMinutes} min limit)
             </span>
           )}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm font-semibold text-muted-foreground">
             {quiz.title}
-            {practice ? " · Missed questions" : ""}
+            {practice ? " · Missed questions practice" : ""}
           </p>
-          <p className="text-4xl font-black">
-            {result.score}/{result.total}
-          </p>
-          <p className="text-xs text-muted-foreground">
+          <div className="py-2">
+            <p className="text-5xl font-black text-foreground tracking-tight">
+              {result.score}<span className="text-2xl text-muted-foreground font-bold">/{result.total}</span>
+            </p>
+            <p className="text-xs font-bold text-primary mt-1">
+              {Math.round((result.score / Math.max(result.total, 1)) * 100)}% Accuracy
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             {practice
-              ? "Practice score — not saved to the leaderboard."
-              : "Your score has been saved to the leaderboard."}
+              ? "Practice score completed. Your mistake bank has been updated!"
+              : "Awesome effort! Your score has been synced to the live Leaderboard."}
           </p>
         </div>
-        <p className="text-sm font-semibold">Review answers</p>
+
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm font-black text-foreground">Review Answers & Explanations</p>
+          <span className="text-xs font-semibold text-muted-foreground">{qs.length} Questions</span>
+        </div>
+
         {qs.map((x, k) => (
           <div
             key={k}
             className={cn(
-              "rounded-lg border p-3.5",
+              "rounded-2xl border-2 p-4 sm:p-5 space-y-2 transition-all",
               ans[k] === x.answer
-                ? "border-primary/40 bg-primary/5"
-                : "border-destructive/40 bg-destructive/5"
+                ? "border-emerald-500/35 bg-emerald-500/5"
+                : "border-destructive/35 bg-destructive/5"
             )}
           >
-            <p className="whitespace-pre-line text-sm font-semibold">
+            <p className="whitespace-pre-line text-sm font-bold text-foreground">
               {k + 1}. {en(x.q)}
             </p>
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm">
-              {ans[k] === x.answer ? (
-                <Check size={15} className="text-primary" />
-              ) : (
-                <X size={15} className="text-destructive" />
-              )}
-              Your answer: {ans[k] >= 0 ? en(x.options[ans[k]]) : "Not answered"}
-            </p>
-            {ans[k] !== x.answer && (
-              <p className="mt-1 text-sm">
-                <b>Correct:</b> {en(x.options[x.answer])}
+            <div className="pt-1 space-y-1 text-xs">
+              <p className={cn("flex items-center gap-1.5 font-bold", ans[k] === x.answer ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                {ans[k] === x.answer ? (
+                  <Check size={15} className="shrink-0" />
+                ) : (
+                  <X size={15} className="shrink-0" />
+                )}
+                <span>Your answer: {ans[k] >= 0 ? en(x.options[ans[k]]) : "Not answered"}</span>
               </p>
+              {ans[k] !== x.answer && (
+                <p className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                  <Check size={15} className="shrink-0" />
+                  <span>Correct: {en(x.options[x.answer])}</span>
+                </p>
+              )}
+            </div>
+            {x.explain && (
+              <div className="mt-2 text-xs text-muted-foreground bg-secondary/50 rounded-xl p-3 border border-border/50">
+                <span className="font-bold text-foreground block mb-0.5">Explanation:</span>
+                {en(x.explain)}
+              </div>
             )}
-            {x.explain && <p className="mt-1.5 text-xs text-muted-foreground">{en(x.explain)}</p>}
           </div>
         ))}
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-2.5 pt-2">
           <Button
             variant="outline"
-            className="w-full font-bold gap-1.5"
+            className="w-full h-11 rounded-xl font-bold gap-1.5 border-2 active:scale-[0.98]"
             onClick={async () => {
               const res = await shareQuizLink(quiz);
               if (res.status === "copied" || res.status === "shared") {
@@ -1407,35 +1446,36 @@ export function QuizPlayer({
             <Share2 size={15} className="text-primary" />
             Share Quiz
           </Button>
-          <Button className="w-full font-bold" onClick={onDone}>
-            Back to quizzes
+          <Button className="w-full h-11 rounded-xl font-bold shadow-sm active:scale-[0.98]" onClick={onDone}>
+            Back to Quizzes
           </Button>
         </div>
       </div>
     );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-in fade-in">
       <div className="flex items-center justify-between text-sm">
         <Button
           variant="ghost"
           size="sm"
+          className="rounded-full px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-secondary hover:text-foreground"
           onClick={() => {
             if (confirm("Leave this test? Your answers will not be saved.")) onDone();
           }}
         >
-          Exit
+          Exit Test
         </Button>
 
         {secondsLeft !== null && (
           <div
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-xs font-bold border transition-colors",
+              "flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-xs font-black border transition-all shadow-xs",
               secondsLeft <= 60
                 ? "bg-destructive/15 text-destructive border-destructive/40 animate-pulse"
                 : secondsLeft <= 300
                 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40"
-                : "bg-secondary text-foreground border-border"
+                : "bg-secondary/90 text-foreground border-border"
             )}
           >
             <Clock
@@ -1452,20 +1492,34 @@ export function QuizPlayer({
           </div>
         )}
 
-        <span className="text-muted-foreground">
-          Question {i + 1} of {qs.length}
+        <span className="rounded-full bg-secondary/80 px-2.5 py-1 text-[11px] font-bold text-foreground border border-border/70">
+          Q {i + 1} / {qs.length}
           {practice ? " · Missed" : ""}
         </span>
       </div>
-      <div className="session-progress h-1.5 overflow-hidden rounded-full bg-secondary">
+
+      <div className="session-progress h-2 overflow-hidden rounded-full bg-secondary/80 border border-border/40">
         <div
-          className="h-full bg-primary transition-all"
+          className="h-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-300 rounded-full"
           style={{ width: `${((i + 1) / qs.length) * 100}%` }}
         />
       </div>
-      <div className="rounded-lg border bg-card p-4">
-        <p className="whitespace-pre-line font-semibold">{en(qq.q)}</p>
-        <div className="mt-3 space-y-2">
+
+      <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-7 shadow-xs space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-black px-2.5 py-0.5 uppercase tracking-wide">
+            Question {i + 1}
+          </span>
+          {quiz.chapter && (
+            <span className="text-[11px] font-semibold text-muted-foreground truncate">
+              {chapterLabel(quiz.chapter)}
+            </span>
+          )}
+        </div>
+        <p className="whitespace-pre-line font-bold text-base sm:text-lg text-foreground leading-relaxed">
+          {en(qq.q)}
+        </p>
+        <div className="mt-4 space-y-2.5">
           {qq.options.map((o, k) => (
             <Button
               variant="unstyled"
@@ -1473,34 +1527,51 @@ export function QuizPlayer({
               aria-pressed={ans[i] === k}
               onClick={() => setAns((a) => a.map((v, j) => (j === i ? k : v)))}
               className={cn(
-                "flex w-full items-center rounded-lg border px-3.5 py-3 text-left text-sm transition",
-                ans[i] === k ? "border-primary bg-primary/10 font-semibold" : "bg-card"
+                "flex w-full items-center rounded-2xl border-2 px-4 py-3.5 text-left text-sm transition-all active:scale-[0.98]",
+                ans[i] === k
+                  ? "border-primary bg-primary/10 font-bold text-foreground shadow-xs ring-1 ring-primary/40"
+                  : "border-border/70 bg-card/60 hover:bg-secondary/40 text-foreground/90 font-medium"
               )}
             >
               <span
                 className={cn(
-                  "mr-3 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+                  "mr-3.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-black transition-all",
                   ans[i] === k
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-secondary"
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs scale-105"
+                    : "border-border/70 bg-secondary/80 text-muted-foreground"
                 )}
               >
                 {String.fromCharCode(65 + k)}
               </span>
-              <span className="min-w-0 break-words">{en(o)}</span>
+              <span className="min-w-0 break-words leading-snug">{en(o)}</span>
             </Button>
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" disabled={i === 0} onClick={() => setI(i - 1)}>
+
+      <div className="grid grid-cols-2 gap-2.5 pt-1">
+        <Button
+          variant="outline"
+          disabled={i === 0}
+          onClick={() => setI(i - 1)}
+          className="h-12 rounded-xl text-sm font-bold border-2 active:scale-[0.98]"
+        >
           Previous
         </Button>
         {i < qs.length - 1 ? (
-          <Button onClick={() => setI(i + 1)}>Next</Button>
+          <Button
+            onClick={() => setI(i + 1)}
+            className="h-12 rounded-xl text-sm font-black shadow-sm active:scale-[0.98]"
+          >
+            Next Question
+          </Button>
         ) : (
-          <Button disabled={busy} onClick={() => doSubmit(false)}>
-            {busy ? "Submitting…" : "Submit"}
+          <Button
+            disabled={busy}
+            onClick={() => doSubmit(false)}
+            className="h-12 rounded-xl text-sm font-black shadow-sm active:scale-[0.98] bg-primary text-primary-foreground"
+          >
+            {busy ? "Submitting…" : "Submit Quiz"}
           </Button>
         )}
       </div>

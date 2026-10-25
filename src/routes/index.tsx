@@ -9,7 +9,7 @@ import {
   SYLLABUS, USERS, type UserData, type Slot, type CAItem, normalize, stats, todayKey, chapterKey, fmt, TOTAL_CHAPTERS,
 } from "@/lib/syllabus";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff, MessageSquare } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff, MessageSquare, Eye, EyeOff, Sparkles } from "lucide-react";
 import { QuizNudge, QuizZone, useQuizScores, useChapterQuizMap } from "@/components/quiz-zone";
 import { MathPracticeZone } from "@/components/math-practice";
 import { BlackBookVocabZone } from "@/components/blackbook-vocab";
@@ -81,8 +81,8 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-5 backdrop-blur-sm" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-card p-6 shadow-elevated"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-5 backdrop-blur-md" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-elevated backdrop-blur-xl"
         onSubmit={async (e) => {
           e.preventDefault(); setErr("");
           if (np.length < 4) return setErr("Use at least 4 characters.");
@@ -92,18 +92,22 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
           catch (x: any) { setErr(x?.message || "Something went wrong. Please try again."); }
           setBusy(false);
         }}>
-        <h2 className="font-display text-xl font-bold">Change password</h2>
-        <p className="text-sm text-muted-foreground">
-          {auth.isDefault ? "You are using the default password. Set a new password to protect your account." : "Enter and confirm your new password."}
-        </p>
-        <input value={np} onChange={(e) => setNp(e.target.value)} type="password" autoComplete="new-password" placeholder="New password"
-          className="w-full rounded-lg border border-input bg-background px-4 py-3 outline-none focus:border-primary" />
-        <input value={np2} onChange={(e) => setNp2(e.target.value)} type="password" autoComplete="new-password" placeholder="Confirm new password"
-          className="w-full rounded-lg border border-input bg-background px-4 py-3 outline-none focus:border-primary" />
-        {err && <p className="text-sm text-destructive">{err}</p>}
+        <div>
+          <h2 className="font-display text-xl font-bold">Change password</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {auth.isDefault ? "You are using the default password. Set a new password to protect your account." : "Enter and confirm your new password."}
+          </p>
+        </div>
+        <div className="space-y-2.5">
+          <input value={np} onChange={(e) => setNp(e.target.value)} type="password" autoComplete="new-password" placeholder="New password"
+            className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+          <input value={np2} onChange={(e) => setNp2(e.target.value)} type="password" autoComplete="new-password" placeholder="Confirm new password"
+            className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+        </div>
+        {err && <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2 text-xs font-semibold text-destructive">{err}</p>}
         <div className="flex gap-2 pt-1">
-          <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-lg border border-border py-3 text-sm font-semibold">Not now</Button>
-          <Button variant="unstyled" disabled={busy} className="flex-1 rounded-lg bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">{busy ? "Saving…" : "Change"}</Button>
+          <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-sm font-bold active:scale-95">Not now</Button>
+          <Button variant="unstyled" disabled={busy} className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-60">{busy ? "Saving…" : "Save"}</Button>
         </div>
       </form>
     </div>
@@ -115,12 +119,17 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
   const { search } = useWorkspaceNavigation();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   return (
-    <div className="login-screen flex min-h-screen items-center justify-center px-5">
+    <div className="login-screen relative flex min-h-screen items-center justify-center p-4 sm:p-6 overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-60 h-60 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
+
       <form
-        className="w-full max-w-sm space-y-5"
+        className="relative z-10 w-full max-w-sm space-y-5 rounded-3xl border border-border/80 bg-card/95 p-6 sm:p-8 shadow-elevated backdrop-blur-xl"
         onSubmit={async (e) => {
           e.preventDefault(); setBusy(true); setErr("");
           try {
@@ -130,37 +139,87 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           setBusy(false);
         }}
       >
-        <div className="text-center">
-          <img src={studyCompanion} width={768} height={768} alt="Study Arena companion" className="companion mx-auto h-36 w-36 object-contain" />
-          <h1 className="mt-5 text-4xl font-extrabold tracking-normal">Study <span className="text-primary">Arena</span></h1>
-          <p className="mt-2 text-sm text-muted-foreground">Your study. Your progress. Your next milestone.</p>
+        <div className="text-center space-y-2">
+          <div className="relative mx-auto h-24 w-24">
+            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
+            <img src={studyCompanion} width={768} height={768} alt="Study Arena companion" className="companion relative z-10 mx-auto h-24 w-24 object-contain drop-shadow-md" />
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
+              <Sparkles size={12} /> SSC CGL Prep Arena
+            </span>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight font-display">Study <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Arena</span></h1>
+            <p className="mt-1 text-xs text-muted-foreground font-medium">Daily timetable, syllabus tracking & live arena.</p>
+          </div>
         </div>
+
         {search.quizId && (
-          <div className="rounded-2xl border-2 border-primary/50 bg-primary/10 p-4 text-center space-y-1.5 shadow-sm animate-in fade-in">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-primary">
+          <div className="rounded-2xl border-2 border-primary/50 bg-primary/10 p-3.5 text-center space-y-1 shadow-sm">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-black uppercase text-primary">
               <span>🎯</span>
               <span>Direct Quiz Invitation</span>
             </div>
             <p className="text-xs font-semibold text-foreground">
-              Sign in with your ID — the shared quiz will open automatically!
+              Sign in — your shared quiz will open immediately!
             </p>
           </div>
         )}
-        <div className="flex justify-center gap-2">
-          {USERS.map((x) => (
-            <Button variant="unstyled" type="button" key={x} onClick={() => setU(x)}
-              className={cn("rounded-full border px-3 py-1 text-xs font-semibold transition", u === x ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground")}>
-              {cap(x)}
-            </Button>
-          ))}
+
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground text-center">Select Profile</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {USERS.map((x) => (
+              <Button variant="unstyled" type="button" key={x} onClick={() => setU(x)}
+                className={cn("flex flex-col items-center gap-1 rounded-2xl border p-2 text-xs font-bold transition active:scale-95",
+                  u.toLowerCase() === x.toLowerCase()
+                    ? "border-primary bg-primary/12 text-primary ring-2 ring-primary/25 shadow-sm"
+                    : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary")}>
+                <div className={cn("flex h-8 w-8 items-center justify-center rounded-full text-xs font-black transition",
+                  u.toLowerCase() === x.toLowerCase() ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground")}>
+                  {x[0].toUpperCase()}
+                </div>
+                <span className="truncate text-[11px]">{cap(x)}</span>
+              </Button>
+            ))}
+          </div>
         </div>
-        <input value={u} onChange={(e) => setU(e.target.value)} placeholder="User ID" autoCapitalize="none"
-          className="w-full rounded-lg border border-input bg-card px-4 py-3.5 outline-none focus:border-primary" />
-        <input value={p} onChange={(e) => setP(e.target.value)} placeholder="Password" type="password" autoComplete="current-password"
-          className="w-full rounded-lg border border-input bg-card px-4 py-3.5 outline-none focus:border-primary" />
-        {err && <p className="text-center text-sm text-destructive">{err}</p>}
-        <Button variant="unstyled" disabled={busy} className="w-full rounded-lg bg-primary py-3.5 font-display font-bold text-primary-foreground transition active:scale-[0.98] disabled:opacity-60">
-          {busy ? "Signing in…" : "Sign in →"}
+
+        <div className="space-y-3">
+          <input
+            value={u}
+            onChange={(e) => setU(e.target.value)}
+            placeholder="User ID"
+            autoCapitalize="none"
+            className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3.5 text-sm font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+          <div className="relative">
+            <input
+              value={p}
+              onChange={(e) => setP(e.target.value)}
+              placeholder="Password"
+              type={showPass ? "text" : "password"}
+              autoComplete="current-password"
+              className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3.5 pr-11 text-sm font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <Button
+              variant="unstyled"
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+            >
+              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+            </Button>
+          </div>
+        </div>
+
+        {err && <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2.5 text-center text-xs font-semibold text-destructive">{err}</p>}
+
+        <Button
+          variant="unstyled"
+          disabled={busy}
+          className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 font-display text-sm font-extrabold text-white shadow-lg shadow-emerald-600/25 transition active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {busy ? "Signing in…" : <><span>Enter Study Arena</span> <ChevronRight size={18} /></>}
         </Button>
       </form>
     </div>
@@ -207,23 +266,27 @@ function NotifPopup({ auth, onClose }: { auth: Auth; onClose: () => void }) {
     setBusy(false);
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-5 backdrop-blur-sm" onClick={close}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-card p-6 shadow-elevated">
-        <Bell size={28} className="text-primary" />
-        <h2 className="font-display text-lg font-bold">Study Notifications</h2>
-        <p className="text-sm text-muted-foreground">
-          Timetable slots shuru hone se pehle alerts aur daily progress reminders prapt karein.
-        </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-5 backdrop-blur-md" onClick={close}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-elevated backdrop-blur-xl">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Bell size={24} />
+        </div>
+        <div>
+          <h2 className="font-display text-xl font-bold">Study Notifications</h2>
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+            Get instant chime alerts before your timetable study slots start, plus morning kickoff & evening progress recaps.
+          </p>
+        </div>
         {granted && (
-          <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary font-semibold flex items-center gap-2">
+          <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-2">
             <span>✅</span>
-            <span>Browser notification permission is granted</span>
+            <span>Device notifications are active</span>
           </div>
         )}
-        {msg && <p className="rounded-lg bg-secondary p-3 text-xs leading-relaxed font-medium">{msg}</p>}
+        {msg && <p className="rounded-2xl bg-secondary/80 border border-border p-3 text-xs leading-relaxed font-semibold">{msg}</p>}
         <div className="flex gap-2 pt-1">
-          <Button variant="unstyled" onClick={close} className="flex-1 rounded-lg bg-secondary py-2.5 text-sm font-semibold">{msg ? "Close" : "Not now"}</Button>
-          <Button variant="unstyled" disabled={busy} onClick={allow} className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60">
+          <Button variant="unstyled" onClick={close} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-sm font-bold active:scale-95">{msg ? "Done" : "Not now"}</Button>
+          <Button variant="unstyled" disabled={busy} onClick={allow} className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-60">
             {busy ? "Sending…" : granted ? "Send test alert" : "Enable"}
           </Button>
         </div>
@@ -417,23 +480,25 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
 
   return (
     <div className="arena-shell min-h-screen pb-28">
-      <header className="app-header sticky top-0 z-20 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 bg-background/85 px-4 py-3 backdrop-blur-xl">
-        <Button variant="unstyled" onClick={() => setViewing(auth.username)} className="flex min-w-0 items-center gap-3 text-left">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-lg font-extrabold text-primary-foreground">{auth.username[0].toUpperCase()}</div>
+      <header className="app-header sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5">
+        <Button variant="unstyled" onClick={() => setViewing(auth.username)} className="flex min-w-0 items-center gap-2.5 text-left active:scale-98">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 font-display text-base font-extrabold text-white shadow-sm ring-2 ring-emerald-500/20">
+            {auth.username[0].toUpperCase()}
+          </div>
           <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold leading-tight">{cap(auth.username)}</p>
-            <div className="save-status flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p className="truncate font-display text-sm font-extrabold leading-tight text-foreground">{cap(auth.username)}</p>
+            <div className="save-status flex items-center gap-1 text-[11px] text-muted-foreground font-semibold mt-0.5">
               {saveStatus === "saving" && (
-                <>
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                <span className="inline-flex items-center gap-1 text-primary">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
                   <span>Saving…</span>
-                </>
+                </span>
               )}
               {saveStatus === "saved" && (
-                <>
-                  <Check size={12} className="text-emerald-500" />
-                  <span>All changes saved</span>
-                </>
+                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <Check size={11} strokeWidth={3} />
+                  <span>Synced</span>
+                </span>
               )}
               {saveStatus === "offline" && (
                 <button
@@ -442,52 +507,87 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
                     e.stopPropagation();
                     flushSave(latestPayload.current ?? mine);
                   }}
-                  className="flex items-center gap-1 font-medium text-amber-500 hover:underline"
+                  className="inline-flex items-center gap-1 text-amber-500 hover:underline"
                   title="Saved locally on this device. Click to sync with cloud"
                 >
-                  <CloudOff size={12} />
-                  <span>Device only · Tap to sync</span>
+                  <CloudOff size={11} />
+                  <span>Device only</span>
                 </button>
               )}
             </div>
           </div>
         </Button>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="unstyled" aria-label="Open leaderboard" onClick={() => setTab("arena")} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-2 text-xs font-bold">
-            <Trophy size={14} className="text-primary" />
-            {me.rank ? <> <span className="text-primary">#{me.rank}</span></> : " No rank"} · {me.score}
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Flame streak badge */}
+          <div className="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400 shadow-2xs">
+            <Flame size={14} className="text-amber-500 fill-amber-500" />
+            <span>{me.streak}d</span>
+          </div>
+
+          {/* Rank badge */}
+          <Button
+            variant="unstyled"
+            aria-label="Open leaderboard"
+            onClick={() => setTab("arena")}
+            className="flex h-8 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2.5 text-xs font-black text-primary active:scale-95"
+          >
+            <Trophy size={13} />
+            <span>{me.rank ? `#${me.rank}` : "—"}</span>
           </Button>
-          <Button variant="unstyled" onClick={() => setNotif(true)} aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-            <Bell size={20} className={typeof Notification !== "undefined" && Notification.permission === "granted" ? "text-primary" : "text-muted-foreground"} />
+
+          {/* Notifications bell */}
+          <Button
+            variant="unstyled"
+            onClick={() => setNotif(true)}
+            aria-label="Notifications"
+            className="relative flex h-8 w-8 items-center justify-center rounded-full bg-secondary/80 border border-border text-foreground active:scale-95"
+          >
+            <Bell size={16} className={typeof Notification !== "undefined" && Notification.permission === "granted" ? "text-primary" : "text-muted-foreground"} />
             {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
             )}
           </Button>
-          <Button variant="unstyled" onClick={() => setMenu(true)} aria-label="Menu" className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary"><Menu size={20} /></Button>
+
+          {/* Menu button */}
+          <Button
+            variant="unstyled"
+            onClick={() => setMenu(true)}
+            aria-label="Menu"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/80 border border-border text-foreground active:scale-95"
+          >
+            <Menu size={16} />
+          </Button>
         </div>
       </header>
 
       <MotionPresence open={menu}>
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-background/70 backdrop-blur-sm sm:items-center" onClick={() => setMenu(false)}>
-          <div className="w-full max-w-md space-y-2 rounded-t-3xl border border-border bg-card p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-muted sm:hidden" />
-            <p className="font-display text-lg font-bold">Menu</p>
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-background/70 backdrop-blur-md sm:items-center p-0 sm:p-4" onClick={() => setMenu(false)}>
+          <div className="w-full max-w-md space-y-3 rounded-t-[32px] sm:rounded-3xl border border-border/80 bg-card p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-1 h-1.5 w-12 rounded-full bg-muted sm:hidden" />
+            <p className="font-display text-lg font-extrabold">Account & Menu</p>
             {([
-              [UserRound, "My profile", "Your complete study progress", () => { setViewing(auth.username); }],
-              [Bell, "Notifications", "Notification preferences", () => setNotif(true)],
+              [UserRound, "My profile", "Your study progress, streaks & stats", () => { setViewing(auth.username); }],
+              [Bell, "Notifications", "Turn on reminders & test device chime", () => setNotif(true)],
               [KeyRound, "Change password", "Update your account password", openPass],
-              [LogOut, "Sign out", "Sign out of this device", logout],
+              [LogOut, "Sign out", "Sign out of Study Arena on this device", logout],
             ] as const).map(([Icon, t, d, fn]) => (
-              <Button variant="unstyled" key={t} onClick={() => { if (t === "Sign out") setMenu(false); fn(); }} className="flex w-full items-center gap-3 rounded-lg bg-secondary p-3.5 text-left active:scale-[0.99]">
-                <Icon size={22} className="shrink-0 text-primary" />
-                <span className="min-w-0 flex-1"><span className="block font-bold">{t}</span><span className="block text-xs text-muted-foreground">{d}</span></span><ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+              <Button variant="unstyled" key={t} onClick={() => { if (t === "Sign out") setMenu(false); fn(); }} className="flex w-full items-center gap-3.5 rounded-2xl bg-secondary/60 hover:bg-secondary p-3.5 text-left active:scale-[0.98] transition border border-border/60">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-card text-primary shadow-2xs">
+                  <Icon size={20} className="shrink-0" />
+                </div>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold text-sm text-foreground">{t}</span>
+                  <span className="block text-xs text-muted-foreground font-medium">{d}</span>
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
               </Button>
             ))}
           </div>
         </div>
       </MotionPresence>
 
-      <main key={viewing ?? tab} className="workspace-view px-4 pt-6">
+      <main key={viewing ?? tab} className="workspace-view px-4 pt-4">
         {viewing ? (
           <Profile user={viewing} data={all[viewing]} entry={board.find((b) => b.u === viewing) ?? me} onBack={goBack} onSwitch={setViewing} me={auth.username} openPass={openPass} />
         ) : tab === "today" ? (
@@ -505,15 +605,29 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
       {!notif && search.tab !== "quiz" && <QuizNudge who={auth.username} onOpen={() => setTab("quiz")} />}
       <MotionPresence open={notif}><NotifPopup auth={auth} onClose={() => setNotif(false)} /></MotionPresence>
 
-      <nav className="arena-navigation fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
-        <div className="desktop-brand"><img src="/icon-192.png" alt="" /><span>Study Arena</span></div>
-        <div className="navigation-items mx-auto grid max-w-2xl grid-cols-5 gap-1 px-1 py-1.5">
+      <nav className="arena-navigation">
+        <div className="desktop-brand">
+          <img src="/icon-192.png" alt="" />
+          <span>Study Arena</span>
+        </div>
+        <div className="navigation-items">
           {([["today", CalendarDays, "Today"], ["syllabus", BookOpen, "Syllabus"], ["quiz", FileQuestion, "Quiz"], ["extras", Brain, "Practice"], ["arena", Trophy, "Ranks"]] as const).map(([k, Icon, l]) => {
             const on = tab === k && !viewing;
             return (
-              <Button variant="unstyled" key={k} onClick={() => { setTab(k); window.scrollTo({ top: 0 }); }}
-                aria-current={on ? "page" : undefined} className={cn("nav-item flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-semibold transition", on ? "bg-primary/15 text-primary" : "text-muted-foreground")}>
-                <Icon size={20} strokeWidth={on ? 2.3 : 1.7} /><span>{l}</span>
+              <Button
+                variant="unstyled"
+                key={k}
+                onClick={() => { setTab(k); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                aria-current={on ? "page" : undefined}
+                className={cn(
+                  "nav-item transition-all duration-200 active:scale-90",
+                  on ? "bg-primary/15 text-primary scale-[1.03]" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className={cn("flex h-7 w-7 items-center justify-center rounded-full transition-transform", on && "scale-110")}>
+                  <Icon size={20} strokeWidth={on ? 2.5 : 1.8} />
+                </div>
+                <span className={cn("text-[11px] tracking-tight leading-none transition-all", on ? "font-extrabold text-primary" : "font-semibold")}>{l}</span>
               </Button>
             );
           })}
@@ -524,7 +638,19 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
 }
 
 function Hint({ title, character }: { icon: string; title: string; character?: string; children?: React.ReactNode }) {
-  return <div className="page-heading flex items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase text-primary">Study Arena</p><h2 className="mt-1 text-2xl font-bold">{title}</h2></div>{character && <img src={character} alt="" loading="lazy" width={768} height={768} className="companion section-companion h-20 w-20 shrink-0 object-contain" />}</div>;
+  return (
+    <div className="page-heading flex items-center justify-between gap-3 pb-1">
+      <div>
+        <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-primary">
+          <Sparkles size={11} /> Study Arena
+        </span>
+        <h2 className="mt-0.5 text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-foreground">{title}</h2>
+      </div>
+      {character && (
+        <img src={character} alt="" loading="lazy" width={768} height={768} className="companion section-companion h-16 w-16 shrink-0 object-contain drop-shadow-sm" />
+      )}
+    </div>
+  );
 }
 
 type Entry = ReturnType<typeof stats> & { u: string; rank: number | null };
@@ -533,11 +659,11 @@ type Upd = (fn: (d: UserData) => UserData) => void;
 function Ring({ pct, size = 88, children }: { pct: number; size?: number; children?: React.ReactNode }) {
   const r = size / 2 - 7, c = 2 * Math.PI * r;
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--color-muted)" strokeWidth="7" fill="none" />
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--color-primary)" strokeWidth="7" fill="none" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, pct))} style={{ transition: "stroke-dashoffset .6s" }} />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="color-mix(in oklab, var(--color-muted) 80%, transparent)" strokeWidth="8" fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--color-primary)" strokeWidth="8" fill="none" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct))))} style={{ transition: "stroke-dashoffset .6s cubic-bezier(0.16, 1, 0.3, 1)" }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
     </div>
@@ -571,52 +697,127 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
   });
 
   return (
-    <div className="today-workspace space-y-5">
-      <div className="today-welcome page-heading grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-muted-foreground">{new Date(tk + "T00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p><h1 className="mt-2 text-3xl font-bold">Your day, {cap(me.u)}.</h1><p className="mt-2 text-sm text-muted-foreground">{doneCount === slots.length && slots.length ? "A productive day. Well done." : "Small steps. Meaningful progress."}</p></div><img src={studyCompanion} alt="Study companion" width={768} height={768} className="companion welcome-companion object-contain" /></div>
-      <div className="quick-access grid grid-cols-4 gap-2">
-        {([["syllabus", BookOpen, "Syllabus"], ["quiz", FileQuestion, "Quiz"], ["extras", Brain, "Practice"], ["arena", Trophy, "Rankings"]] as const).map(([target, Icon, label]) => <Button variant="unstyled" key={target} onClick={() => onNavigate(target)} className="quick-action flex flex-col items-center gap-2 py-2 text-xs font-semibold"><span className="quick-icon flex h-12 w-12 items-center justify-center rounded-lg"><Icon size={22} /></span>{label}</Button>)}
-      </div>
-      {!edit && nowMin !== null && (
-        <section aria-label="Current session" className={cn("focus-session relative overflow-hidden p-5", current ? "session-active" : "session-upcoming")}>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <p className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase text-primary"><span className="session-dot h-2 w-2 shrink-0 rounded-full bg-primary" />{current ? done[current.id] ? "Current session · Completed" : "In progress" : next ? "Up next" : "Schedule complete"}</p>
-            <span className="session-clock flex h-9 w-9 items-center justify-center rounded-full"><Clock3 size={18} className="shrink-0" /></span>
+    <div className="today-workspace space-y-4">
+      {/* Hero Greeting Card */}
+      <div className="today-welcome relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 p-5 text-white shadow-elevated">
+        <div className="flex items-center justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-2.5 py-0.5 text-[11px] font-bold text-white">
+              <CalendarDays size={12} />
+              {new Date(tk + "T00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+            </span>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight font-display">
+              {(() => {
+                const hr = new Date().getHours();
+                return hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+              })()}, {cap(me.u)}! 👋
+            </h1>
+            <p className="mt-1 text-xs text-white/90 font-medium">
+              {doneCount === slots.length && slots.length ? "🎉 All tasks finished! Outstanding consistency." : `${doneCount} of ${slots.length} tasks completed today`}
+            </p>
           </div>
-          <h2 className="mt-3 text-2xl font-bold">{current?.label ?? next?.label ?? "No session scheduled"}</h2>
-          {(current ?? next) && <p className="mt-2 text-sm text-muted-foreground">{(current ?? next)?.subject} <span className="mx-1">·</span> {(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)}</p>}
-          {current ? <>
-            <div className="mt-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs"><span className="text-muted-foreground">{fmt(remaining)} remaining</span><span className="font-semibold">{fmt(current.minutes)} session</span></div>
-            <progress aria-label="Session elapsed" max={current.minutes} value={current.minutes - remaining} className="session-progress mt-2 h-1.5 w-full" />
-            <Button onClick={() => toggle(current.id)} className="mt-5 w-full gap-2" variant={done[current.id] ? "secondary" : "default"}><Check size={17} />{done[current.id] ? "Completed · Undo" : "Complete session"}</Button>
-          </> : <p className="mt-4 text-xs text-muted-foreground">{next ? `Starts in ${fmt(toMin(next.start) - nowMin)}` : doneCount === slots.length && slots.length ? "All tasks completed for today." : "No study session is currently active."}</p>}
+          <img src={studyCompanion} alt="Study companion" width={768} height={768} className="companion h-20 w-20 shrink-0 object-contain drop-shadow-md" />
+        </div>
+      </div>
+
+      {/* Quick Launchpad */}
+      <div className="grid grid-cols-4 gap-2">
+        {([
+          ["syllabus", BookOpen, "Syllabus", "from-emerald-500/15 to-teal-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"],
+          ["quiz", FileQuestion, "Quizzes", "from-violet-500/15 to-purple-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"],
+          ["extras", Brain, "Practice", "from-amber-500/15 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"],
+          ["arena", Trophy, "Ranks", "from-blue-500/15 to-indigo-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"]
+        ] as const).map(([target, Icon, label, cls]) => (
+          <Button variant="unstyled" key={target} onClick={() => onNavigate(target)}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/80 bg-card p-2.5 text-xs font-bold transition shadow-soft active:scale-92">
+            <span className={cn("flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br border shadow-2xs", cls)}>
+              <Icon size={22} strokeWidth={2.2} />
+            </span>
+            <span className="text-[11px] font-extrabold text-foreground">{label}</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* Focus Session Live Card */}
+      {!edit && nowMin !== null && (
+        <section aria-label="Current session" className={cn("focus-session relative overflow-hidden p-5 rounded-3xl", current ? "session-active" : "session-upcoming")}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/15 border border-primary/20 px-3 py-1 text-xs font-black uppercase text-primary tracking-wide">
+              <span className="session-dot h-2 w-2 shrink-0 rounded-full bg-primary" />
+              {current ? done[current.id] ? "Current session · Done" : "In progress" : next ? "Up next" : "Schedule complete"}
+            </span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card border border-border text-primary shadow-2xs">
+              <Clock3 size={16} className="shrink-0" />
+            </span>
+          </div>
+          <h2 className="mt-3 text-xl sm:text-2xl font-extrabold text-foreground">{current?.label ?? next?.label ?? "No session scheduled"}</h2>
+          {(current ?? next) && (
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">
+              <span className="text-primary font-bold">{(current ?? next)?.subject}</span> <span className="mx-1">·</span> {(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)} ({fmt((current ?? next)?.minutes ?? 0)})
+            </p>
+          )}
+          {current ? (
+            <>
+              <div className="mt-4 flex items-center justify-between text-xs font-bold">
+                <span className="text-muted-foreground">{fmt(remaining)} remaining</span>
+                <span className="text-primary">{fmt(current.minutes)} session</span>
+              </div>
+              <progress aria-label="Session elapsed" max={current.minutes} value={current.minutes - remaining} className="session-progress mt-2 h-2 w-full" />
+              <Button
+                onClick={() => toggle(current.id)}
+                className={cn("mt-4 w-full gap-2 rounded-2xl py-3 text-sm font-extrabold transition shadow-md",
+                  done[current.id]
+                    ? "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
+                    : "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-600/20 active:scale-98"
+                )}
+              >
+                <Check size={18} strokeWidth={3} />
+                {done[current.id] ? "Completed · Click to undo" : "Complete session"}
+              </Button>
+            </>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground font-medium">
+              {next ? `Starts in ${fmt(toMin(next.start) - nowMin)}` : doneCount === slots.length && slots.length ? "All tasks completed for today. Great job!" : "No study session is currently active."}
+            </p>
+          )}
         </section>
       )}
-      <section className="study-summary grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-y border-border py-5">
+
+      {/* Progress & Streak Card */}
+      <section className="study-summary grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft">
         <Ring pct={me.planMin ? me.todayMin / me.planMin : 0}>
-          <span className="font-display text-lg font-extrabold">{Math.round((me.todayMin / (me.planMin || 1)) * 100)}%</span>
+          <span className="font-display text-lg font-black">{Math.round((me.todayMin / (me.planMin || 1)) * 100)}%</span>
         </Ring>
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-normal text-muted-foreground">Study time today</p>
-          <p className="font-display text-2xl font-extrabold">{fmt(me.todayMin) || "0h"}</p>
-          <p className="text-xs text-muted-foreground">{doneCount}/{slots.length} tasks · target {fmt(me.planMin)}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Study Time Today</p>
+          <p className="font-display text-2xl font-black text-foreground">{fmt(me.todayMin) || "0h"}</p>
+          <p className="text-xs text-muted-foreground font-semibold mt-0.5">{doneCount}/{slots.length} tasks · target {fmt(me.planMin)}</p>
         </div>
-        <div className="streak-stat flex flex-col items-center gap-1 border-l border-border pl-3"><Flame size={22} className="text-accent" /><span className="font-display text-xl font-bold">{me.streak}</span><span className="text-[10px] text-muted-foreground">day streak</span></div>
+        <div className="streak-stat flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-center">
+          <Flame size={20} className="text-amber-500 fill-amber-500" />
+          <span className="font-display text-lg font-black text-amber-600 dark:text-amber-400">{me.streak}</span>
+          <span className="text-[9px] font-extrabold uppercase text-amber-600/80 tracking-tight">Day Streak</span>
+        </div>
       </section>
 
-      <div className="rank-nudge flex items-start gap-3 border-b border-border pb-4 text-xs text-muted-foreground"><Trophy size={17} className="shrink-0 text-accent" /><p>
-        {!me.rank ? "Complete your first task to join the leaderboard."
-          : me.rank === 1 ? `You are ranked #1. ${board[1]?.score ? `${cap(board[1].u)} is ${me.score - board[1].score} points behind you.` : "Maintain your lead."}`
-          : above ? `${above.score - me.score + 1} points to pass ${cap(above.u)}. Leader: ${cap(leader.u)}.` : ""}
-      </p></div>
+      {/* Leaderboard Motivation Pill */}
+      <div className="flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/8 px-3.5 py-2.5 text-xs font-semibold text-foreground">
+        <Trophy size={16} className="shrink-0 text-amber-500" />
+        <p className="min-w-0 flex-1 truncate">
+          {!me.rank ? "Complete your first task to join the leaderboard."
+            : me.rank === 1 ? `👑 Ranked #1! ${board[1]?.score ? `${cap(board[1].u)} is ${me.score - board[1].score} pts behind.` : "Keep defending your lead!"}`
+            : above ? `${above.score - me.score + 1} pts needed to overtake ${cap(above.u)}.` : ""}
+        </p>
+      </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+      {/* Timetable Header */}
+      <div className="flex items-center justify-between gap-2 pt-1">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold">Today’s timetable</h2>
-          {special && <p className="text-xs font-bold text-primary">Date-specific timetable active</p>}
-          <p className="text-xs text-muted-foreground">{edit ? "Editing timetable" : "Your scheduled study sessions"}</p>
+          <h2 className="text-lg font-extrabold text-foreground">Today's Timetable</h2>
+          {special && <p className="text-[11px] font-bold text-primary">Date-specific schedule active</p>}
         </div>
-        <Button variant={edit ? "default" : "secondary"} onClick={() => setEdit(!edit)} className="shrink-0 gap-2">
-          {edit ? <Check size={15} /> : <Pencil size={15} />}{edit ? "Done" : "Edit"}
+        <Button variant={edit ? "default" : "secondary"} onClick={() => setEdit(!edit)} className="h-8 rounded-full px-3 text-xs font-extrabold gap-1.5 active:scale-95 shadow-2xs">
+          {edit ? <Check size={14} /> : <Pencil size={13} />}{edit ? "Done" : "Edit"}
         </Button>
       </div>
       {slots.length === 0 && !edit && (
@@ -714,42 +915,61 @@ const isLive = (s: Slot, nowMin: number) => { const st = toMin(s.start); const d
 function SlotRow({ s, checked, edit, live, onToggle, onUp, onDown, onChange, onDelete }: { s: Slot; checked: boolean; edit: boolean; live?: boolean; onToggle: () => void; onUp: () => void; onDown: () => void; onChange: (p: Partial<Slot>) => void; onDelete: () => void }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !edit });
   const end = addMin(s.start, s.minutes);
-  const inp = "rounded-lg border border-border bg-secondary px-2 py-2 text-sm text-foreground";
+  const inp = "rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary";
   if (edit) return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} data-task-id={s.id} className={cn("relative rounded-lg border bg-card p-3", isDragging ? "z-20 border-primary shadow-elevated ring-2 ring-primary/30" : "border-border")}>
-      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border pb-2">
-        <Button variant="unstyled" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={`Reorder ${s.label}`} title="Hold to reorder" className="drag-handle flex min-w-0 items-center gap-2 self-stretch rounded-lg py-2 text-xs font-semibold text-muted-foreground"><GripVertical size={20} className="shrink-0" /><span className="truncate">{s.subject}</span></Button>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} data-task-id={s.id} className={cn("relative rounded-2xl border bg-card p-3.5 shadow-soft space-y-3", isDragging ? "z-20 border-primary shadow-elevated ring-2 ring-primary/30" : "border-border")}>
+      <div className="flex items-center justify-between border-b border-border/80 pb-2">
+        <Button variant="unstyled" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={`Reorder ${s.label}`} title="Hold to reorder" className="drag-handle flex items-center gap-2 rounded-xl py-1 text-xs font-bold text-muted-foreground"><GripVertical size={18} className="shrink-0 text-primary" /><span className="truncate">{s.subject}</span></Button>
         <div className="flex shrink-0 gap-1">
-          <Button variant="unstyled" onClick={onUp} aria-label="Move up" title="Move up" className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary"><ArrowUp size={16} /></Button>
-          <Button variant="unstyled" onClick={onDown} aria-label="Move down" title="Move down" className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary"><ArrowDown size={16} /></Button>
-          <Button variant="unstyled" onClick={onDelete} aria-label="Delete task" title="Delete task" className="flex h-10 w-10 items-center justify-center rounded-lg text-destructive"><Trash2 size={16} /></Button>
+          <Button variant="unstyled" onClick={onUp} aria-label="Move up" title="Move up" className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary border border-border"><ArrowUp size={14} /></Button>
+          <Button variant="unstyled" onClick={onDown} aria-label="Move down" title="Move down" className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary border border-border"><ArrowDown size={14} /></Button>
+          <Button variant="unstyled" onClick={onDelete} aria-label="Delete task" title="Delete task" className="flex h-8 w-8 items-center justify-center rounded-xl bg-destructive/10 text-destructive border border-destructive/20"><Trash2 size={14} /></Button>
         </div>
       </div>
-      <div className="min-w-0 flex-1 space-y-2.5">
-        <input aria-label="Task name" value={s.label} onChange={(e) => onChange({ label: e.target.value })} className={cn(inp, "w-full font-semibold")} placeholder="Task name" />
+      <div className="space-y-2.5">
+        <input aria-label="Task name" value={s.label} onChange={(e) => onChange({ label: e.target.value })} className={cn(inp, "w-full font-bold")} placeholder="Task name" />
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <label className="min-w-0 space-y-1"><span className="text-xs text-muted-foreground">Start</span><input type="time" value={s.start} onChange={(e) => onChange({ start: e.target.value })} className={cn(inp, "w-full")} aria-label="start time" /></label>
-          <label className="min-w-0 space-y-1"><span className="text-xs text-muted-foreground">End</span><input type="time" value={end} onChange={(e) => { let m = toMin(e.target.value) - toMin(s.start); if (m <= 0) m += 1440; onChange({ minutes: m }); }} className={cn(inp, "w-full")} aria-label="end time" /></label>
+          <label className="space-y-1"><span className="text-[11px] font-bold text-muted-foreground">Start Time</span><input type="time" value={s.start} onChange={(e) => onChange({ start: e.target.value })} className={cn(inp, "w-full")} aria-label="start time" /></label>
+          <label className="space-y-1"><span className="text-[11px] font-bold text-muted-foreground">End Time</span><input type="time" value={end} onChange={(e) => { let m = toMin(e.target.value) - toMin(s.start); if (m <= 0) m += 1440; onChange({ minutes: m }); }} className={cn(inp, "w-full")} aria-label="end time" /></label>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <select value={s.subject} onChange={(e) => onChange({ subject: e.target.value })} className={inp} aria-label="subject">
+        <div className="flex items-center justify-between gap-2">
+          <select value={s.subject} onChange={(e) => onChange({ subject: e.target.value })} className={cn(inp, "font-semibold")} aria-label="subject">
             {SUBJECTS.map((x) => <option key={x}>{x}</option>)}
           </select>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Clock3 size={14} />{fmt(s.minutes)}</span>
+          <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Clock3 size={14} />{fmt(s.minutes)}</span>
         </div>
       </div>
     </div>
   );
   return (
-    <div ref={setNodeRef} data-task-id={s.id} className={cn("task-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-4 transition", live && !checked ? "task-live border-primary/50 bg-primary/10" : checked ? "task-completed border-border bg-secondary/40" : "border-border bg-card")}>
+    <div ref={setNodeRef} data-task-id={s.id} className={cn("task-row flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition shadow-soft", live && !checked ? "task-live border-primary/50 bg-primary/8 shadow-md" : checked ? "task-completed border-border/60 bg-secondary/40" : "border-border/80 bg-card hover:border-border")}>
       <div className="min-w-0 flex-1">
-        <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"><span className={cn("h-1.5 w-1.5 rounded-full", SUBJ_COLOR[s.subject] ?? "bg-muted")} />{s.subject}{live && <span className="ml-1 flex items-center gap-1 text-primary"><Play size={10} />{checked ? "Current · Completed" : "In progress"}</span>}</p>
-        <p className={cn("font-semibold", checked && "text-muted-foreground line-through")}>{s.label}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{s.start} – {end} · {fmt(s.minutes)}</p>
+        <div className="mb-1 flex items-center gap-1.5">
+          <span className={cn("h-2 w-2 rounded-full", SUBJ_COLOR[s.subject] ?? "bg-muted")} />
+          <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{s.subject}</span>
+          {live && (
+            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+              <Play size={9} fill="currentColor" /> {checked ? "Completed" : "Live"}
+            </span>
+          )}
+        </div>
+        <p className={cn("font-bold text-sm leading-snug text-foreground", checked && "text-muted-foreground line-through")}>{s.label}</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground font-semibold">
+          <Clock3 size={12} /> {s.start} – {end} · {fmt(s.minutes)}
+        </p>
       </div>
-      <Button variant="unstyled" onClick={onToggle} aria-label={checked ? "Not done" : "Mark done"}
-        className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold transition active:scale-90", checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40")}>
-        {checked ? <Check size={20} /> : <Check size={18} className="text-muted-foreground/40" />}
+      <Button
+        variant="unstyled"
+        onClick={onToggle}
+        aria-label={checked ? "Not done" : "Mark done"}
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-2 transition active:scale-85",
+          checked
+            ? "border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/30"
+            : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+        )}
+      >
+        <Check size={18} strokeWidth={checked ? 3 : 2} />
       </Button>
     </div>
   );
@@ -771,20 +991,34 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
           const total = x.sections.reduce((n, s) => n + s.chapters.length, 0);
           const doneN = x.sections.reduce((n, s) => n + s.chapters.filter((c) => data.chapters[chapterKey(s.name, c)]?.lecture).length, 0);
           const totalQuizzes = x.sections.reduce((n, s) => n + s.chapters.filter((c) => !!chapterQuizzes[chapterKey(s.name, c)]).length, 0);
+          const pct = Math.round((doneN / (total || 1)) * 100);
           return (
-            <Button variant="unstyled" aria-pressed={subj === i} key={x.subject} onClick={() => { setSubj(i); setOpen(x.sections[0].name); }}
-              className={cn("rounded-lg border p-3.5 text-left transition", subj === i ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card")}>
+            <Button
+              variant="unstyled"
+              aria-pressed={subj === i}
+              key={x.subject}
+              onClick={() => { setSubj(i); setOpen(x.sections[0].name); }}
+              className={cn(
+                "rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-95",
+                subj === i
+                  ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                  : "border-border/80 bg-card hover:border-border text-foreground"
+              )}
+            >
               <div className="flex items-center justify-between gap-1">
-                <p className="font-display text-base font-bold">{x.subject}</p>
+                <p className="font-display text-sm font-extrabold">{x.subject}</p>
                 {totalQuizzes > 0 && (
                   <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full border", subj === i ? "bg-white/20 border-white/30 text-white" : "bg-primary/10 border-primary/20 text-primary")}>
                     🎯 {totalQuizzes}Q
                   </span>
                 )}
               </div>
-              <p className={cn("mt-1 text-xs", subj === i ? "text-primary-foreground/80 font-medium" : "text-muted-foreground")}>{doneN}/{total} chapters</p>
-              <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(doneN / total) * 100}%` }} />
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className={cn(subj === i ? "text-primary-foreground/90 font-bold" : "text-muted-foreground font-semibold")}>{doneN}/{total} chapters</span>
+                <span className={cn("text-[11px] font-black", subj === i ? "text-white" : "text-primary")}>{pct}%</span>
+              </div>
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                <div className={cn("h-full rounded-full transition-all", subj === i ? "bg-white" : "bg-primary")} style={{ width: `${pct}%` }} />
               </div>
             </Button>
           );
@@ -927,16 +1161,28 @@ function Extras({ data, update, all, who, targetQuizId }: { data: UserData; upda
   return (
     <div className="space-y-4">
       <Hint icon="" title="Practice" character={practiceRobot} />
-      <div className="section-tabs">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {([
-          ["pyq", FileText, "PYQ Papers"],
-          ["ca", Newspaper, "Current affairs"],
-          ["tables", Hash, "Maths calculations"],
-          ["vocab", Type, "Vocabulary (1000)"],
-          ["idioms", MessageSquare, "Idioms & Phrases (200+)"],
+          ["pyq", FileText, "PYQ Tests"],
+          ["vocab", Type, "BlackBook Vocab"],
+          ["idioms", MessageSquare, "Idioms (200+)"],
+          ["tables", Hash, "Maths Speed"],
+          ["ca", Newspaper, "Current Affairs"],
         ] as const).map(([k, Icon, l]) => (
-          <Button variant="unstyled" aria-pressed={view === k} key={k} onClick={() => setView(k)} className={cn("flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-3 text-sm font-semibold transition", view === k ? "bg-primary/10 text-primary" : "bg-card text-muted-foreground")}>
-            <Icon size={18} />{l}
+          <Button
+            variant="unstyled"
+            aria-pressed={view === k}
+            key={k}
+            onClick={() => setView(k)}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-extrabold transition shadow-2xs active:scale-95",
+              view === k
+                ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                : "border-border/80 bg-card text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+            )}
+          >
+            <Icon size={16} strokeWidth={view === k ? 2.5 : 2} />
+            <span>{l}</span>
           </Button>
         ))}
       </div>
@@ -1313,37 +1559,123 @@ const MEDAL = ["01", "02", "03"];
 
 function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView: (u: string) => void; auth: Auth }) {
   const ranked = board.filter((b) => b.rank);
+  const first = board.find((b) => b.rank === 1);
+  const second = board.find((b) => b.rank === 2);
+  const third = board.find((b) => b.rank === 3);
+
   return (
     <div className="space-y-4">
-      <div>
-        <Hint icon="" title="Leaderboard" character={rankingTiger} />
-        <p className="text-xs text-muted-foreground">Task 10 · Lecture 15 · Revision 8 · PYQ 8 · CA note 3 · Streak 5/day</p>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/15 via-primary/10 to-transparent border border-amber-500/20 p-5 shadow-soft">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
+              <Trophy size={13} /> Live Arena
+            </span>
+            <h1 className="mt-1 text-2xl font-extrabold font-display">Leaderboard</h1>
+            <p className="mt-1 text-xs text-muted-foreground font-medium">Daily tasks, chapter revisions & mock points.</p>
+          </div>
+          <img src={rankingTiger} alt="" className="companion h-20 w-20 shrink-0 object-contain drop-shadow-md" />
+        </div>
       </div>
-      <div className="flex items-center gap-3 border-b border-border py-3">
-        <UserRound size={20} className="shrink-0 text-primary" />
-        <p className="text-sm font-semibold">Player progress</p>
-      </div>
-      {ranked.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No rankings yet. Complete a task to enter the leaderboard.
+
+      {/* Top 3 Podium (if players ranked) */}
+      {ranked.length >= 2 && (
+        <div className="grid grid-cols-3 gap-2 items-end pt-3 pb-1">
+          {/* #2 Rank */}
+          {second ? (
+            <Button variant="unstyled" onClick={() => onView(second.u)}
+              className="flex flex-col items-center rounded-3xl border border-slate-300 dark:border-slate-700 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+              <div className="relative">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-display text-lg font-black shadow-sm ring-2 ring-slate-400/40">
+                  {second.u[0].toUpperCase()}
+                </div>
+                <span className="absolute -top-2 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-400 text-[10px] font-black text-white shadow-xs">
+                  2
+                </span>
+              </div>
+              <p className="mt-2 font-display text-xs font-extrabold truncate w-full">{cap(second.u)}</p>
+              <p className="text-[11px] font-black text-primary mt-0.5">{second.score} pts</p>
+              <div className="mt-2 w-full h-12 rounded-2xl bg-slate-200/50 dark:bg-slate-800/50 flex items-center justify-center text-xs font-black text-muted-foreground">🥈 2nd</div>
+            </Button>
+          ) : <div />}
+
+          {/* #1 Rank (Center, Highest) */}
+          {first ? (
+            <Button variant="unstyled" onClick={() => onView(first.u)}
+              className="flex flex-col items-center rounded-3xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-3.5 shadow-elevated transition active:scale-95 text-center -translate-y-2">
+              <div className="relative">
+                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-lg">👑</span>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 text-white font-display text-xl font-black shadow-md ring-4 ring-amber-500/30">
+                  {first.u[0].toUpperCase()}
+                </div>
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-white shadow-xs">
+                  1
+                </span>
+              </div>
+              <p className="mt-2 font-display text-sm font-extrabold truncate w-full">{cap(first.u)}</p>
+              <p className="text-xs font-black text-amber-600 dark:text-amber-400 mt-0.5">{first.score} pts</p>
+              <div className="mt-2 w-full h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xs font-black text-amber-600 dark:text-amber-400">🏆 1st</div>
+            </Button>
+          ) : <div />}
+
+          {/* #3 Rank */}
+          {third ? (
+            <Button variant="unstyled" onClick={() => onView(third.u)}
+              className="flex flex-col items-center rounded-3xl border border-amber-700/30 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+              <div className="relative">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-display text-lg font-black shadow-sm ring-2 ring-amber-700/30">
+                  {third.u[0].toUpperCase()}
+                </div>
+                <span className="absolute -top-2 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-700 text-[10px] font-black text-white shadow-xs">
+                  3
+                </span>
+              </div>
+              <p className="mt-2 font-display text-xs font-extrabold truncate w-full">{cap(third.u)}</p>
+              <p className="text-[11px] font-black text-primary mt-0.5">{third.score} pts</p>
+              <div className="mt-2 w-full h-8 rounded-2xl bg-amber-100/50 dark:bg-amber-950/30 flex items-center justify-center text-xs font-black text-muted-foreground">🥉 3rd</div>
+            </Button>
+          ) : <div />}
         </div>
       )}
-      <div className="space-y-2.5">
+
+      {/* Scoring Guide Pill */}
+      <div className="rounded-2xl bg-secondary/70 border border-border/80 px-3.5 py-2 text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
+        <span className="flex items-center gap-1 font-bold text-foreground">⚡ Point Rules:</span>
+        <span className="truncate">Task +10 · Lecture +15 · Rev +8 · PYQ +8 · CA +3</span>
+      </div>
+
+      {ranked.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm font-semibold text-muted-foreground">
+          No rankings yet. Check off your first study task to enter the leaderboard!
+        </div>
+      )}
+
+      {/* Full Player List */}
+      <div className="space-y-2">
         {board.map((b) => (
           <Button variant="unstyled" key={b.u} onClick={() => onView(b.u)}
-            className={cn("flex w-full items-center gap-3 rounded-lg border p-4 text-left transition active:scale-[0.99]",
-              b.rank === 1 ? "border-accent/40 bg-accent/5" : "border-border bg-card", b.u === me && "border-primary/50")}>
-            <div className="w-10 text-center font-display text-2xl font-extrabold">{b.rank ? MEDAL[b.rank - 1] ?? `#${b.rank}` : "—"}</div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary font-display text-lg font-bold">{b.u[0].toUpperCase()}</div>
+            className={cn("flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-[0.98]",
+              b.rank === 1 ? "border-amber-500/40 bg-amber-500/6" : "border-border/80 bg-card hover:border-border",
+              b.u === me && "ring-2 ring-primary/30 border-primary/50")}>
+            <div className="w-8 text-center font-display text-base font-black text-muted-foreground">
+              {b.rank ? (b.rank === 1 ? "🥇" : b.rank === 2 ? "🥈" : b.rank === 3 ? "🥉" : `#${b.rank}`) : "—"}
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary font-display text-base font-black text-foreground shadow-2xs">
+              {b.u[0].toUpperCase()}
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="font-display font-bold">{cap(b.u)} {b.u === me && <span className="text-xs text-primary">(you)</span>}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{fmt(b.todayMin) || "0h"} today · {b.lec} chapters</p>
+              <p className="font-display font-extrabold text-sm text-foreground">
+                {cap(b.u)} {b.u === me && <span className="text-xs text-primary font-bold">(You)</span>}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-semibold">
+                {fmt(b.todayMin) || "0h"} today · {b.lec} chapters · {b.streak}d streak
+              </p>
             </div>
-            <div className="text-right">
-              <p className="font-display text-xl font-extrabold text-primary">{b.score}</p>
-              <p className="text-[10px] text-muted-foreground">pts</p>
+            <div className="text-right shrink-0">
+              <p className="font-display text-lg font-black text-primary">{b.score}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">points</p>
             </div>
-            <span className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-bold text-primary">View <ChevronRight size={14} className="inline" /></span>
+            <ChevronRight size={16} className="text-muted-foreground/60 shrink-0" />
           </Button>
         ))}
       </div>
@@ -1360,57 +1692,76 @@ function Profile({ user, data, entry, onBack, onSwitch, me, openPass }: { user: 
   const recent = Object.entries(data.daily).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
   return (
     <div className="space-y-4">
-      <Button variant="unstyled" onClick={onBack} className="text-sm text-muted-foreground">← Back</Button>
-      <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary font-display text-3xl font-extrabold text-primary-foreground">{user[0].toUpperCase()}</div>
-        <div className="flex-1">
-          <h2 className="text-2xl font-extrabold">{cap(user)}</h2>
-          <p className="text-sm text-muted-foreground">{entry.rank ? `Rank #${entry.rank}` : "Unranked"} · {entry.score} pts ·  {entry.streak}</p>
+      <Button variant="unstyled" onClick={onBack} className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground active:scale-95">
+        ← Back to Arena
+      </Button>
+      <div className="flex items-center gap-4 rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 font-display text-2xl font-black text-white shadow-md ring-2 ring-emerald-500/20">
+          {user[0].toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-extrabold font-display text-foreground">{cap(user)}</h2>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-bold">
+            <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-primary">
+              {entry.rank ? `Rank #${entry.rank}` : "Unranked"}
+            </span>
+            <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-amber-600 dark:text-amber-400">
+              🔥 {entry.streak}d streak
+            </span>
+            <span className="text-muted-foreground font-semibold">
+              · {entry.score} pts
+            </span>
+          </div>
         </div>
         {user === me && openPass && (
-          <Button variant="unstyled" onClick={openPass} className="rounded-lg bg-secondary px-3 py-2 text-xs font-bold">Change password</Button>
+          <Button variant="unstyled" onClick={openPass} className="rounded-2xl border border-border bg-secondary/80 px-3 py-2 text-xs font-extrabold text-foreground active:scale-95 shadow-2xs">
+            Password
+          </Button>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
+
+      <div className="flex flex-wrap gap-1.5">
         {USERS.map((u) => (
           <Button variant="unstyled" key={u} onClick={() => onSwitch(u)}
-            className={cn("flex-1 rounded-full border py-1.5 text-xs font-bold transition", u === user ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground")}>
+            className={cn("flex-1 rounded-2xl border py-2 text-xs font-extrabold transition shadow-2xs active:scale-95",
+              u === user ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/25" : "border-border/80 bg-card text-muted-foreground hover:text-foreground")}>
             {cap(u)}
           </Button>
         ))}
       </div>
+
       <div className="grid grid-cols-4 gap-2 text-center">
         <Stat label="Today" value={fmt(entry.todayMin) || "0h"} />
-        <Stat label="Lecture" value={entry.lec} />
+        <Stat label="Lectures" value={entry.lec} />
         <Stat label="Revised" value={entry.rev} />
-        <Stat label="PYQ" value={entry.pyq} />
+        <Stat label="PYQs" value={entry.pyq} />
       </div>
       <div className="grid grid-cols-4 gap-2 text-center">
-        <Stat label="Total time" value={fmt(entry.totalMin) || "0h"} />
+        <Stat label="Total Time" value={fmt(entry.totalMin) || "0h"} />
         <Stat label="Tables" value={data.tables.table} />
         <Stat label="Squares" value={data.tables.square} />
-        <Stat label="CA notes" value={entry.caCount} />
+        <Stat label="CA Notes" value={entry.caCount} />
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="mb-2 font-display font-bold">Today’s taskss</p>
+      <div className="rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft">
+        <p className="mb-2 font-display text-sm font-extrabold text-foreground">Today's Tasks</p>
         {(data.daySlots[tk] ?? data.slots).map((s) => (
-          <div key={s.id} className="flex items-center justify-between py-1 text-sm">
-            <span className={cn(done[s.id] ? "" : "text-muted-foreground")}>{s.start} · {s.label}</span>
-            <span>{done[s.id] ? "✅" : "⬜"}</span>
+          <div key={s.id} className="flex items-center justify-between py-1.5 text-xs font-semibold border-b border-border/50 last:border-0">
+            <span className={cn(done[s.id] ? "text-foreground line-through opacity-70" : "text-foreground font-bold")}>{s.start} · {s.label}</span>
+            <span>{done[s.id] ? "✅ Done" : "⏳ Pending"}</span>
           </div>
         ))}
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="mb-2 font-display font-bold">Last 7 active days</p>
-        {recent.length === 0 ? <p className="text-sm text-muted-foreground">No activity yet.</p> : recent.map(([d, v]) => {
+      <div className="rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft">
+        <p className="mb-2 font-display text-sm font-extrabold text-foreground">Last 7 Active Days</p>
+        {recent.length === 0 ? <p className="text-xs text-muted-foreground font-medium">No activity yet.</p> : recent.map(([d, v]) => {
           const n = Object.values(v).filter(Boolean).length;
           return (
-            <div key={d} className="flex items-center gap-2 py-1 text-xs">
-              <span className="w-24 text-muted-foreground">{d}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${(n / data.slots.length) * 100}%` }} /></div>
-              <span className="w-10 text-right">{n}/{data.slots.length}</span>
+            <div key={d} className="flex items-center gap-2 py-1.5 text-xs">
+              <span className="w-24 text-muted-foreground font-bold text-[11px]">{d}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(n / (data.slots.length || 1)) * 100}%` }} /></div>
+              <span className="w-12 text-right font-bold text-foreground">{n}/{data.slots.length}</span>
             </div>
           );
         })}

@@ -308,7 +308,7 @@ export function PYQPracticeZone({ who, targetQuizId }: { who: string; targetQuiz
       {who === "arun" && <PYQUpload onCreated={refresh} />}
 
       {/* Main Mode Tabs (Active, Past, Mistakes) */}
-      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1">
+      <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {([
           ["active", `Active PYQ Papers (${activePYQs.length})`],
           ["past", "Past PYQ Results"],
@@ -320,10 +320,10 @@ export function PYQPracticeZone({ who, targetQuizId }: { who: string; targetQuiz
             aria-pressed={filter === k}
             onClick={() => setFilter(k)}
             className={cn(
-              "shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all active:scale-[0.97] border",
               filter === k
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                : "bg-secondary/70 text-muted-foreground border-border/70 hover:bg-secondary"
             )}
           >
             {l}

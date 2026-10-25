@@ -56,7 +56,7 @@ export async function shareQuizLink(quiz: { id: string; title: string; chapter?:
   return { status: "error", url };
 }
 
-function useQuizzes() {
+export function useQuizzes() {
   const list = useServerFn(listQuizzes);
   return useQuery({
     queryKey: ["quizzes"],
@@ -67,6 +67,33 @@ function useQuizzes() {
     refetchOnWindowFocus: false,
     retry: 2,
   });
+}
+
+export type PlayerQuizStats = {
+  totalScore: number;
+  totalPossible: number;
+  attemptsCount: number;
+  accuracy: number;
+};
+
+export function useAllPlayerQuizStats(): Record<string, PlayerQuizStats> {
+  const q = useQuizzes();
+  return useMemo(() => {
+    const attempts = (q.data?.attempts ?? []) as Attempt[];
+    const map: Record<string, PlayerQuizStats> = {};
+    for (const a of attempts) {
+      if (!map[a.username]) {
+        map[a.username] = { totalScore: 0, totalPossible: 0, attemptsCount: 0, accuracy: 0 };
+      }
+      map[a.username].totalScore += a.score;
+      map[a.username].totalPossible += a.total;
+      map[a.username].attemptsCount += 1;
+    }
+    for (const u of Object.keys(map)) {
+      map[u].accuracy = map[u].totalPossible > 0 ? Math.round((map[u].totalScore / map[u].totalPossible) * 100) : 0;
+    }
+    return map;
+  }, [q.data]);
 }
 
 // Popup reminding a player about active quizzes they have not attempted yet. Reappears on every app open until attempted.
@@ -155,56 +182,139 @@ export function useChapterQuizMap() {
   }, [q.data]);
 }
 
-export function detectQuizSubject(quiz?: { chapter?: string | null; title?: string | null } | null): "maths" | "reasoning" | "english" | "ga" | "test" {
+export type ChapterQuizItem = {
+  id: string;
+  title: string;
+  count: number;
+  quiz: Quiz;
+  bestAttempt?: Attempt;
+};
+
+// Maps chapterKey to ALL quizzes belonging to this chapter (e.g. Percentage -> [Quiz 1, Quiz 2, Quiz 3])
+export function useChapterAllQuizzesMap() {
+  const q = useQuizzes();
+  return useMemo(() => {
+    const out: Record<string, ChapterQuizItem[]> = {};
+    const qz = (q.data?.quizzes ?? []) as Quiz[];
+    const attempts = (q.data?.attempts ?? []) as Attempt[];
+    const who = creds().username;
+
+    for (const z of qz) {
+      if (z.expired) continue;
+      const count = Array.isArray(z.questions) ? z.questions.length : 0;
+      const userAttempts = attempts.filter((a) => a.quiz_id === z.id && a.username === who);
+      const bestAttempt = userAttempts.sort((a, b) => (b.score / (b.total || 1)) - (a.score / (a.total || 1)))[0];
+      const item: ChapterQuizItem = { id: z.id, title: z.title || "Quiz", count, quiz: z, bestAttempt };
+
+      const add = (k: string) => {
+        if (!out[k]) out[k] = [];
+        if (!out[k].some((x) => x.id === z.id)) out[k].push(item);
+      };
+
+      if (z.chapter) {
+        add(z.chapter);
+        if (z.chapter.includes("|")) {
+          const chapOnly = z.chapter.split("|")[1]?.trim();
+          if (chapOnly) add(chapOnly);
+        }
+      }
+
+      for (const s of SYLLABUS) {
+        for (const sec of s.sections) {
+          for (const c of sec.chapters) {
+            const k = chapterKey(sec.name, c);
+            const cLower = c.toLowerCase();
+            const zChap = String(z.chapter || "").toLowerCase();
+            const zTitle = String(z.title || "").toLowerCase();
+            if (zChap === cLower || (zChap && zChap.includes(cLower)) || zTitle.includes(cLower)) {
+              add(k);
+            }
+          }
+        }
+      }
+    }
+    return out;
+  }, [q.data]);
+}
+
+// Maps chapterKey to all weak questions missed by this user
+export function useChapterWeakQuestionsMap(who: string) {
+  const q = useQuizzes();
+  return useMemo(() => {
+    const out: Record<string, Array<{ question: QQ; userAnswer: number; correctAnswer: number; quizTitle: string; quizId: string; qIndex: number }>> = {};
+    const qz = (q.data?.quizzes ?? []) as Quiz[];
+    const attempts = (q.data?.attempts ?? []) as Attempt[];
+
+    for (const z of qz) {
+      const mine = attempts.filter((a) => a.quiz_id === z.id && a.username === who).at(-1);
+      if (!mine || !Array.isArray(mine.answers)) continue;
+      const ans = mine.answers as number[];
+      const qList = Array.isArray(z.questions) ? z.questions : [];
+
+      qList.forEach((question, idx) => {
+        const uAns = ans[idx] ?? -1;
+        if (uAns !== question.answer) {
+          const record = {
+            question,
+            userAnswer: uAns,
+            correctAnswer: question.answer,
+            quizTitle: z.title,
+            quizId: z.id,
+            qIndex: idx,
+          };
+
+          const add = (k: string) => {
+            if (!out[k]) out[k] = [];
+            out[k].push(record);
+          };
+
+          if (z.chapter) {
+            add(z.chapter);
+            if (z.chapter.includes("|")) {
+              const chapOnly = z.chapter.split("|")[1]?.trim();
+              if (chapOnly) add(chapOnly);
+            }
+          }
+
+          for (const s of SYLLABUS) {
+            for (const sec of s.sections) {
+              for (const c of sec.chapters) {
+                const k = chapterKey(sec.name, c);
+                const cLower = c.toLowerCase();
+                const zChap = String(z.chapter || "").toLowerCase();
+                const zTitle = String(z.title || "").toLowerCase();
+                if (zChap === cLower || (zChap && zChap.includes(cLower)) || zTitle.includes(cLower)) {
+                  add(k);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    return out;
+  }, [q.data, who]);
+}
+
+export function detectQuizSubject(quiz?: { chapter?: string | null; title?: string | null } | null): "maths" | "reasoning" | "ga" | "test" {
   if (!quiz) return "ga";
   const ch = String(quiz.chapter || "").toLowerCase();
   const t = String(quiz.title || "").toLowerCase();
   if (ch.startsWith("test:") || t.includes("mock") || t.includes("full test")) return "test";
   
-  // SYLLABUS: [0] = Maths, [1] = GS, [2] = Reasoning, [3] = English
   if (SYLLABUS[0]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "maths";
   if (SYLLABUS[1]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "ga";
   if (SYLLABUS[2]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "reasoning";
-  if (SYLLABUS[3]?.sections?.some((s) => ch.includes(s.name.toLowerCase()) || s.chapters.some((c) => ch.includes(c.toLowerCase())))) return "english";
   
   if (/math|arithmetic|advance|number|ratio|percentage|algebra|geometry|trig|mensuration|si|ci|profit|loss|time|speed|boat|pipe|square|cube|table/i.test(ch + " " + t)) return "maths";
   if (/reasoning|analogy|syllogism|blood|direction|series|coding|matrix|cube|dice|paper|mirror|pattern/i.test(ch + " " + t)) return "reasoning";
-  if (/english|grammar|vocab|synonym|antonym|idiom|cloze|reading|comprehension|voice|narration|spelling|preposition|noun/i.test(ch + " " + t)) return "english";
   if (/ga|gk|history|polity|geography|science|physics|chemistry|biology|economics|current affairs|static/i.test(ch + " " + t)) return "ga";
   return "ga";
 }
 
 export function QuizNudge({ who, onOpen }: { who: string; onOpen: () => void }) {
-  const q = useQuizzes();
-  const [closed, setClosed] = useState(false);
-  const quizzes = ((q.data?.quizzes ?? []) as Quiz[]).filter((z) => !z.expired);
-  const attempts = (q.data?.attempts ?? []) as Attempt[];
-  const pending = quizzes.filter((z) => !attempts.some((a) => a.quiz_id === z.id && a.username === who));
-  if (closed || !pending.length) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 sm:items-center" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md space-y-3 rounded-xl border bg-card p-5 shadow-xl">
-        <p className="text-lg font-bold">New quiz available</p>
-        <div className="max-h-72 space-y-2 overflow-y-auto">
-          {pending.slice(0, 5).map((z) => {
-            const done = [...new Set(attempts.filter((a) => a.quiz_id === z.id).map((a) => a.username))];
-            const qCount = Array.isArray(z.questions) ? z.questions.length : 0;
-            return (
-              <div key={z.id} className="rounded-lg bg-secondary/60 p-3">
-                <p className="font-semibold">{z.title || "Quiz"}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{qCount} questions{z.chapter ? ` · ${chapterLabel(z.chapter)}` : ""}</p>
-                <p className="mt-1.5 text-sm">{done.length ? `Already attempted by ${done.map(cap).join(", ")}. Attempt it now.` : "No one has attempted it yet. Be the first."}</p>
-              </div>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => setClosed(true)}>Later</Button>
-          <Button onClick={() => { setClosed(true); onOpen(); }}><Play size={16} />Attempt now</Button>
-        </div>
-      </div>
-    </div>
-  );
+  // Popups disabled as requested by user
+  return null;
 }
 
 type MistakeItem = {
@@ -218,6 +328,199 @@ type MistakeItem = {
   userAnswer: number;
   correctAnswer: number;
 };
+
+export function CustomTestBuilder({
+  allQuizzes,
+  onStartCombined,
+}: {
+  allQuizzes: Quiz[];
+  onStartCombined: (title: string, questions: QQ[], timerMinutes: number | null) => void;
+}) {
+  const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
+  const [qCount, setQCount] = useState<number>(20);
+  const [timer, setTimer] = useState<number | null>(25);
+  const [activeSubject, setActiveSubject] = useState<number>(0);
+
+  const toggleChapter = (k: string) => {
+    const next = new Set(selectedChapters);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    setSelectedChapters(next);
+  };
+
+  const selectAllSection = (sectionChapters: string[], secName: string) => {
+    const next = new Set(selectedChapters);
+    const allSelected = sectionChapters.every((c) => next.has(chapterKey(secName, c)));
+    sectionChapters.forEach((c) => {
+      const k = chapterKey(secName, c);
+      if (allSelected) next.delete(k);
+      else next.add(k);
+    });
+    setSelectedChapters(next);
+  };
+
+  // Find all available questions from quizzes matching selected chapters
+  const availableQuestions = useMemo(() => {
+    if (selectedChapters.size === 0) return [];
+    const pool: QQ[] = [];
+    for (const z of allQuizzes) {
+      if (z.expired) continue;
+      const zChap = String(z.chapter || "");
+      const isSelected = [...selectedChapters].some((k) => {
+        const chapName = k.includes("|") ? k.split("|")[1] : k;
+        return zChap === k || zChap.includes(chapName) || z.title?.toLowerCase().includes(chapName.toLowerCase());
+      });
+      if (isSelected && Array.isArray(z.questions)) {
+        pool.push(...z.questions);
+      }
+    }
+    return pool;
+  }, [allQuizzes, selectedChapters]);
+
+  const handleStart = () => {
+    if (availableQuestions.length === 0) return;
+    const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
+    const chosen = shuffled.slice(0, Math.min(qCount, shuffled.length));
+    const title = `Combined Test (${selectedChapters.size} Chapters · ${chosen.length}Q)`;
+    onStartCombined(title, chosen, timer);
+  };
+
+  return (
+    <div className="space-y-4 rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft">
+      <div>
+        <span className="text-[10px] font-black uppercase tracking-wider text-primary">Custom Practice Test</span>
+        <h3 className="font-display text-lg font-black text-foreground mt-0.5">Build Combined Multi-Chapter Quiz</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Select chapters from Maths, GS, or Reasoning below to create a custom revision drill.
+        </p>
+      </div>
+
+      {/* Test Config: Questions & Timer */}
+      <div className="grid grid-cols-2 gap-2.5 bg-secondary/50 p-3 rounded-2xl border border-border/60">
+        <div>
+          <label className="text-[11px] font-bold text-muted-foreground block mb-1">Question Count</label>
+          <div className="flex gap-1">
+            {[10, 20, 30, 50].map((n) => (
+              <Button
+                variant="unstyled"
+                key={n}
+                onClick={() => setQCount(n)}
+                className={cn(
+                  "flex-1 py-1 text-xs font-black rounded-lg border transition",
+                  qCount === n ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border/80"
+                )}
+              >
+                {n}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-bold text-muted-foreground block mb-1">Timer</label>
+          <div className="flex gap-1">
+            {([
+              [null, "Untimed"],
+              [15, "15m"],
+              [25, "25m"],
+              [45, "45m"],
+            ] as const).map(([tVal, tLabel]) => (
+              <Button
+                variant="unstyled"
+                key={tLabel}
+                onClick={() => setTimer(tVal)}
+                className={cn(
+                  "flex-1 py-1 text-xs font-black rounded-lg border transition",
+                  timer === tVal ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border/80"
+                )}
+              >
+                {tLabel}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Subject Filter Pills */}
+      <div className="flex gap-1.5 border-b border-border/60 pb-2.5 overflow-x-auto scrollbar-none">
+        {SYLLABUS.map((subj, idx) => (
+          <Button
+            variant="unstyled"
+            key={subj.subject}
+            onClick={() => setActiveSubject(idx)}
+            className={cn(
+              "px-3.5 py-1.5 rounded-full text-xs font-black transition shrink-0",
+              activeSubject === idx ? "bg-primary text-primary-foreground shadow-xs" : "bg-secondary text-muted-foreground"
+            )}
+          >
+            {subj.subject}
+          </Button>
+        ))}
+      </div>
+
+      {/* Chapters Selection Grid */}
+      <div className="max-h-72 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+        {SYLLABUS[activeSubject]?.sections.map((sec) => (
+          <div key={sec.name} className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <span>{sec.name}</span>
+              <Button
+                variant="unstyled"
+                onClick={() => selectAllSection(sec.chapters, sec.name)}
+                className="text-[11px] text-primary font-bold hover:underline"
+              >
+                Select All
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {sec.chapters.map((c) => {
+                const k = chapterKey(sec.name, c);
+                const on = selectedChapters.has(k);
+                return (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() => toggleChapter(k)}
+                    className={cn(
+                      "flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold text-left transition active:scale-98",
+                      on ? "border-primary bg-primary/10 text-primary font-bold" : "border-border/70 bg-card text-foreground hover:bg-secondary/40"
+                    )}
+                  >
+                    <span className="truncate">{c}</span>
+                    <span className={cn("h-4 w-4 rounded-md border flex items-center justify-center text-[10px] shrink-0 ml-1.5", on ? "border-primary bg-primary text-white" : "border-border")}>
+                      {on && "✓"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Start Button & Summary */}
+      <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-3">
+        <div className="text-xs">
+          <span className="font-black text-foreground">{selectedChapters.size} Chapters Selected</span>
+          <span className="text-muted-foreground block text-[11px]">
+            {availableQuestions.length} Questions in pool
+          </span>
+        </div>
+
+        <Button
+          disabled={selectedChapters.size === 0 || availableQuestions.length === 0}
+          onClick={handleStart}
+          className="rounded-xl px-4 py-2 font-black text-xs shadow-md"
+        >
+          <Play size={14} className="mr-1" />
+          {availableQuestions.length === 0 && selectedChapters.size > 0
+            ? "No questions for selected"
+            : `Start Combined (${Math.min(qCount, availableQuestions.length || 1)}Q)`}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function QuizZone({
   who,
@@ -238,8 +541,8 @@ export function QuizZone({
     timerMinutes?: number | null;
   } | null>(null);
   const [promptQuiz, setPromptQuiz] = useState<{ quiz: Quiz; questions?: QQ[] } | null>(null);
-  const [filter, setFilter] = useState<"active" | "past" | "mistakes">("active");
-  const [subjectFilter, setSubjectFilter] = useState<"all" | "maths" | "reasoning" | "english" | "ga" | "test">("all");
+  const [filter, setFilter] = useState<"active" | "custom" | "mistakes" | "past">("active");
+  const [subjectFilter, setSubjectFilter] = useState<"all" | "maths" | "reasoning" | "ga" | "test">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTargetChapter, setSelectedTargetChapter] = useState<string | null>(targetChapter ?? null);
   const [selectedTargetQuizId, setSelectedTargetQuizId] = useState<string | null>(targetQuizId ?? null);
@@ -497,12 +800,13 @@ export function QuizZone({
         </div>
       )}
 
-      {/* Main Tabs (Active, Past, Mistakes) */}
+      {/* Main Tabs (Active, Custom, Mistakes, Past) */}
       <div className="practice-tabs flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {([
-          ["active", "Active Quizzes"],
-          ["past", "Past Results"],
+          ["active", "All Quizzes"],
+          ["custom", "⚡ Combined Test"],
           ["mistakes", `Mistake Bank (${allMistakes.length})`],
+          ["past", "Past Results"],
         ] as const).map(([k, l]) => (
           <Button
             variant="unstyled"
@@ -526,11 +830,10 @@ export function QuizZone({
           {/* Subject-Wise Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {([
-              ["all", "All Subjects"],
+              ["all", "All Quizzes"],
               ["maths", "Maths 🔢"],
               ["reasoning", "Reasoning 🧩"],
-              ["english", "English 📖"],
-              ["ga", "General Awareness 🌍"],
+              ["ga", "GK / GS 🌍"],
               ["test", "Full Tests 📝"],
             ] as const).map(([sKey, sLabel]) => (
               <Button
@@ -584,6 +887,27 @@ export function QuizZone({
         </div>
       )}
 
+      {filter === "custom" && (
+        <CustomTestBuilder
+          allQuizzes={quizzes}
+          onStartCombined={(title, questions, timerMinutes) =>
+            setPlaying({
+              quiz: {
+                id: `custom-${Date.now()}`,
+                title,
+                chapter: "custom",
+                day: null,
+                questions,
+                created_at: new Date().toISOString(),
+                expired: false,
+              },
+              questions,
+              timerMinutes,
+            })
+          }
+        />
+      )}
+
       {filter === "past" && (
         <p className="text-xs text-muted-foreground">Complete history of all attempted quizzes and leaderboard standings.</p>
       )}
@@ -603,7 +927,7 @@ export function QuizZone({
             Try again
           </Button>
         </div>
-      ) : filter === "past" ? (
+      ) : filter === "custom" ? null : filter === "past" ? (
         <PastResults quizzes={all} attempts={attempts} who={who} onRetry={retryMissed} onChanged={refresh} />
       ) : filter === "mistakes" ? (
         <MistakeBank
@@ -1080,6 +1404,7 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
     }
   }, [defaultChapter]);
 
+  const [customTitle, setCustomTitle] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -1094,7 +1419,7 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
       log.push(`${f.name}: parsing…`); setStatus([...log]);
       try {
         const html = await f.text();
-        const title = f.name.replace(/\.html?$/i, "").replace(/[_-]+/g, " ").trim() || "Quiz";
+        const title = customTitle.trim() || f.name.replace(/\.html?$/i, "").replace(/[_-]+/g, " ").trim() || "Quiz";
 
         let qs: QQ[] = [];
         try {
@@ -1128,7 +1453,7 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
       }
       setStatus([...log]);
     }
-    setBusy(false); setFiles([]); onCreated();
+    setBusy(false); setFiles([]); setCustomTitle(""); onCreated();
   };
 
   return (
@@ -1141,6 +1466,15 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
         <span className="text-xs transition-transform group-open:rotate-180">⌄</span>
       </summary>
       <div className="p-4 pt-2 border-t border-border/60 space-y-3 bg-secondary/20">
+        <div>
+          <label className="text-[11px] font-bold text-muted-foreground block mb-1">Custom Quiz Name (Optional)</label>
+          <input
+            value={customTitle}
+            onChange={(e) => setCustomTitle(e.target.value)}
+            placeholder="e.g. abc, Set 2, Shift 1 Hard Questions"
+            className="w-full h-10 rounded-xl border bg-card px-3 text-xs font-semibold outline-none focus:border-primary"
+          />
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <select className="h-10 rounded-xl border bg-card px-3 text-xs font-semibold" value={subj} onChange={(e) => { setSubj(Number(e.target.value)); setChap(""); }}>
             {SYLLABUS.map((s, i) => <option key={s.subject} value={i}>{s.subject}</option>)}
@@ -1155,7 +1489,7 @@ function QuizUpload({ onCreated, mode, defaultChapter }: { onCreated: () => void
           <input type="file" accept=".html,.htm,text/html" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
         </label>
         <Button className="w-full rounded-xl py-2.5 text-xs font-bold" disabled={busy || !files.length} onClick={run}>{busy ? "Creating quizzes… this may take a minute" : "Create quizzes"}</Button>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">Each file becomes a separate quiz. Questions and correct answers are extracted automatically.</p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">Each file becomes a separate quiz under this chapter. Questions and correct answers are extracted automatically.</p>
         {status.length > 0 && <div className="space-y-1 text-xs">{status.map((s, i) => <p key={i}>{s}</p>)}</div>}
       </div>
     </details>

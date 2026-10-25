@@ -29,14 +29,8 @@ export const SYLLABUS: Subject[] = [
   {
     subject: "Reasoning",
     sections: [
-      { name: "Reasoning", chapters: s("Letter Basics|Coding-Decoding|Alphabet Test|Letter|Alpha-Numeric Series|Number Based Reasoning|Analogy|Missing Number|Odd One Out|Number Series|Numerical Operations|Blood Relation|Distance & Direction|Test of Inequality|Clock|Calendar|Input Output|Venn Diagram|Syllogism|Statement & Assumption/Argument|Cause & Effect|Situation Reaction Test|Analyzing Argument|Logical & Meaningful Order|Analytical Reasoning|Dice|Cube|Linear Seating Arrangement|Circular Seating Arrangement|Polygon Seating Arrangement|Puzzle|GK Based Reasoning|Address Matching|Data Sufficiency|Figure Series|Counting Figure|Ranking Test|Mirror & Water Image|Completion of Figures|Embedded Figure|Paper Cutting & Folding|Figure Analogy|Figure Classification") },
-    ],
-  },
-  {
-    subject: "English",
-    sections: [
-      { name: "Grammar", chapters: s("Parts of Speech|Noun|Pronoun|Adjective|Verb|Adverb|Preposition|Conjunction|Interjection|Articles|Subject-Verb Agreement|Tenses|Modals|Active & Passive Voice|Direct & Indirect Speech|Conditional Sentences|Degrees of Comparison|Phrases & Clauses|Sentence Structure|Question Tags|Common Errors / Error Detection|Sentence Improvement|Transformation of Sentences|Miscellaneous Grammar Rules") },
-      { name: "Vocabulary", chapters: s("Synonyms|Antonyms|One Word Substitution|Idioms & Phrases|Homonyms|Homophones|Word Formation|Spelling Correction|Commonly Confused Words|Phrasal Verbs|Root Words|Prefix & Suffix|Vocabulary-based Fill in the Blanks|Contextual Vocabulary|Important Words & Their Meanings") },
+      { name: "Verbal Reasoning", chapters: s("Analogy|Classification & Odd One Out|Coding-Decoding|Letter & Number Series|Alphabet Test & Word Formation|Blood Relation|Distance & Direction|Order & Ranking|Clock & Calendar|Syllogism|Venn Diagram|Mathematical Operations|Seating Arrangement (Linear & Circular)|Puzzle & Ranking|Input Output|Statement & Conclusion|Statement & Assumption") },
+      { name: "Non-Verbal & Analytical", chapters: s("Figure Analogy|Figure Classification|Figure Series|Counting of Figures|Mirror & Water Image|Paper Cutting & Folding|Embedded Figures|Pattern Completion|Dice & Cube|Data Sufficiency|Logical Sequence of Words") },
     ],
   },
 ];
@@ -47,25 +41,35 @@ export const DEFAULT_SLOTS: Slot[] = [
   { id: "rea", subject: "Reasoning", label: "Reasoning practice", minutes: 60, start: "06:00" },
   { id: "mlec", subject: "Maths", label: "Maths lecture", minutes: 90, start: "07:00" },
   { id: "mq", subject: "Maths", label: "Maths question solving", minutes: 60, start: "08:30" },
-  { id: "mtr", subject: "Maths", label: "Formula, calculation & tricks", minutes: 30, start: "09:30" },
   { id: "glec", subject: "GS", label: "GK/GS lecture", minutes: 105, start: "11:00" },
   { id: "grev", subject: "GS", label: "GK/GS revision", minutes: 30, start: "12:45" },
   { id: "gq", subject: "GS", label: "GK/GS questions", minutes: 30, start: "13:15" },
-  { id: "eng", subject: "English", label: "English", minutes: 60, start: "16:00" },
-  { id: "erev", subject: "English", label: "English revision", minutes: 20, start: "17:00" },
-  { id: "eq", subject: "English", label: "English questions", minutes: 20, start: "17:20" },
 ];
 
 // Mutable: replaced at app start with the live players list from the server.
 export const USERS: string[] = ["arun", "ali", "naveen", "devansh"];
 
-export type ChapterState = { lecture?: boolean; revised?: boolean; pyq?: boolean; marks?: string; quiz?: string };
+export type CustomChapter = { id: string; subject: string; section: string; name: string; defaultLectures?: number };
+
+export type ChapterState = {
+  lecture?: boolean;
+  totalLectures?: number;
+  lecturesDone?: number;
+  revised?: boolean;
+  revisionCount?: number;
+  pyq?: boolean;
+  marks?: string;
+  quiz?: string;
+  notes?: string;
+};
+
 export type Mock = { id: string; name: string; date: string; marks: string; total: string };
 export type CAItem = { id: string; week: string; category: string; title: string; note: string; revised: boolean };
 export type UserData = {
   slots: Slot[];
   daily: Record<string, Record<string, boolean>>;
   chapters: Record<string, ChapterState>;
+  customChapters: CustomChapter[];
   tables: { table: number; square: number; cube: number };
   ca: CAItem[];
   mocks: Mock[];
@@ -81,6 +85,7 @@ export const emptyData = (): UserData => ({
   slots: DEFAULT_SLOTS,
   daily: {},
   chapters: {},
+  customChapters: [],
   tables: { table: 0, square: 0, cube: 0 },
   ca: [],
   mocks: [],
@@ -97,6 +102,7 @@ export const normalize = (d: any): UserData => {
     slots: Array.isArray(d?.slots) && d.slots.length ? d.slots : e.slots,
     daily: d?.daily ?? {},
     chapters: d?.chapters ?? {},
+    customChapters: Array.isArray(d?.customChapters) ? d.customChapters : [],
     tables: { ...e.tables, ...(d?.tables ?? {}) },
     ca: Array.isArray(d?.ca) ? d.ca : [],
     mocks: Array.isArray(d?.mocks) ? d.mocks : [],
@@ -133,9 +139,10 @@ export function stats(d: UserData) {
   for (const day of Object.values(d.daily))
     for (const [id, v] of Object.entries(day)) if (v) { tasksDone++; totalMin += minById[id] ?? 0; }
   const ch = Object.values(d.chapters);
-  const lec = ch.filter((c) => c.lecture).length;
-  const rev = ch.filter((c) => c.revised).length;
+  const lec = ch.filter((c) => c.lecture || (c.lecturesDone && c.totalLectures && c.lecturesDone >= c.totalLectures)).length;
+  const rev = ch.filter((c) => c.revised || (c.revisionCount && c.revisionCount > 0)).length;
   const pyq = ch.filter((c) => c.pyq).length;
+  const totalLecturesDone = ch.reduce((acc, c) => acc + (c.lecturesDone || (c.lecture ? 1 : 0)), 0);
   const caCount = d.ca.length;
   // streak
   let streak = 0;
@@ -154,10 +161,13 @@ export function stats(d: UserData) {
     }
   }
   const score =
-    tasksDone * 10 + lec * 15 + rev * 8 + pyq * 8 + caCount * 3 +
-    Math.floor((d.tables.table + d.tables.square + d.tables.cube) / 5) + streak * 5 +
-    quizMarksTotal * 2;
-  return { todayMin, planMin, tasksDone, totalMin, lec, rev, pyq, caCount, streak, score };
+    quizMarksTotal * 10 +
+    lec * 20 +
+    rev * 10 +
+    pyq * 10 +
+    tasksDone * 5 +
+    streak * 5;
+  return { todayMin, planMin, tasksDone, totalMin, lec, rev, pyq, totalLecturesDone, caCount, streak, score };
 }
 
 export const fmt = (m: number) => `${Math.floor(m / 60)}h ${m % 60 ? `${m % 60}m` : ""}`.trim();

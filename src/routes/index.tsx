@@ -6,11 +6,19 @@ import { addUser, changePassword, getActivity, getAll, listUsers, login, ping, r
 import { enablePush, pushSupported } from "@/lib/push";
 import { sendDeviceNotification, checkTimetableAlerts } from "@/lib/local-notify";
 import {
-  SYLLABUS, USERS, type UserData, type Slot, type CAItem, normalize, stats, todayKey, chapterKey, fmt, TOTAL_CHAPTERS,
+  SYLLABUS, USERS, type UserData, type Slot, type CAItem, type CustomChapter, type ChapterState, normalize, stats, todayKey, chapterKey, fmt, TOTAL_CHAPTERS,
 } from "@/lib/syllabus";
 import { Button } from "@/components/ui/button";
-import { BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain, Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check, Play, Flame, Pencil, Plus, FileQuestion, FileText, CloudOff, MessageSquare, Eye, EyeOff, Sparkles } from "lucide-react";
-import { QuizNudge, QuizZone, useQuizScores, useChapterQuizMap } from "@/components/quiz-zone";
+import {
+  BookOpen, CalendarDays, ChevronRight, Menu, Trophy, UserRound, Bell, KeyRound, LogOut, Brain,
+  Newspaper, Hash, ClipboardList, Type, Trash2, ArrowUp, ArrowDown, GripVertical, Clock3, Check,
+  Play, Flame, Pencil, Plus, Minus, FileQuestion, FileText, CloudOff, MessageSquare, Eye, EyeOff,
+  Sparkles, RotateCcw, AlertTriangle, CheckCircle2, Award, Swords, ArrowRight, X
+} from "lucide-react";
+import {
+  QuizZone, QuizPlayer, useQuizScores, useChapterQuizMap, useChapterAllQuizzesMap,
+  useChapterWeakQuestionsMap, useAllPlayerQuizStats, type ChapterQuizItem
+} from "@/components/quiz-zone";
 import { MathPracticeZone } from "@/components/math-practice";
 import { BlackBookVocabZone } from "@/components/blackbook-vocab";
 import { PYQPracticeZone } from "@/components/pyq-practice";
@@ -40,7 +48,7 @@ export const Route = createFileRoute("/")({
 type Auth = { username: string; password: string; isDefault?: boolean };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const SUBJ_COLOR: Record<string, string> = {
-  Reasoning: "bg-chart-2", Maths: "bg-primary", GS: "bg-accent", English: "bg-chart-4",
+  Reasoning: "bg-chart-2", Maths: "bg-primary", GS: "bg-accent",
 };
 
 function App() {
@@ -319,11 +327,11 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   });
   const { search, change } = useWorkspaceNavigation();
   const router = useRouter();
-  const tab = search.tab ?? (search.quizId ? (search.practice === "pyq" ? "extras" : "quiz") : "today");
+  const tab = search.tab ?? (search.quizId ? "quiz" : "syllabus");
   const viewing = search.profile && USERS.includes(search.profile) ? search.profile : null;
   const setTab = (next: Tab) => change({ tab: next, profile: undefined, panel: undefined });
   const setViewing = (next: string | null) => change({ profile: next ?? undefined, panel: undefined });
-  const goBack = () => { if (router.history.canGoBack()) router.history.back(); else change({ tab: "today", profile: undefined, panel: undefined }, true); };
+  const goBack = () => { if (router.history.canGoBack()) router.history.back(); else change({ tab: "syllabus", profile: undefined, panel: undefined }, true); };
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "offline">("saved");
   const latestPayload = useRef<UserData | null>(null);
   const menu = search.panel === "menu";
@@ -357,7 +365,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", go); };
   }, [auth.username, auth.password]);
 
-  // Notifications: ask once; if already allowed, silently refresh this device's registration
+  // Notifications: silent refresh if already allowed (no annoying auto-popups)
   const notif = search.panel === "notifications";
   const setNotif = (open: boolean) => change({ panel: open ? "notifications" : undefined }, !open);
   const regPush = useServerFn(registerPush);
@@ -365,9 +373,6 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     if (!pushSupported()) return undefined;
     if (Notification.permission === "granted") {
       enablePush(false).then((r) => { if (r.status === "registered") regPush({ data: { username: auth.username, password: auth.password, token: r.token } }).catch(() => {}); });
-    } else if (Notification.permission === "default" && !localStorage.getItem("arena-notif-asked")) {
-      const t = setTimeout(() => setNotif(true), 1500);
-      return () => clearTimeout(t);
     }
     return undefined;
   }, [auth.username, auth.password]);
@@ -585,20 +590,14 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
       <main key={viewing ?? tab} className="workspace-view px-4 pt-4">
         {viewing ? (
           <Profile user={viewing} data={all[viewing]} entry={board.find((b) => b.u === viewing) ?? me} onBack={goBack} onSwitch={setViewing} me={auth.username} openPass={openPass} />
-        ) : tab === "today" ? (
-          <Today data={mine} update={update} me={me} board={board} onNavigate={setTab} />
-        ) : tab === "syllabus" ? (
-          <Syllabus data={mine} update={update} all={all} />
         ) : tab === "quiz" ? (
           <QuizZone who={auth.username} targetChapter={search.chapter} targetQuizId={search.quizId} />
-        ) : tab === "extras" ? (
-          <Extras data={mine} update={update} all={all} who={auth.username} targetQuizId={search.quizId} />
+        ) : tab === "arena" ? (
+          <Arena board={board} me={auth.username} onView={setViewing} auth={auth} all={all} />
         ) : (
-          <Arena board={board} me={auth.username} onView={setViewing} auth={auth} />
+          <Syllabus data={mine} update={update} all={all} auth={auth} />
         )}
       </main>
-      {!notif && search.tab !== "quiz" && <QuizNudge who={auth.username} onOpen={() => setTab("quiz")} />}
-      <MotionPresence open={notif}><NotifPopup auth={auth} onClose={() => setNotif(false)} /></MotionPresence>
 
       <nav className="arena-navigation">
         <div className="desktop-brand">
@@ -607,11 +606,9 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         </div>
         <div className="navigation-items">
           {([
-            ["today", CalendarDays, "Today", () => setTab("today"), tab === "today" && !viewing],
-            ["syllabus", BookOpen, "Syllabus", () => setTab("syllabus"), tab === "syllabus" && !viewing],
-            ["quiz", FileQuestion, "Quiz", () => setTab("quiz"), tab === "quiz" && !viewing],
-            ["arena", Trophy, "Arena", () => setTab("arena"), tab === "arena" && !viewing],
-            ["extras", Brain, "Extras", () => setTab("extras"), tab === "extras" && !viewing],
+            ["syllabus", BookOpen, "Syllabus", () => setTab("syllabus"), (tab === "syllabus" || !tab) && !viewing],
+            ["quiz", FileQuestion, "Quiz Arena", () => setTab("quiz"), tab === "quiz" && !viewing],
+            ["arena", Trophy, "Leaderboard", () => setTab("arena"), tab === "arena" && !viewing],
             ["profile", UserRound, "Profile", () => setViewing(auth.username), !!viewing],
           ] as const).map(([k, Icon, l, action, on]) => (
             <Button
@@ -977,30 +974,281 @@ function SlotRow({ s, checked, edit, live, onToggle, onUp, onDown, onChange, onD
   );
 }
 
-function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Record<string, UserData> }) {
-  const quizScores = useQuizScores();
-  const chapterQuizzes = useChapterQuizMap();
+function AddChapterModal({
+  initialSubject,
+  existingSections,
+  onClose,
+  onAdd,
+}: {
+  initialSubject: string;
+  existingSections: string[];
+  onClose: () => void;
+  onAdd: (chap: CustomChapter) => void;
+}) {
+  const [subject, setSubject] = useState(initialSubject);
+  const [section, setSection] = useState(existingSections[0] || "");
+  const [customSection, setCustomSection] = useState("");
+  const [name, setName] = useState("");
+  const [lectures, setLectures] = useState("7");
+  const [err, setErr] = useState("");
+
+  const effectiveSection = customSection.trim() || section.trim();
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setErr("Please enter a chapter name");
+      return;
+    }
+    if (!effectiveSection) {
+      setErr("Please specify a section name");
+      return;
+    }
+    const numLectures = parseInt(lectures, 10);
+    onAdd({
+      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      subject,
+      section: effectiveSection,
+      name: name.trim(),
+      defaultLectures: !isNaN(numLectures) && numLectures > 0 ? numLectures : 7,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md" onClick={onClose}>
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSave}
+        className="w-full max-w-md space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-elevated backdrop-blur-xl"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-lg font-black text-foreground">Add Custom Chapter / Section</h3>
+            <p className="text-xs text-muted-foreground font-semibold">Create a new chapter or subject section</p>
+          </div>
+          <Button variant="unstyled" type="button" onClick={onClose} className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary">
+            <X size={18} />
+          </Button>
+        </div>
+
+        {err && <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-2 text-xs font-bold text-destructive">{err}</p>}
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Subject</label>
+            <div className="grid grid-cols-3 gap-2">
+              {["Maths", "Reasoning", "GS"].map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  variant="unstyled"
+                  onClick={() => setSubject(s)}
+                  className={cn(
+                    "rounded-xl border py-2 text-xs font-black transition active:scale-95 text-center",
+                    subject.toLowerCase() === s.toLowerCase()
+                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/30"
+                      : "border-border/80 bg-secondary/50 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Section</label>
+            {existingSections.length > 0 && (
+              <select
+                value={section}
+                onChange={(e) => {
+                  setSection(e.target.value);
+                  setCustomSection("");
+                }}
+                className="w-full mb-1.5 rounded-xl border border-input bg-background/90 px-3 py-2 text-xs font-bold outline-none focus:border-primary"
+              >
+                {existingSections.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            )}
+            <input
+              value={customSection}
+              onChange={(e) => setCustomSection(e.target.value)}
+              placeholder="Or type a brand new section name..."
+              className="w-full rounded-xl border border-input bg-background/90 px-3 py-2 text-xs font-semibold outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Chapter Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Percentage Part 2, Trigonometry Heights..."
+              className="w-full rounded-xl border border-input bg-background/90 px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Total Lectures Planned</label>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={lectures}
+              onChange={(e) => setLectures(e.target.value)}
+              className="w-full rounded-xl border border-input bg-background/90 px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-2xl border border-border bg-secondary/60 py-2.5 text-xs font-bold active:scale-95">
+            Cancel
+          </Button>
+          <Button variant="unstyled" type="submit" className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-2.5 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-95">
+            Save Chapter
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Syllabus({ data, update, all, auth }: { data: UserData; update: Upd; all: Record<string, UserData>; auth: Auth }) {
+  const chapterAllQuizzes = useChapterAllQuizzesMap();
+  const chapterWeakQuestions = useChapterWeakQuestionsMap(auth.username);
   const { search, change } = useWorkspaceNavigation();
   const subj = search.subject ?? 0;
   const setSubj = (subject: number) => change({ subject });
-  const [open, setOpen] = useState<string | null>(SYLLABUS[0].sections[0].name);
-  const S = SYLLABUS[subj];
+  const [openSec, setOpenSec] = useState<string | null>(() => SYLLABUS[0]?.sections[0]?.name ?? null);
+  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
+  const [activePracticeQuiz, setActivePracticeQuiz] = useState<{ quiz: any; questions?: any[] } | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingLectureChapter, setEditingLectureChapter] = useState<string | null>(null);
+  const [customTotalInput, setCustomTotalInput] = useState("");
+
+  const S = SYLLABUS[subj] ?? SYLLABUS[0];
+
+  // Merge default sections with custom chapters for this subject
+  const sections = useMemo(() => {
+    if (!S) return [];
+    const list: Array<{ name: string; chapters: string[] }> = S.sections.map((s) => ({
+      name: s.name,
+      chapters: [...s.chapters],
+    }));
+    const customForSubj = (data.customChapters ?? []).filter(
+      (cc) => cc.subject.toLowerCase() === S.subject.toLowerCase()
+    );
+    for (const cc of customForSubj) {
+      let sec = list.find((s) => s.name.toLowerCase() === cc.section.toLowerCase());
+      if (!sec) {
+        sec = { name: cc.section, chapters: [] };
+        list.push(sec);
+      }
+      if (!sec.chapters.includes(cc.name)) {
+        sec.chapters.push(cc.name);
+      }
+    }
+    return list;
+  }, [S, data.customChapters]);
+
+  const allSectionsExisting = useMemo(() => sections.map((s) => s.name), [sections]);
+
   return (
     <div className="space-y-4">
-      <Hint title="Syllabus Tracker" subtitle="Subject-wise syllabus, chapter tracking & quizzes" />
-      {/* Clean Subject Segmented Control */}
+      {/* Practice Modal for Weak Questions */}
+      {activePracticeQuiz && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 sm:p-6 backdrop-blur-xl">
+          <div className="max-w-2xl mx-auto space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="unstyled"
+                onClick={() => setActivePracticeQuiz(null)}
+                className="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground hover:text-foreground active:scale-95"
+              >
+                ← Exit Practice
+              </Button>
+              <span className="text-xs font-black text-amber-500 bg-amber-500/15 border border-amber-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <RotateCcw size={12} strokeWidth={2.5} /> Weak Questions Practice Mode
+              </span>
+            </div>
+
+            <QuizPlayer
+              quiz={activePracticeQuiz.quiz}
+              questions={activePracticeQuiz.questions}
+              onDone={() => setActivePracticeQuiz(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Add Custom Chapter Modal */}
+      {showAddModal && (
+        <AddChapterModal
+          initialSubject={S?.subject || "Maths"}
+          existingSections={allSectionsExisting}
+          onClose={() => setShowAddModal(false)}
+          onAdd={(chap) => {
+            update((d) => {
+              d.customChapters = [...(d.customChapters ?? []), chap];
+              const k = chapterKey(chap.section, chap.name);
+              d.chapters[k] = {
+                ...(d.chapters[k] ?? {}),
+                totalLectures: chap.defaultLectures || 7,
+                lecturesDone: 0,
+              };
+              return d;
+            });
+            setShowAddModal(false);
+          }}
+        />
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <Hint title="Syllabus & Quiz Mastery" subtitle="Track lectures, revisions, multiple quizzes & weak questions" />
+        <Button
+          variant="unstyled"
+          onClick={() => setShowAddModal(true)}
+          className="shrink-0 rounded-2xl bg-primary/15 border border-primary/30 px-3 py-2 text-xs font-black text-primary hover:bg-primary/25 active:scale-95 flex items-center gap-1.5 shadow-2xs"
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          <span>Add Chapter</span>
+        </Button>
+      </div>
+
+      {/* Subject Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {SYLLABUS.map((x, i) => {
-          const total = x.sections.reduce((n, s) => n + s.chapters.length, 0);
-          const doneN = x.sections.reduce((n, s) => n + s.chapters.filter((c) => data.chapters[chapterKey(s.name, c)]?.lecture).length, 0);
-          const pct = Math.round((doneN / (total || 1)) * 100);
+          const customForSubj = (data.customChapters ?? []).filter((cc) => cc.subject.toLowerCase() === x.subject.toLowerCase());
+          const totalChapters = x.sections.reduce((n, s) => n + s.chapters.length, 0) + customForSubj.length;
+          let doneChapters = 0;
+          for (const s of x.sections) {
+            for (const c of s.chapters) {
+              const st = data.chapters[chapterKey(s.name, c)];
+              if (st?.lecture || (st?.lecturesDone && st?.totalLectures && st.lecturesDone >= st.totalLectures)) {
+                doneChapters++;
+              }
+            }
+          }
+          for (const cc of customForSubj) {
+            const st = data.chapters[chapterKey(cc.section, cc.name)];
+            if (st?.lecture || (st?.lecturesDone && st?.totalLectures && st.lecturesDone >= st.totalLectures)) {
+              doneChapters++;
+            }
+          }
+          const pct = Math.round((doneChapters / (totalChapters || 1)) * 100);
           const active = subj === i;
           return (
             <Button
               variant="unstyled"
               aria-pressed={active}
               key={x.subject}
-              onClick={() => { setSubj(i); setOpen(x.sections[0].name); }}
+              onClick={() => {
+                setSubj(i);
+                setOpenSec(x.sections[0]?.name ?? null);
+              }}
               className={cn(
                 "flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-black transition active:scale-95 shadow-soft",
                 active
@@ -1010,113 +1258,380 @@ function Syllabus({ data, update, all }: { data: UserData; update: Upd; all: Rec
             >
               <span>{x.subject}</span>
               <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded-full tabular-nums", active ? "bg-white/20 text-white" : "bg-primary/10 text-primary")}>
-                {doneN}/{total} · {pct}%
+                {doneChapters}/{totalChapters} · {pct}%
               </span>
             </Button>
           );
         })}
       </div>
 
+      {/* Sections Accordion */}
       <div className="space-y-3">
-        {S.sections.map((sec) => {
-          const doneN = sec.chapters.filter((c) => data.chapters[chapterKey(sec.name, c)]?.lecture).length;
-          const secQuizCount = sec.chapters.filter((c) => !!chapterQuizzes[chapterKey(sec.name, c)]).length;
-          const isOpen = open === sec.name;
+        {sections.map((sec) => {
+          let secDone = 0;
+          let secQuizTotal = 0;
+          for (const c of sec.chapters) {
+            const k = chapterKey(sec.name, c);
+            const st = data.chapters[k];
+            if (st?.lecture || (st?.lecturesDone && st?.totalLectures && st.lecturesDone >= st.totalLectures)) {
+              secDone++;
+            }
+            if ((chapterAllQuizzes[k]?.length ?? 0) > 0) {
+              secQuizTotal += chapterAllQuizzes[k].length;
+            }
+          }
+          const isOpen = openSec === sec.name;
+
           return (
             <div key={sec.name} className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-soft">
               <Button
                 variant="unstyled"
                 aria-expanded={isOpen}
-                onClick={() => setOpen(isOpen ? null : sec.name)}
+                onClick={() => setOpenSec(isOpen ? null : sec.name)}
                 className="flex w-full items-center justify-between p-4 text-left transition hover:bg-secondary/30"
               >
                 <div className="min-w-0 flex-1 pr-3">
                   <div className="flex items-center gap-2">
                     <p className="font-display font-black text-sm text-foreground">{sec.name}</p>
-                    {secQuizCount > 0 && (
-                      <span className="rounded-full bg-accent/10 border border-accent/25 text-accent text-[10px] font-black px-2 py-0.5 shrink-0">
-                        🎯 {secQuizCount}Q
+                    {secQuizTotal > 0 && (
+                      <span className="rounded-full bg-accent/15 border border-accent/25 text-accent text-[10px] font-black px-2 py-0.5 shrink-0">
+                        🎯 {secQuizTotal}Q
                       </span>
                     )}
                   </div>
                   <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(doneN / sec.chapters.length) * 100}%` }} />
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${(secDone / (sec.chapters.length || 1)) * 100}%` }}
+                    />
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-black text-muted-foreground tabular-nums">{doneN}/{sec.chapters.length}</span>
-                  <span className={cn("text-xs transition-transform duration-200 text-muted-foreground", isOpen && "rotate-180")}>⌄</span>
+                  <span className="text-xs font-black text-muted-foreground tabular-nums">
+                    {secDone}/{sec.chapters.length}
+                  </span>
+                  <span className={cn("text-xs transition-transform duration-200 text-muted-foreground", isOpen && "rotate-180")}>
+                    ⌄
+                  </span>
                 </div>
               </Button>
+
               {isOpen && (
-                <div className="divide-y divide-border/60 border-t border-border/60 bg-secondary/20">
+                <div className="divide-y divide-border/60 border-t border-border/60 bg-secondary/15">
                   {sec.chapters.map((c) => {
                     const k = chapterKey(sec.name, c);
                     const st = data.chapters[k] ?? {};
-                    const qz = chapterQuizzes[k];
-                    const sc = quizScores[k];
-                    const set = (patch: object) => update((d) => { d.chapters[k] = { ...(d.chapters[k] ?? {}), ...patch }; return d; });
-                    const others = USERS.filter((u) => all[u].chapters[k]?.lecture);
+                    const quizzes = chapterAllQuizzes[k] ?? [];
+                    const weakQs = chapterWeakQuestions[k] ?? [];
+                    const totalLectures = st.totalLectures ?? 7;
+                    const lecturesDone = st.lecturesDone ?? (st.lecture ? totalLectures : 0);
+                    const revCount = st.revisionCount ?? (st.revised ? 1 : 0);
+                    const lecturePct = Math.min(100, Math.round((lecturesDone / (totalLectures || 1)) * 100));
+                    const isExpanded = expandedChapter === k;
+
+                    const set = (patch: Partial<ChapterState>) =>
+                      update((d) => {
+                        d.chapters[k] = { ...(d.chapters[k] ?? {}), ...patch };
+                        return d;
+                      });
+
+                    const cycleRevision = () => {
+                      const next = (revCount + 1) % 4;
+                      set({
+                        revisionCount: next,
+                        revised: next > 0,
+                      });
+                    };
+
+                    const incLectures = () => {
+                      const next = Math.min(totalLectures + 15, lecturesDone + 1);
+                      set({
+                        lecturesDone: next,
+                        lecture: next >= totalLectures,
+                        totalLectures,
+                      });
+                    };
+
+                    const decLectures = () => {
+                      const next = Math.max(0, lecturesDone - 1);
+                      set({
+                        lecturesDone: next,
+                        lecture: next >= totalLectures && totalLectures > 0,
+                        totalLectures,
+                      });
+                    };
+
                     return (
-                      <div key={c} className="p-3.5 space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-bold text-sm text-foreground leading-snug flex-1 min-w-0">{c}</p>
+                      <div key={c} className="p-4 space-y-3 transition-colors hover:bg-secondary/25">
+                        {/* Header Row: Title & Revision Status */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-display font-extrabold text-sm text-foreground leading-snug">{c}</p>
+                              {quizzes.length > 0 && (
+                                <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5 shrink-0">
+                                  {quizzes.length} {quizzes.length === 1 ? "Quiz" : "Quizzes"}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">{sec.name}</p>
+                          </div>
+
                           <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Revision Cycle Button */}
                             <Button
                               variant="unstyled"
-                              onClick={() => change({ tab: "quiz", chapter: k })}
+                              onClick={cycleRevision}
+                              title="Click to cycle revision status (Not Revised -> 1x -> 2x -> Mastered)"
                               className={cn(
-                                "rounded-xl border px-2.5 py-1 text-[11px] font-black transition flex items-center gap-1 shadow-2xs active:scale-95",
-                                qz
-                                  ? (sc
-                                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                                      : "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25")
-                                  : "border-border/60 bg-secondary text-muted-foreground hover:text-foreground"
+                                "rounded-xl border px-2.5 py-1 text-[11px] font-black transition active:scale-95 flex items-center gap-1 shadow-2xs",
+                                revCount === 0
+                                  ? "border-border/80 bg-card text-muted-foreground hover:text-foreground"
+                                  : revCount === 1
+                                  ? "border-amber-500/50 bg-amber-500/15 text-amber-500"
+                                  : revCount === 2
+                                  ? "border-blue-500/50 bg-blue-500/15 text-blue-400"
+                                  : "border-emerald-500/60 bg-emerald-500/20 text-emerald-400"
                               )}
-                              title={`Take Quiz for ${c}`}
                             >
-                              <span>🎯</span>
-                              <span>{sc ? `Quiz ${sc.score}/${sc.total}` : qz ? `Quiz (${qz.count}Q)` : "Quiz"}</span>
+                              <span>{revCount === 0 ? "⚪" : revCount === 1 ? "🟡" : revCount === 2 ? "🔵" : "⭐"}</span>
+                              <span>{revCount === 0 ? "Not Revised" : revCount === 1 ? "Rev 1x" : revCount === 2 ? "Rev 2x" : "Mastered"}</span>
                             </Button>
-                            {others.length > 0 && (
-                              <div className="flex -space-x-1.5">
-                                {others.slice(0, 3).map((u) => (
-                                  <span key={u} title={cap(u)} className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-primary/20 text-[9px] font-black text-primary">
-                                    {u[0].toUpperCase()}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+
+                            <Button
+                              variant="unstyled"
+                              onClick={() => setExpandedChapter(isExpanded ? null : k)}
+                              className="h-7 w-7 rounded-lg border border-border/60 bg-card text-muted-foreground flex items-center justify-center hover:text-foreground active:scale-95"
+                            >
+                              <ChevronRight size={14} className={cn("transition-transform duration-200", isExpanded && "rotate-90")} />
+                            </Button>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {(["lecture", "revised", "pyq"] as const).map((f) => (
-                            <Button
-                              variant="unstyled"
-                              key={f}
-                              onClick={() => set({ [f]: !st[f] })}
-                              aria-pressed={!!st[f]}
-                              className={cn(
-                                "h-8 rounded-xl border px-3 text-xs font-black transition active:scale-95 flex items-center gap-1",
-                                st[f]
-                                  ? "border-primary bg-primary text-primary-foreground shadow-2xs"
-                                  : "border-border/80 bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                        {/* Interactive Lectures Management Row */}
+                        <div className="rounded-2xl border border-border/70 bg-card/70 p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                              <span>📚 Lectures:</span>
+                              <span className="text-foreground font-black tabular-nums">{lecturesDone}/{totalLectures} Done</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="unstyled"
+                                onClick={decLectures}
+                                disabled={lecturesDone <= 0}
+                                className="h-7 w-7 rounded-xl border border-border bg-secondary flex items-center justify-center text-foreground font-black active:scale-90 disabled:opacity-40"
+                                title="Decrement lecture"
+                              >
+                                <Minus size={13} strokeWidth={2.5} />
+                              </Button>
+
+                              {editingLectureChapter === k ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={customTotalInput}
+                                    onChange={(e) => setCustomTotalInput(e.target.value)}
+                                    placeholder={String(totalLectures)}
+                                    className="h-7 w-12 rounded-lg border border-primary bg-background px-1 text-center text-xs font-black outline-none"
+                                  />
+                                  <Button
+                                    variant="unstyled"
+                                    onClick={() => {
+                                      const val = parseInt(customTotalInput, 10);
+                                      if (!isNaN(val) && val > 0) {
+                                        set({ totalLectures: val });
+                                      }
+                                      setEditingLectureChapter(null);
+                                    }}
+                                    className="h-7 px-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-black"
+                                  >
+                                    Save
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="unstyled"
+                                  onClick={() => {
+                                    setCustomTotalInput(String(totalLectures));
+                                    setEditingLectureChapter(k);
+                                  }}
+                                  title="Click to edit total lectures"
+                                  className="h-7 px-2.5 rounded-xl border border-border/80 bg-secondary/60 text-xs font-black text-foreground flex items-center gap-1 active:scale-95"
+                                >
+                                  <span className="tabular-nums">{lecturesDone} / {totalLectures}</span>
+                                  <Pencil size={10} className="text-muted-foreground" />
+                                </Button>
                               )}
-                            >
-                              {st[f] ? <Check size={12} strokeWidth={3} /> : null}
-                              <span>{f === "lecture" ? "Lecture" : f === "revised" ? "Revised" : "PYQ"}</span>
-                            </Button>
-                          ))}
-                          {st.pyq && (
-                            <input
-                              value={st.marks ?? ""}
-                              onChange={(e) => set({ marks: e.target.value })}
-                              placeholder="Marks (e.g. 18/25)"
-                              className="h-8 w-28 rounded-xl border border-input bg-card px-2.5 text-xs font-semibold outline-none focus:border-primary"
+
+                              <Button
+                                variant="unstyled"
+                                onClick={incLectures}
+                                className="h-7 w-7 rounded-xl border border-border bg-secondary flex items-center justify-center text-foreground font-black active:scale-90"
+                                title="Increment lecture"
+                              >
+                                <Plus size={13} strokeWidth={2.5} />
+                              </Button>
+
+                              {lecturesDone < totalLectures ? (
+                                <Button
+                                  variant="unstyled"
+                                  onClick={() => set({ lecturesDone: totalLectures, lecture: true, totalLectures })}
+                                  className="h-7 px-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-[10px] font-black active:scale-95 ml-1"
+                                >
+                                  ✓ All Done
+                                </Button>
+                              ) : (
+                                <span className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-400 ml-1">
+                                  ✓ Complete
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Lecture Progress Bar */}
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                            <div
+                              className={cn("h-full rounded-full transition-all duration-300", lecturePct >= 100 ? "bg-emerald-500" : "bg-primary")}
+                              style={{ width: `${lecturePct}%` }}
                             />
+                          </div>
+                        </div>
+
+                        {/* Multiple Quizzes List for this Chapter */}
+                        <div className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <span>🎯 Chapter Quizzes ({quizzes.length})</span>
+                            </span>
+                            {auth.username === "arun" && (
+                              <Button
+                                variant="unstyled"
+                                onClick={() => change({ tab: "quiz", chapter: k })}
+                                className="text-[10px] font-black text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Plus size={12} /> Add Quiz
+                              </Button>
+                            )}
+                          </div>
+
+                          {quizzes.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {quizzes.map((qz, qIdx) => (
+                                <div
+                                  key={qz.id}
+                                  className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-secondary/30 p-2.5 transition hover:bg-secondary/60"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-foreground truncate">
+                                      {qz.title || `Quiz ${qIdx + 1}`}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground font-semibold">
+                                      <span>{qz.count} Questions</span>
+                                      {qz.score ? (
+                                        <span className={cn(
+                                          "font-black px-1.5 py-0.2 rounded-full",
+                                          qz.score.pct >= 70 ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-500"
+                                        )}>
+                                          Score: {qz.score.score}/{qz.score.total} ({qz.score.pct}%)
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground/80">Not Attempted</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <Button
+                                    variant="unstyled"
+                                    onClick={() => change({ tab: "quiz", quizId: qz.id })}
+                                    className="shrink-0 rounded-xl bg-gradient-to-r from-primary to-accent px-3 py-1.5 text-xs font-black text-primary-foreground shadow-xs shadow-primary/20 active:scale-95 flex items-center gap-1"
+                                  >
+                                    <Play size={11} fill="currentColor" />
+                                    <span>{qz.score ? "Retake" : "Start"}</span>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border border-dashed border-border/60 p-2.5 text-center text-xs text-muted-foreground font-medium">
+                              No quizzes uploaded for this chapter yet.
+                            </div>
                           )}
                         </div>
+
+                        {/* Weak / Missed Questions Section */}
+                        {weakQs.length > 0 && (
+                          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/8 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-amber-500 font-black text-sm">⚠️</span>
+                                <div>
+                                  <p className="text-xs font-extrabold text-foreground">
+                                    {weakQs.length} Weak / Missed Question{weakQs.length > 1 ? "s" : ""}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground font-medium">Solve your mistake bank to master this chapter</p>
+                                </div>
+                              </div>
+
+                              <Button
+                                variant="unstyled"
+                                onClick={() => {
+                                  setActivePracticeQuiz({
+                                    quiz: {
+                                      id: `weak-${k}`,
+                                      title: `${c} - Missed Questions Re-attempt`,
+                                      chapter: k,
+                                      questions: weakQs,
+                                    },
+                                    questions: weakQs,
+                                  });
+                                }}
+                                className="rounded-xl border border-amber-500/50 bg-amber-500/20 px-3 py-1.5 text-xs font-black text-amber-400 transition active:scale-95 shadow-xs flex items-center gap-1 shrink-0"
+                              >
+                                <RotateCcw size={12} strokeWidth={2.5} />
+                                <span>Re-attempt</span>
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Expanded Extra Controls: PYQ, Marks & Notes */}
+                        {isExpanded && (
+                          <div className="space-y-2 pt-1 border-t border-border/50">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="unstyled"
+                                onClick={() => set({ pyq: !st.pyq })}
+                                className={cn(
+                                  "h-8 rounded-xl border px-3 text-xs font-black transition active:scale-95 flex items-center gap-1.5",
+                                  st.pyq ? "border-accent bg-accent text-accent-foreground shadow-2xs" : "border-border/80 bg-card text-muted-foreground"
+                                )}
+                              >
+                                {st.pyq && <Check size={12} strokeWidth={3} />}
+                                <span>PYQs Practiced</span>
+                              </Button>
+
+                              {st.pyq && (
+                                <input
+                                  value={st.marks ?? ""}
+                                  onChange={(e) => set({ marks: e.target.value })}
+                                  placeholder="PYQ Marks (e.g. 20/25)"
+                                  className="h-8 w-36 rounded-xl border border-input bg-card px-2.5 text-xs font-semibold outline-none focus:border-primary"
+                                />
+                              )}
+                            </div>
+
+                            <input
+                              value={st.notes ?? ""}
+                              onChange={(e) => set({ notes: e.target.value })}
+                              placeholder="Chapter notes / formula tips (e.g. revise ratio method)..."
+                              className="w-full h-8 rounded-xl border border-input bg-card px-3 text-xs font-medium outline-none focus:border-primary"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1550,23 +2065,95 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
 
 const MEDAL = ["01", "02", "03"];
 
-function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView: (u: string) => void; auth: Auth }) {
-  const ranked = board.filter((b) => b.rank);
-  const first = board.find((b) => b.rank === 1);
-  const second = board.find((b) => b.rank === 2);
-  const third = board.find((b) => b.rank === 3);
+function Arena({
+  board,
+  me,
+  onView,
+  auth,
+  all,
+}: {
+  board: Entry[];
+  me: string;
+  onView: (u: string) => void;
+  auth: Auth;
+  all: Record<string, UserData>;
+}) {
+  const playerQuizStats = useAllPlayerQuizStats();
+  const [rival, setRival] = useState<string>(() => {
+    const others = USERS.filter((u) => u !== me);
+    return others[0] || USERS[0];
+  });
+
+  // Calculate pure quiz & chapter-mastery ranking
+  const enriched = useMemo(() => {
+    const list = USERS.map((u) => {
+      const qs = playerQuizStats[u] ?? { totalScore: 0, totalPossible: 0, attemptsCount: 0, accuracy: 0 };
+      const uData = all[u] ?? ({} as UserData);
+      const chList = Object.values(uData.chapters ?? {});
+      const masteredCount = chList.filter((c) => (c.revisionCount && c.revisionCount >= 1) || c.revised).length;
+      const totalLectures = chList.reduce((acc, c) => acc + (c.lecturesDone || (c.lecture ? (c.totalLectures || 7) : 0)), 0);
+
+      let mathsDone = 0;
+      let reasoningDone = 0;
+      let gsDone = 0;
+      for (const [k, c] of Object.entries(uData.chapters ?? {})) {
+        const isDone = c.lecture || (c.lecturesDone && c.totalLectures && c.lecturesDone >= c.totalLectures);
+        if (!isDone) continue;
+        const lowerKey = k.toLowerCase();
+        if (lowerKey.includes("arithmetic") || lowerKey.includes("advance") || lowerKey.includes("algebra") || lowerKey.includes("geometry")) {
+          mathsDone++;
+        } else if (lowerKey.includes("verbal") || lowerKey.includes("non-verbal") || lowerKey.includes("reasoning")) {
+          reasoningDone++;
+        } else {
+          gsDone++;
+        }
+      }
+
+      // Pure Quiz & Mastery Score
+      const points = (qs.totalScore * 10) + (masteredCount * 20) + (totalLectures * 5);
+
+      return {
+        u,
+        score: points,
+        quizScore: qs.totalScore,
+        quizPossible: qs.totalPossible,
+        quizzesAttempted: qs.attemptsCount,
+        accuracy: qs.accuracy,
+        masteredCount,
+        totalLectures,
+        mathsDone,
+        reasoningDone,
+        gsDone,
+      };
+    });
+
+    list.sort((a, b) => b.score - a.score || b.quizScore - a.quizScore || b.accuracy - a.accuracy);
+    let r = 0;
+    return list.map((x) => ({ ...x, rank: x.score > 0 || x.quizzesAttempted > 0 ? ++r : null }));
+  }, [all, playerQuizStats]);
+
+  const first = enriched.find((b) => b.rank === 1);
+  const second = enriched.find((b) => b.rank === 2);
+  const third = enriched.find((b) => b.rank === 3);
+
+  // Player comparison stats
+  const playerA = enriched.find((b) => b.u === me) ?? enriched[0];
+  const playerB = enriched.find((b) => b.u === rival) ?? (enriched.find((b) => b.u !== me) ?? enriched[0]);
 
   return (
     <div className="space-y-4">
-      <Hint title="Arena Leaderboard" subtitle="Compete on daily study, syllabus progress & quiz scores" />
+      <Hint title="Quiz Arena & Leaderboard" subtitle="Compete purely on quiz performance, accuracy & chapter mastery" />
 
-      {/* Top 3 Podium (if players ranked) */}
-      {ranked.length >= 2 && (
+      {/* Top 3 Podium */}
+      {enriched.some((b) => b.rank) && (
         <div className="grid grid-cols-3 gap-2 items-end pt-2 pb-1">
           {/* #2 Rank */}
           {second ? (
-            <Button variant="unstyled" onClick={() => onView(second.u)}
-              className="flex flex-col items-center rounded-3xl border border-slate-700 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+            <Button
+              variant="unstyled"
+              onClick={() => onView(second.u)}
+              className="flex flex-col items-center rounded-3xl border border-slate-700 bg-card p-3 shadow-soft transition active:scale-95 text-center"
+            >
               <div className="relative">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800 text-slate-200 font-display text-lg font-black shadow-sm ring-2 ring-slate-500/40">
                   {second.u[0].toUpperCase()}
@@ -1577,14 +2164,19 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
               </div>
               <p className="mt-2 font-display text-xs font-black truncate w-full text-foreground">{cap(second.u)}</p>
               <p className="text-[11px] font-black text-primary mt-0.5 tabular-nums">{second.score} pts</p>
-              <div className="mt-2 w-full h-10 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center text-[11px] font-black text-slate-300">🥈 2nd</div>
+              <div className="mt-2 w-full h-9 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center text-[11px] font-black text-slate-300">
+                🥈 2nd
+              </div>
             </Button>
           ) : <div />}
 
           {/* #1 Rank (Center, Elevated) */}
           {first ? (
-            <Button variant="unstyled" onClick={() => onView(first.u)}
-              className="flex flex-col items-center rounded-3xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-500/15 via-card to-card p-3.5 shadow-elevated transition active:scale-95 text-center -translate-y-2">
+            <Button
+              variant="unstyled"
+              onClick={() => onView(first.u)}
+              className="flex flex-col items-center rounded-3xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-500/15 via-card to-card p-3.5 shadow-elevated transition active:scale-95 text-center -translate-y-2"
+            >
               <div className="relative">
                 <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-lg">👑</span>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 text-white font-display text-xl font-black shadow-md ring-4 ring-amber-500/30">
@@ -1596,14 +2188,19 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
               </div>
               <p className="mt-2 font-display text-sm font-black truncate w-full text-foreground">{cap(first.u)}</p>
               <p className="text-xs font-black text-amber-500 mt-0.5 tabular-nums">{first.score} pts</p>
-              <div className="mt-2 w-full h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-black text-amber-400">🏆 1st</div>
+              <div className="mt-2 w-full h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-black text-amber-400">
+                🏆 1st
+              </div>
             </Button>
           ) : <div />}
 
           {/* #3 Rank */}
           {third ? (
-            <Button variant="unstyled" onClick={() => onView(third.u)}
-              className="flex flex-col items-center rounded-3xl border border-amber-800/40 bg-card p-3 shadow-soft transition active:scale-95 text-center">
+            <Button
+              variant="unstyled"
+              onClick={() => onView(third.u)}
+              className="flex flex-col items-center rounded-3xl border border-amber-800/40 bg-card p-3 shadow-soft transition active:scale-95 text-center"
+            >
               <div className="relative">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-950/50 text-amber-400 font-display text-lg font-black shadow-sm ring-2 ring-amber-700/30">
                   {third.u[0].toUpperCase()}
@@ -1614,31 +2211,106 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
               </div>
               <p className="mt-2 font-display text-xs font-black truncate w-full text-foreground">{cap(third.u)}</p>
               <p className="text-[11px] font-black text-primary mt-0.5 tabular-nums">{third.score} pts</p>
-              <div className="mt-2 w-full h-8 rounded-2xl bg-amber-950/40 border border-amber-800/40 flex items-center justify-center text-[11px] font-black text-amber-500">🥉 3rd</div>
+              <div className="mt-2 w-full h-8 rounded-2xl bg-amber-950/40 border border-amber-800/40 flex items-center justify-center text-[11px] font-black text-amber-500">
+                🥉 3rd
+              </div>
             </Button>
           ) : <div />}
         </div>
       )}
 
-      {/* Scoring Guide Pill */}
-      <div className="rounded-2xl bg-secondary/70 border border-border/80 px-3.5 py-2 text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
-        <span className="flex items-center gap-1 font-bold text-foreground">⚡ Point Rules:</span>
-        <span className="truncate">Task +10 · Lecture +15 · Rev +8 · PYQ +8 · CA +3</span>
+      {/* Head-to-Head Comparison Card */}
+      <div className="rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Swords size={18} className="text-primary" />
+            <h3 className="font-display font-extrabold text-sm text-foreground">Head-to-Head Battle</h3>
+          </div>
+          <span className="text-[11px] font-semibold text-muted-foreground">Compare Quiz Mastery</span>
+        </div>
+
+        {/* Rival Selector Pills */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-muted-foreground">Compare with:</span>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+            {USERS.filter((u) => u !== me).map((u) => (
+              <Button
+                key={u}
+                variant="unstyled"
+                onClick={() => setRival(u)}
+                className={cn(
+                  "rounded-xl px-2.5 py-1 text-xs font-bold transition active:scale-95",
+                  rival === u
+                    ? "bg-primary text-primary-foreground font-black shadow-2xs"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {cap(u)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Side-by-Side Comparison Grid */}
+        <div className="rounded-2xl border border-border/70 bg-secondary/30 p-3 space-y-2.5">
+          {/* Header Row: Players */}
+          <div className="grid grid-cols-3 items-center text-center font-display font-black text-xs">
+            <div className="text-left text-primary flex items-center gap-1.5">
+              <span className="h-6 w-6 rounded-lg bg-primary/20 flex items-center justify-center text-[10px]">
+                {playerA.u[0].toUpperCase()}
+              </span>
+              <span>{cap(playerA.u)} (You)</span>
+            </div>
+            <div className="text-muted-foreground text-[10px] font-extrabold uppercase tracking-wider">Metrics</div>
+            <div className="text-right text-accent flex items-center justify-end gap-1.5">
+              <span>{cap(playerB.u)}</span>
+              <span className="h-6 w-6 rounded-lg bg-accent/20 flex items-center justify-center text-[10px]">
+                {playerB.u[0].toUpperCase()}
+              </span>
+            </div>
+          </div>
+
+          {/* Comparison Rows */}
+          {([
+            ["Total Score", `${playerA.score} pts`, `${playerB.score} pts`, playerA.score > playerB.score, playerB.score > playerA.score],
+            ["Quiz Marks", `${playerA.quizScore} pts`, `${playerB.quizScore} pts`, playerA.quizScore > playerB.quizScore, playerB.quizScore > playerA.quizScore],
+            ["Quizzes Taken", `${playerA.quizzesAttempted}`, `${playerB.quizzesAttempted}`, playerA.quizzesAttempted > playerB.quizzesAttempted, playerB.quizzesAttempted > playerA.quizzesAttempted],
+            ["Quiz Accuracy", `${playerA.accuracy}%`, `${playerB.accuracy}%`, playerA.accuracy > playerB.accuracy, playerB.accuracy > playerA.accuracy],
+            ["Chapters Mastered", `${playerA.masteredCount}`, `${playerB.masteredCount}`, playerA.masteredCount > playerB.masteredCount, playerB.masteredCount > playerA.masteredCount],
+            ["Lectures Done", `${playerA.totalLectures}`, `${playerB.totalLectures}`, playerA.totalLectures > playerB.totalLectures, playerB.totalLectures > playerA.totalLectures],
+          ] as const).map(([label, valA, valB, winA, winB]) => (
+            <div key={label} className="grid grid-cols-3 items-center text-center text-xs py-1 border-t border-border/40">
+              <div className={cn("text-left font-bold tabular-nums", winA ? "text-emerald-400 font-black" : "text-foreground")}>
+                {winA && "⭐ "} {valA}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-semibold">{label}</div>
+              <div className={cn("text-right font-bold tabular-nums", winB ? "text-emerald-400 font-black" : "text-foreground")}>
+                {valB} {winB && " ⭐"}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {ranked.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm font-semibold text-muted-foreground">
-          No rankings yet. Check off your first study task to enter the leaderboard!
-        </div>
-      )}
+      {/* Point Rules Pill */}
+      <div className="rounded-2xl bg-secondary/70 border border-border/80 px-3.5 py-2 text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
+        <span className="flex items-center gap-1 font-bold text-foreground">⚡ Ranking Rules:</span>
+        <span className="truncate">Quiz Marks ×10 · Chapter Mastered ×20 · Lectures ×5</span>
+      </div>
 
-      {/* Full Player List */}
+      {/* Full Leaderboard Standings List */}
       <div className="space-y-2">
-        {board.map((b) => (
-          <Button variant="unstyled" key={b.u} onClick={() => onView(b.u)}
-            className={cn("flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-[0.98]",
+        {enriched.map((b) => (
+          <Button
+            variant="unstyled"
+            key={b.u}
+            onClick={() => onView(b.u)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition shadow-soft active:scale-[0.98]",
               b.rank === 1 ? "border-amber-500/40 bg-amber-500/6" : "border-border/80 bg-card hover:border-border",
-              b.u === me && "ring-2 ring-primary/40 border-primary/60")}>
+              b.u === me && "ring-2 ring-primary/40 border-primary/60"
+            )}
+          >
             <div className="w-8 text-center font-display text-base font-black text-muted-foreground tabular-nums">
               {b.rank ? (b.rank === 1 ? "🥇" : b.rank === 2 ? "🥈" : b.rank === 3 ? "🥉" : `#${b.rank}`) : "—"}
             </div>
@@ -1649,13 +2321,13 @@ function Arena({ board, me, onView, auth }: { board: Entry[]; me: string; onView
               <p className="font-display font-extrabold text-sm text-foreground">
                 {cap(b.u)} {b.u === me && <span className="text-xs text-primary font-bold">(You)</span>}
               </p>
-              <p className="text-[11px] text-muted-foreground font-semibold tabular-nums">
-                {fmt(b.todayMin) || "0h"} today · {b.lec} chapters · {b.streak}d streak
+              <p className="text-[11px] text-muted-foreground font-semibold tabular-nums mt-0.5">
+                {b.quizzesAttempted} quizzes · {b.accuracy}% acc · {b.masteredCount} mastered
               </p>
             </div>
             <div className="text-right shrink-0">
               <p className="font-display text-lg font-black text-primary tabular-nums">{b.score}</p>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">points</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">pts</p>
             </div>
             <ChevronRight size={16} className="text-muted-foreground/60 shrink-0" />
           </Button>

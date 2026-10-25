@@ -663,7 +663,7 @@ function Ring({ pct, size = 88, children }: { pct: number; size?: number; childr
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} stroke="color-mix(in oklab, var(--color-muted) 80%, transparent)" strokeWidth="8" fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--color-primary)" strokeWidth="8" fill="none" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct))))} style={{ transition: "stroke-dashoffset .6s cubic-bezier(0.16, 1, 0.3, 1)" }} />
+          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct)))} style={{ transition: "stroke-dashoffset .6s cubic-bezier(0.16, 1, 0.3, 1)" }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
     </div>

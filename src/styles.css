@@ -465,47 +465,19 @@
 .motion-presence[data-state="closed"] > div > form,
 .motion-presence[data-state="closed"] > div > div { animation: panel-exit 0.18s ease-in both; }
 
-/* Desktop Responsive Layout */
+/* Responsive Layout */
 @media (min-width: 1024px) {
   .arena-shell {
-    max-width: 980px;
-    margin-left: calc(260px + (100vw - 260px - min(980px, 100vw - 300px)) / 2);
-    margin-right: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    min-height: 100vh;
   }
-  .arena-shell main { padding: 28px 32px 64px; }
-  .app-header { padding-inline: 32px; }
-  .arena-navigation {
-    inset: 0 auto 0 0;
-    width: 260px;
-    border-top: 0;
-    border-right: 1px solid var(--border);
-    background: var(--card);
+  .arena-shell main {
+    padding: 24px 20px 80px;
   }
-  .desktop-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 24px 20px 16px;
-    font-weight: 800;
-    font-family: "Sora", sans-serif;
+  .app-header {
+    padding-inline: 24px;
   }
-  .desktop-brand img { width: 38px; height: 38px; border-radius: 10px; }
-  .navigation-items {
-    display: flex;
-    flex-direction: column;
-    padding: 16px 14px;
-    gap: 8px;
-    max-width: 100%;
-  }
-  .navigation-items .nav-item {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 14px;
-    padding: 12px 18px;
-    font-size: 14px;
-    min-height: 48px;
-  }
-  .section-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

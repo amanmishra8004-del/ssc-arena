@@ -3,27 +3,29 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { changePassword, getActivity, login, ping } from "@/lib/data.functions";
-import { deleteQuiz, type QQ } from "@/lib/quiz.functions";
-import { useQuizzes, QuizPlayer, QuizUpload } from "@/components/quiz-zone";
+import { deleteQuiz, createQuiz, parseQuizHtml, type QQ } from "@/lib/quiz.functions";
+import { useQuizzes, QuizPlayer } from "@/components/quiz-zone";
 import { Button } from "@/components/ui/button";
 import {
   Trophy, Award, Check, Play, RotateCcw, Swords, Sparkles, Plus,
   Search, ChevronRight, KeyRound, LogOut, Menu, X,
   BarChart3, Users, Eye, EyeOff, Trash2, CheckCircle2,
-  Compass, Shield, Flame, Share2, Download, Smartphone, Copy, CheckCheck
+  Compass, Shield, Flame, Share2, Copy, CheckCheck,
+  FileUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MotionPresence } from "@/components/motion-presence";
 import { useWorkspaceNavigation, validateWorkspaceSearch } from "@/lib/workspace-navigation";
+import { SYLLABUS } from "@/lib/syllabus";
 
 export const Route = createFileRoute("/")({
   validateSearch: validateWorkspaceSearch,
   head: () => ({
-    title: "GK/GS Quiz Arena — Arun, Ali, Naveen, Devansh",
+    title: "SSC Quiz Arena — GK/GS, Maths & Reasoning",
     meta: [
-      { property: "og:title", content: "🎯 SSC GK/GS Quiz Arena" },
-      { name: "description", content: "SSC GK/GS Quizzes by subjects, leaderboard, attempt tracker & player scoreboard for Arun, Ali, Naveen and Devansh." },
-      { property: "og:description", content: "Compete on uploaded SSC GK/GS Quizzes, track marks and live leaderboard." },
+      { property: "og:title", content: "🎯 SSC Quiz Arena — GK/GS, Maths & Reasoning" },
+      { name: "description", content: "SSC Quizzes for GK/GS, Maths & Reasoning by subjects, leaderboard, attempt tracker & player scoreboard for Arun, Ali, Naveen and Devansh." },
+      { property: "og:description", content: "Compete on uploaded SSC Quizzes, track marks and live leaderboard." },
       { property: "og:image", content: "/icon-512.png" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -57,6 +59,44 @@ type Attempt = {
   at: string;
 };
 
+export type MasterSubject = "gk" | "maths" | "reasoning";
+
+export const MASTER_SUBJECTS = [
+  {
+    id: "gk" as const,
+    name: "GK / GS",
+    hindi: "सामान्य ज्ञान व विज्ञान",
+    icon: "🏛️",
+    accent: "text-amber-400",
+    badge: "Static · Polity · Hist · Geo · Sci",
+    gradient: "from-amber-500/20 via-primary/10 to-card",
+    borderActive: "border-amber-500 shadow-amber-500/20 bg-amber-500/10",
+    desc: "Constitution, History, Geography, Economics & Science",
+  },
+  {
+    id: "maths" as const,
+    name: "Maths",
+    hindi: "गणित (Quantitative Aptitude)",
+    icon: "🔢",
+    accent: "text-emerald-400",
+    badge: "Arithmetic · Advance · Mensuration",
+    gradient: "from-emerald-500/20 via-teal-500/10 to-card",
+    borderActive: "border-emerald-500 shadow-emerald-500/20 bg-emerald-500/10",
+    desc: "Percentage, Profit/Loss, Time/Work, Algebra, Trig & DI",
+  },
+  {
+    id: "reasoning" as const,
+    name: "Reasoning",
+    hindi: "तर्कशक्ति (General Intelligence)",
+    icon: "🧩",
+    accent: "text-cyan-400",
+    badge: "Blood Relations · Coding · Syllogism",
+    gradient: "from-cyan-500/20 via-blue-500/10 to-card",
+    borderActive: "border-cyan-500 shadow-cyan-500/20 bg-cyan-500/10",
+    desc: "Family Tree, Symbol Relations, Coding, Series & Figures",
+  },
+] as const;
+
 type SubjectBox = {
   id: string;
   name: string;
@@ -68,7 +108,7 @@ type SubjectBox = {
   matcher: (z: Quiz) => boolean;
 };
 
-const SUBJECT_BOXES: SubjectBox[] = [
+export const GK_SUBJECT_BOXES: SubjectBox[] = [
   {
     id: "all",
     name: "All GK/GS",
@@ -159,6 +199,202 @@ const SUBJECT_BOXES: SubjectBox[] = [
   },
 ];
 
+export const MATHS_SUBJECT_BOXES: SubjectBox[] = [
+  {
+    id: "all",
+    name: "All Maths",
+    hindi: "सम्पूर्ण गणित",
+    icon: "🔢",
+    badge: "Quant Master",
+    activeBg: "bg-amber-500/15 border-amber-500 shadow-lg shadow-amber-500/20",
+    desc: "Complete SSC Quantitative Aptitude collection",
+    matcher: () => true,
+  },
+  {
+    id: "arithmetic",
+    name: "Arithmetic",
+    hindi: "अंकगणित",
+    icon: "📊",
+    badge: "Commercial Maths",
+    activeBg: "bg-emerald-500/15 border-emerald-500 shadow-lg shadow-emerald-500/20",
+    desc: "Percentage, Profit & Loss, Ratio, SI & CI, Average",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("percent") || s.includes("profit") || s.includes("loss") || s.includes("discount") || s.includes("ratio") || s.includes("interest") || s.includes("average") || s.includes("partnership") || s.includes("mixture") || s.includes("alligation");
+    },
+  },
+  {
+    id: "time_work_speed",
+    name: "Time, Work & Speed",
+    hindi: "समय, कार्य और गति",
+    icon: "⏱️",
+    badge: "Pipes & Boats",
+    activeBg: "bg-blue-500/15 border-blue-500 shadow-lg shadow-blue-500/20",
+    desc: "Time & Work, Pipes & Cisterns, Speed, Distance & Trains",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("time") || s.includes("work") || s.includes("pipe") || s.includes("cistern") || s.includes("speed") || s.includes("distance") || s.includes("train") || s.includes("boat") || s.includes("stream") || s.includes("race");
+    },
+  },
+  {
+    id: "advance",
+    name: "Advance Maths",
+    hindi: "एडवांस गणित",
+    icon: "📐",
+    badge: "Algebra & Trig",
+    activeBg: "bg-purple-500/15 border-purple-500 shadow-lg shadow-purple-500/20",
+    desc: "Algebra, Trigonometry, Heights & Distances, Coordinates",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("algebra") || s.includes("trig") || s.includes("height") || s.includes("polynomial") || s.includes("coordinate");
+    },
+  },
+  {
+    id: "geometry",
+    name: "Geometry & 2D/3D",
+    hindi: "ज्यामिति व क्षेत्रमिति",
+    icon: "📏",
+    badge: "Triangles & Circles",
+    activeBg: "bg-rose-500/15 border-rose-500 shadow-lg shadow-rose-500/20",
+    desc: "Mensuration 2D & 3D, Triangles, Circles, Polygons",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("geom") || s.includes("mensuration") || s.includes("triangle") || s.includes("circle") || s.includes("polygon") || s.includes("area") || s.includes("volume") || s.includes("2d") || s.includes("3d");
+    },
+  },
+  {
+    id: "number_system",
+    name: "Number System",
+    hindi: "संख्या पद्धति",
+    icon: "🔢",
+    badge: "HCF & LCM",
+    activeBg: "bg-sky-500/15 border-sky-500 shadow-lg shadow-sky-500/20",
+    desc: "HCF, LCM, Divisibility, Unit Digit & Simplification",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("number") || s.includes("hcf") || s.includes("lcm") || s.includes("simplif") || s.includes("divisib") || s.includes("factor") || s.includes("remainder");
+    },
+  },
+  {
+    id: "di",
+    name: "Data Interpretation",
+    hindi: "आँकड़ा निर्वचन (DI)",
+    icon: "📈",
+    badge: "Charts & Tables",
+    activeBg: "bg-teal-500/15 border-teal-500 shadow-lg shadow-teal-500/20",
+    desc: "Pie Charts, Bar Graphs, Tables, Line Graphs & Stats",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("data") || s.includes("di") || s.includes("chart") || s.includes("graph") || s.includes("table") || s.includes("statistics") || s.includes("probability");
+    },
+  },
+];
+
+export const REASONING_SUBJECT_BOXES: SubjectBox[] = [
+  {
+    id: "all",
+    name: "All Reasoning",
+    hindi: "सम्पूर्ण तर्कशक्ति",
+    icon: "🧩",
+    badge: "GI Master Bank",
+    activeBg: "bg-cyan-500/15 border-cyan-500 shadow-lg shadow-cyan-500/20",
+    desc: "Complete SSC General Intelligence collection",
+    matcher: () => true,
+  },
+  {
+    id: "blood_relations",
+    name: "Blood Relations",
+    hindi: "रक्त संबंध व प्रतीक",
+    icon: "👥",
+    badge: "Family Tree & Symbols",
+    activeBg: "bg-rose-500/15 border-rose-500 shadow-lg shadow-rose-500/20",
+    desc: "Coded Relations, Family Trees, Pointing & Symbol Based",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("blood") || s.includes("relation") || s.includes("symbol") || s.includes("family");
+    },
+  },
+  {
+    id: "coding_decoding",
+    name: "Coding & Decoding",
+    hindi: "कोडिंग - डिकोडिंग",
+    icon: "🔐",
+    badge: "Letter & Number",
+    activeBg: "bg-indigo-500/15 border-indigo-500 shadow-lg shadow-indigo-500/20",
+    desc: "Letter Shifting, Number Coded, Matrix & Substitution",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("coding") || s.includes("decod") || s.includes("cipher") || s.includes("matrix");
+    },
+  },
+  {
+    id: "syllogism",
+    name: "Syllogism & Venn",
+    hindi: "न्याय निगमन व वेन",
+    icon: "⭕",
+    badge: "Statements & Logic",
+    activeBg: "bg-emerald-500/15 border-emerald-500 shadow-lg shadow-emerald-500/20",
+    desc: "Statements & Conclusions, Possibility Cases & Venn Diagrams",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("syllogism") || s.includes("venn") || s.includes("conclusion") || s.includes("statement") || s.includes("argument") || s.includes("assumption");
+    },
+  },
+  {
+    id: "series_analogy",
+    name: "Series & Analogy",
+    hindi: "श्रृंखला और सादृश्यता",
+    icon: "🔗",
+    badge: "Number & Alpha",
+    activeBg: "bg-amber-500/15 border-amber-500 shadow-lg shadow-amber-500/20",
+    desc: "Number Series, Alphabet Series, Semantic & Figural Analogy",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("series") || s.includes("analogy") || s.includes("analog") || s.includes("missing") || s.includes("odd one") || s.includes("classif");
+    },
+  },
+  {
+    id: "direction_seating",
+    name: "Direction & Seating",
+    hindi: "दिशा व बैठक व्यवस्था",
+    icon: "🧭",
+    badge: "Distance & Arrangement",
+    activeBg: "bg-sky-500/15 border-sky-500 shadow-lg shadow-sky-500/20",
+    desc: "Linear, Circular & Square Arrangements, Direction & Shadows",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("direction") || s.includes("distance") || s.includes("seating") || s.includes("arrangement") || s.includes("order") || s.includes("ranking");
+    },
+  },
+  {
+    id: "non_verbal",
+    name: "Non-Verbal & Figures",
+    hindi: "चित्रात्मक तर्क",
+    icon: "🪞",
+    badge: "Mirror, Dice & Paper",
+    activeBg: "bg-violet-500/15 border-violet-500 shadow-lg shadow-violet-500/20",
+    desc: "Dice, Cubes, Mirror & Water Images, Paper Cutting & Folding",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("mirror") || s.includes("water") || s.includes("paper") || s.includes("dice") || s.includes("cube") || s.includes("figure") || s.includes("embedded") || s.includes("pattern");
+    },
+  },
+];
+
+export function getQuizMasterSubject(z: Quiz): MasterSubject {
+  const ch = (z.chapter || "").toLowerCase();
+  const t = (z.title || "").toLowerCase();
+  const combined = `${ch} ${t}`;
+
+  if (ch.startsWith("reasoning") || /reasoning|blood|relation|symbol|coding|decod|syllogism|analogy|analogies|direction|seating|dice|cube|clock|calendar|series|mirror|paper|puzzle|venn|statement|conclusion/i.test(combined)) {
+    return "reasoning";
+  }
+  if (ch.startsWith("math") || /math|arithmetic|advance|percentage|ratio|proportion|profit|loss|discount|interest|\bsi\b|\bci\b|time|work|pipe|cistern|speed|distance|train|boat|stream|algebra|trigonometry|geometry|mensuration|number\s*system|hcf|lcm|simplification|data\s*interpretation|\bdi\b/i.test(combined)) {
+    return "maths";
+  }
+  return "gk";
+}
+
 function WhatsAppIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -173,6 +409,97 @@ function getShareData() {
   return { url, text };
 }
 
+const cleanNorm = (str: string) =>
+  str
+    .toLowerCase()
+    .replace(/^(?:maths|reasoning|gk\/gs|gk|gs)\s*:\s*/i, "")
+    .replace(/[–—\-&]/g, " ")
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+type SyllabusEntry = { chapter: string; clean: string; tokens: string[] };
+
+const SYLLABUS_ORDER_MAP: Record<MasterSubject, SyllabusEntry[]> = {
+  gk: [],
+  maths: [],
+  reasoning: [],
+};
+
+function initSyllabusOrderMap() {
+  const getSubjectKey = (s: MasterSubject) => {
+    if (s === "maths") return "Maths";
+    if (s === "reasoning") return "Reasoning";
+    return "GS";
+  };
+
+  (["gk", "maths", "reasoning"] as MasterSubject[]).forEach((sub) => {
+    const targetKey = getSubjectKey(sub);
+    const found = SYLLABUS.find((x) => x.subject.toLowerCase() === targetKey.toLowerCase());
+    if (!found) return;
+
+    const list: SyllabusEntry[] = [];
+    for (const sec of found.sections) {
+      for (const ch of sec.chapters) {
+        const clean = cleanNorm(ch);
+        const tokens = clean.split(" ").filter((t) => t.length > 2 && t !== "and" && t !== "the");
+        list.push({ chapter: ch, clean, tokens });
+      }
+    }
+    SYLLABUS_ORDER_MAP[sub] = list;
+  });
+}
+initSyllabusOrderMap();
+
+export function getSyllabusChapterOrder(subject: MasterSubject, rawChapter: string): number {
+  if (!rawChapter) return 9999;
+  const list = SYLLABUS_ORDER_MAP[subject] || [];
+  const cleanRaw = cleanNorm(rawChapter);
+  if (!cleanRaw) return 9999;
+
+  // 1. Exact clean match
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].clean === cleanRaw) return i;
+  }
+
+  // 2. Singular/plural match (e.g. "blood relations" vs "blood relation")
+  const singularRaw = cleanRaw.replace(/s\b/g, "");
+  for (let i = 0; i < list.length; i++) {
+    const singularSyllabus = list[i].clean.replace(/s\b/g, "");
+    if (singularSyllabus === singularRaw) return i;
+  }
+
+  // 3. Substring inclusion match (e.g. "Coding-Decoding Test" includes "coding decoding" or vice-versa)
+  for (let i = 0; i < list.length; i++) {
+    if (cleanRaw.includes(list[i].clean) || list[i].clean.includes(cleanRaw)) {
+      return i;
+    }
+  }
+
+  // 4. Token overlap match (e.g. if key tokens like "blood" and "relation" match)
+  const rawTokens = cleanRaw.split(" ").filter((t) => t.length > 2 && t !== "and" && t !== "the");
+  if (rawTokens.length > 0) {
+    let bestIndex = -1;
+    let bestScore = 0;
+
+    for (let i = 0; i < list.length; i++) {
+      const matchCount = list[i].tokens.filter((tok) =>
+        rawTokens.some((rt) => rt === tok || rt.startsWith(tok) || tok.startsWith(rt))
+      ).length;
+      if (matchCount > bestScore) {
+        bestScore = matchCount;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex !== -1 && bestScore >= Math.min(2, rawTokens.length)) {
+      return bestIndex;
+    }
+  }
+
+  return 9999;
+}
+
 function App() {
   return <ArenaApp />;
 }
@@ -180,23 +507,11 @@ function App() {
 function ArenaApp() {
   const [auth, setAuth] = useState<Auth | null>(null);
   const [ready, setReady] = useState(false);
-  const [showApkModal, setShowApkModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const { search, change } = useWorkspaceNavigation();
   const popup = search.panel === "password";
   const setPopup = (open: boolean) => change({ panel: open ? "password" : undefined }, !open);
-
-  // Listen for native PWA install prompt
-  useEffect(() => {
-    const handleBeforeInstall = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
-  }, []);
 
   useEffect(() => {
     const raw = localStorage.getItem("arena-auth");
@@ -204,11 +519,6 @@ function ArenaApp() {
       try {
         const parsed = JSON.parse(raw);
         setAuth(parsed);
-        // Show APK modal once on first-time login/visit
-        const apkPromptShown = localStorage.getItem("arena-apk-prompt-shown");
-        if (!apkPromptShown) {
-          setTimeout(() => setShowApkModal(true), 1200);
-        }
       } catch {}
     }
     setReady(true);
@@ -217,11 +527,6 @@ function ArenaApp() {
   const store = (a: Auth) => {
     localStorage.setItem("arena-auth", JSON.stringify(a));
     setAuth(a);
-    // Show APK modal on first login
-    const apkPromptShown = localStorage.getItem("arena-apk-prompt-shown");
-    if (!apkPromptShown) {
-      setTimeout(() => setShowApkModal(true), 800);
-    }
   };
 
   if (!ready) return null;
@@ -234,7 +539,6 @@ function ArenaApp() {
           if (a.isDefault) setPopup(true);
         }}
         onOpenShare={() => setShowShareModal(true)}
-        onOpenInstall={() => setShowApkModal(true)}
       />
     );
   }
@@ -244,24 +548,12 @@ function ArenaApp() {
       <Main
         auth={auth}
         openPass={() => setPopup(true)}
-        openInstall={() => setShowApkModal(true)}
         openShare={() => setShowShareModal(true)}
         logout={() => {
           localStorage.removeItem("arena-auth");
           setAuth(null);
         }}
       />
-
-      {/* Install as APK / Mobile App Modal */}
-      <MotionPresence open={showApkModal}>
-        <ApkInstallModal
-          deferredPrompt={deferredPrompt}
-          onClose={() => {
-            localStorage.setItem("arena-apk-prompt-shown", "true");
-            setShowApkModal(false);
-          }}
-        />
-      </MotionPresence>
 
       {/* WhatsApp Share Modal */}
       <MotionPresence open={showShareModal}>
@@ -283,110 +575,6 @@ function ArenaApp() {
   );
 }
 
-function ApkInstallModal({
-  deferredPrompt,
-  onClose,
-}: {
-  deferredPrompt: any;
-  onClose: () => void;
-}) {
-  const [installed, setInstalled] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      try {
-        deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
-        if (choice.outcome === "accepted") {
-          setInstalled(true);
-          setTimeout(() => onClose(), 1500);
-          return;
-        }
-      } catch {}
-    }
-    setShowSteps(true);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 p-4 backdrop-blur-md" onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card p-6 shadow-2xl backdrop-blur-2xl text-center"
-      >
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent shadow-xl shadow-primary/30 ring-4 ring-primary/20">
-          <Smartphone className="h-8 w-8 text-white" />
-        </div>
-
-        <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 uppercase tracking-wider">
-            <Sparkles size={11} /> Mobile APK Ready
-          </div>
-          <h2 className="mt-2 text-xl font-black font-display text-foreground tracking-tight">Install as Mobile App</h2>
-          <p className="mt-1 text-xs text-muted-foreground font-semibold">
-            Run SSC GK Arena like a native Android APK directly on your phone
-          </p>
-        </div>
-
-        {/* Perks list */}
-        <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 text-left space-y-2 text-xs font-semibold">
-          <div className="flex items-center gap-2 text-foreground">
-            <span className="text-emerald-400 font-black">✓</span>
-            <span><strong>Fullscreen view</strong> (bina browser address bar ke)</span>
-          </div>
-          <div className="flex items-center gap-2 text-foreground">
-            <span className="text-emerald-400 font-black">✓</span>
-            <span><strong>1-Tap Home Screen Icon</strong> (Seedhe app khulega)</span>
-          </div>
-          <div className="flex items-center gap-2 text-foreground">
-            <span className="text-emerald-400 font-black">✓</span>
-            <span><strong>Fast offline caching</strong> & instant score sync</span>
-          </div>
-        </div>
-
-        {/* Step by step guidance if direct prompt not available */}
-        {showSteps && (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 p-3 text-left space-y-2 text-xs text-primary-foreground">
-            <p className="font-extrabold text-primary text-[11px] uppercase tracking-wider">📱 How to Install on Phone:</p>
-            <div className="text-[11px] space-y-1 text-foreground font-medium">
-              <p><strong>Android Chrome:</strong> Tap <strong className="text-primary">⋮ (3 dots)</strong> at top right ➔ Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</p>
-              <p><strong>iPhone Safari:</strong> Tap <strong className="text-primary">Share icon</strong> ➔ Tap <strong>"Add to Home Screen"</strong>.</p>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2 pt-1">
-          <Button
-            variant="unstyled"
-            onClick={handleInstallClick}
-            className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 flex items-center justify-center gap-2"
-          >
-            {installed ? (
-              <>
-                <CheckCircle2 size={16} />
-                <span>Installed Successfully!</span>
-              </>
-            ) : (
-              <>
-                <Download size={16} />
-                <span>📲 Install App on Phone</span>
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="unstyled"
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-2xl border border-border/80 bg-secondary/60 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground active:scale-95"
-          >
-            Continue in Browser
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ShareModal({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -560,11 +748,9 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
 function Login({
   onLogin,
   onOpenShare,
-  onOpenInstall,
 }: {
   onLogin: (a: Auth) => void;
   onOpenShare: () => void;
-  onOpenInstall: () => void;
 }) {
   const doLogin = useServerFn(login);
   const [u, setU] = useState<string>("arun");
@@ -683,7 +869,7 @@ function Login({
         </Button>
 
         {/* Quick Utility Row */}
-        <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs font-bold">
+        <div className="pt-2 border-t border-border/60 flex items-center justify-center text-xs font-bold">
           <button
             type="button"
             onClick={onOpenShare}
@@ -691,15 +877,6 @@ function Login({
           >
             <WhatsAppIcon className="h-3.5 w-3.5" />
             <span>Share on WhatsApp</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenInstall}
-            className="text-primary hover:underline flex items-center gap-1"
-          >
-            <Download size={13} />
-            <span>Install as App</span>
           </button>
         </div>
       </form>
@@ -711,13 +888,11 @@ function Main({
   auth,
   logout,
   openPass,
-  openInstall,
   openShare,
 }: {
   auth: Auth;
   logout: () => void;
   openPass: () => void;
-  openInstall: () => void;
   openShare: () => void;
 }) {
   const qc = useQueryClient();
@@ -745,11 +920,22 @@ function Main({
   const quizzes = (q.data?.quizzes ?? []) as Quiz[];
   const attempts = (q.data?.attempts ?? []) as Attempt[];
 
+  const [currentSubject, setCurrentSubject] = useState<MasterSubject>(() => {
+    return (search.sub as MasterSubject) || "gk";
+  });
+
+  const handleSelectSubject = (s: MasterSubject) => {
+    setCurrentSubject(s);
+    change({ sub: s });
+  };
+
   // Auto-launch quiz if URL contains ?quiz= or ?quizId=
   useEffect(() => {
     if (search.quizId && quizzes.length > 0 && !playingQuiz) {
       const found = quizzes.find((x) => x.id === search.quizId);
       if (found) {
+        const foundSub = getQuizMasterSubject(found);
+        setCurrentSubject(foundSub);
         setPlayingQuiz(found);
       }
     }
@@ -800,7 +986,7 @@ function Main({
           <div className="min-w-0">
             <p className="font-display text-sm font-black text-foreground leading-tight truncate">{cap(auth.username)}</p>
             <p className="text-[10px] font-bold text-primary flex items-center gap-1">
-              <Sparkles size={10} /> GK/GS Arena Player
+              <Sparkles size={10} /> SSC Quiz Arena Player
             </p>
           </div>
         </div>
@@ -815,17 +1001,6 @@ function Main({
           >
             <WhatsAppIcon className="h-4 w-4" />
             <span className="hidden sm:inline">WhatsApp</span>
-          </Button>
-
-          {/* Install as APK App Button */}
-          <Button
-            variant="unstyled"
-            onClick={openInstall}
-            title="Install Mobile App"
-            className="flex items-center gap-1.5 rounded-2xl border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-extrabold text-primary hover:bg-primary/20 active:scale-95 transition"
-          >
-            <Download size={14} />
-            <span className="hidden sm:inline">App</span>
           </Button>
 
           <Button
@@ -872,24 +1047,6 @@ function Main({
               variant="unstyled"
               onClick={() => {
                 setMenu(false);
-                openInstall();
-              }}
-              className="flex w-full items-center gap-3 rounded-2xl bg-primary/10 hover:bg-primary/15 p-3.5 text-left active:scale-98 transition border border-primary/25"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0">
-                <Smartphone size={16} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-extrabold text-primary">Install as Mobile APK</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Direct fullscreen app on mobile home screen</p>
-              </div>
-              <ChevronRight size={15} className="text-primary" />
-            </Button>
-
-            <Button
-              variant="unstyled"
-              onClick={() => {
-                setMenu(false);
                 openPass();
               }}
               className="flex w-full items-center gap-3 rounded-2xl bg-secondary/60 hover:bg-secondary p-3.5 text-left active:scale-98 transition border border-border/60"
@@ -923,13 +1080,14 @@ function Main({
       {/* Main Container */}
       <main className="workspace-view px-3 sm:px-4 pt-3 max-w-4xl mx-auto space-y-4">
         {tab === "quiz" ? (
-          <GKQuizSection
+          <SubjectArenaSection
             auth={auth}
             quizzes={quizzes}
             attempts={attempts}
+            currentSubject={currentSubject}
+            onSelectSubject={handleSelectSubject}
             onPlayQuiz={(z) => setPlayingQuiz(z)}
             onOpenShare={openShare}
-            onOpenInstall={openInstall}
             onRefresh={() => qc.invalidateQueries({ queryKey: ["quizzes"] })}
           />
         ) : (
@@ -939,6 +1097,7 @@ function Main({
             attempts={attempts}
             onOpenShare={openShare}
             onPlayQuiz={(z) => setPlayingQuiz(z)}
+            defaultSubject={currentSubject}
           />
         )}
       </main>
@@ -960,7 +1119,7 @@ function Main({
             )}
           >
             <Compass size={17} strokeWidth={2.5} />
-            <span>GK/GS Quizzes</span>
+            <span>Practice Arena</span>
           </Button>
 
           <Button
@@ -985,59 +1144,325 @@ function Main({
   );
 }
 
-function GKQuizSection({
+function ArenaQuizUpload({
+  auth,
+  currentSubject,
+  onCreated,
+  onClose,
+}: {
+  auth: Auth;
+  currentSubject: MasterSubject;
+  onCreated: (targetSubject: MasterSubject) => void;
+  onClose: () => void;
+}) {
+  const create = useServerFn(createQuiz);
+  const [subject, setSubject] = useState<MasterSubject>(currentSubject);
+  const [title, setTitle] = useState("");
+  const [chapter, setChapter] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [parsedCount, setParsedCount] = useState<number | null>(null);
+  const [status, setStatus] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const suggestions = useMemo(() => {
+    if (subject === "maths") {
+      return [
+        "Arithmetic · Percentage",
+        "Arithmetic · Profit & Loss",
+        "Time, Work & Pipes",
+        "Speed, Distance & Trains",
+        "Advance Maths · Algebra",
+        "Advance Maths · Trigonometry",
+        "Geometry & Mensuration",
+        "Number System · HCF & LCM",
+        "Data Interpretation (DI)",
+      ];
+    }
+    if (subject === "reasoning") {
+      return [
+        "Blood Relations & Symbols",
+        "Coding-Decoding",
+        "Syllogism & Venn Diagrams",
+        "Number & Alphabet Series",
+        "Direction & Distance",
+        "Seating Arrangement",
+        "Mirror & Water Images",
+        "Dice & Cubes",
+      ];
+    }
+    return [
+      "Polity · Indian Constitution",
+      "History · Modern India",
+      "Geography · Rivers & Mountains",
+      "Economics · Budget & Banking",
+      "General Science · Biology",
+      "General Science · Physics & Chemistry",
+      "Static GK · Dances & Festivals",
+    ];
+  }, [subject]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setErr("");
+    if (!title) {
+      const cleanTitle = f.name.replace(/\.html?$/i, "").replace(/[_-]+/g, " ").trim();
+      setTitle(cleanTitle);
+    }
+    try {
+      const text = await f.text();
+      const qs = parseQuizHtml(text);
+      if (qs.length > 0) {
+        setParsedCount(qs.length);
+        setStatus(`✓ ${qs.length} questions detected from ${f.name}`);
+      } else {
+        setParsedCount(null);
+        setStatus(`File loaded (${(f.size / 1024).toFixed(1)} KB)`);
+      }
+    } catch {
+      setStatus(`File selected: ${f.name}`);
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return setErr("Please select an HTML or JSON quiz file.");
+    if (!title.trim()) return setErr("Please enter a title for this quiz.");
+    const finalChapter = chapter.trim() || (subject === "maths" ? "Maths Practice" : subject === "reasoning" ? "Reasoning Practice" : "GK/GS Practice");
+
+    setBusy(true);
+    setErr("");
+    setStatus("Reading and parsing quiz file...");
+    try {
+      const html = await file.text();
+      let qs: QQ[] = [];
+      try {
+        qs = parseQuizHtml(html);
+      } catch (err) {
+        console.warn("Parse warning:", err);
+      }
+
+      setStatus("Uploading quiz to Arena...");
+      const res = await create({
+        data: {
+          username: auth.username,
+          password: auth.password,
+          title: title.trim(),
+          chapter: `${subject === "maths" ? "Maths: " : subject === "reasoning" ? "Reasoning: " : ""}${finalChapter}`,
+          day: null,
+          html: qs.length > 0 ? undefined : html,
+          questions: qs.length > 0 ? qs : undefined,
+        },
+      });
+
+      if (!res || typeof res.count !== "number") {
+        throw new Error("Server did not return a valid count.");
+      }
+
+      setStatus(`✓ Successfully uploaded ${res.count} questions!`);
+      setTimeout(() => {
+        onCreated(subject);
+        onClose();
+      }, 800);
+    } catch (x: any) {
+      setErr(x?.message || "Failed to upload quiz. Please verify file format.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-primary/40 bg-card p-5 shadow-2xl space-y-4">
+      <div className="flex items-center justify-between pb-1 border-b border-border/70">
+        <div>
+          <h3 className="font-display text-sm font-black text-foreground flex items-center gap-2">
+            <span>➕ Upload Quiz to Arena (Admin Arun)</span>
+          </h3>
+          <p className="text-[11px] text-muted-foreground font-semibold">Upload chapter-wise quizzes for Maths, Reasoning, or GK/GS</p>
+        </div>
+        <Button variant="unstyled" onClick={onClose} className="p-1 rounded-full text-muted-foreground hover:bg-secondary">
+          <X size={17} />
+        </Button>
+      </div>
+
+      <form onSubmit={handleUpload} className="space-y-3.5">
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">
+            1. Select Master Subject:
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {MASTER_SUBJECTS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setSubject(s.id);
+                  setChapter("");
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 p-2.5 rounded-2xl border text-xs font-black transition active:scale-95",
+                  subject === s.id
+                    ? s.borderActive + " text-foreground"
+                    : "bg-secondary/60 border-border/70 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{s.icon}</span>
+                <span>{s.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
+            2. Quiz Title:
+          </label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Blood Relations & Symbol-Based Reasoning"
+            className="w-full rounded-2xl border border-input bg-background px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary text-foreground shadow-xs"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+            3. Chapter / Topic Name:
+          </label>
+          <input
+            value={chapter}
+            onChange={(e) => setChapter(e.target.value)}
+            placeholder="e.g. Blood Relations, Percentage, Modern History..."
+            className="w-full rounded-2xl border border-input bg-background px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary text-foreground shadow-xs"
+          />
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Quick pick:</span>
+            {suggestions.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setChapter(chip)}
+                className={cn(
+                  "rounded-xl border px-2 py-0.5 text-[10px] font-bold transition active:scale-95",
+                  chapter === chip
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary/70 border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
+            4. Select HTML or JSON Quiz File:
+          </label>
+          <input
+            type="file"
+            accept=".html,.htm,.json"
+            onChange={handleFileChange}
+            className="w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer rounded-2xl border border-dashed border-border/90 p-2 bg-secondary/30"
+          />
+          {status && (
+            <p className="text-[11px] font-bold text-emerald-400 mt-1 flex items-center gap-1">
+              <span>{status}</span>
+            </p>
+          )}
+        </div>
+
+        {err && (
+          <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2.5 text-xs font-bold text-destructive">
+            {err}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            type="button"
+            variant="unstyled"
+            onClick={onClose}
+            className="flex-1 rounded-2xl border border-border bg-secondary/60 py-3 text-xs font-bold text-muted-foreground hover:text-foreground active:scale-95"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={busy || !file}
+            variant="unstyled"
+            className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/30 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+          >
+            {busy ? (
+              <span>Uploading…</span>
+            ) : (
+              <>
+                <FileUp size={15} />
+                <span>Upload Quiz ({parsedCount ? `${parsedCount} Qs` : "File"})</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SubjectArenaSection({
   auth,
   quizzes,
   attempts,
+  currentSubject,
+  onSelectSubject,
   onPlayQuiz,
   onOpenShare,
-  onOpenInstall,
   onRefresh,
 }: {
   auth: Auth;
   quizzes: Quiz[];
   attempts: Attempt[];
+  currentSubject: MasterSubject;
+  onSelectSubject: (s: MasterSubject) => void;
   onPlayQuiz: (z: Quiz) => void;
   onOpenShare: () => void;
-  onOpenInstall: () => void;
   onRefresh: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [selectedSubjectId, setSelectedSubjectId] = useState("all");
+  const [selectedBoxId, setSelectedBoxId] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
   const doDeleteQuiz = useServerFn(deleteQuiz);
 
-  // Filter valid GK/GS quizzes
-  const gkQuizzes = useMemo(() => {
-    return quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:"));
-  }, [quizzes]);
+  const activeMaster = useMemo(() => {
+    return MASTER_SUBJECTS.find((m) => m.id === currentSubject) || MASTER_SUBJECTS[0];
+  }, [currentSubject]);
 
-  // Overall player marks & completed count
-  const myTotalQuizzesCompleted = useMemo(() => {
-    const completedIds = new Set(attempts.filter((a) => a.username === auth.username).map((a) => a.quiz_id));
-    return completedIds.size;
-  }, [attempts, auth.username]);
+  const activeBoxes = useMemo(() => {
+    if (currentSubject === "maths") return MATHS_SUBJECT_BOXES;
+    if (currentSubject === "reasoning") return REASONING_SUBJECT_BOXES;
+    return GK_SUBJECT_BOXES;
+  }, [currentSubject]);
 
-  const myTotalScore = useMemo(() => {
-    let tot = 0;
-    for (const z of gkQuizzes) {
-      const myAtts = attempts.filter((a) => a.username === auth.username && a.quiz_id === z.id);
-      if (myAtts.length > 0) {
-        tot += Math.max(...myAtts.map((a) => a.score));
-      }
-    }
-    return tot;
-  }, [gkQuizzes, attempts, auth.username]);
+  // Reset selected box when master subject switches
+  useEffect(() => {
+    setSelectedBoxId("all");
+  }, [currentSubject]);
 
-  // Active Subject Box Meta
-  const activeSubject = useMemo(() => {
-    return SUBJECT_BOXES.find((s) => s.id === selectedSubjectId) || SUBJECT_BOXES[0];
-  }, [selectedSubjectId]);
+  const activeBox = useMemo(() => {
+    return activeBoxes.find((b) => b.id === selectedBoxId) || activeBoxes[0];
+  }, [activeBoxes, selectedBoxId]);
 
-  // Calculate stats for each subject box
-  const subjectBoxStats = useMemo(() => {
-    return SUBJECT_BOXES.map((box) => {
-      const matching = box.id === "all" ? gkQuizzes : gkQuizzes.filter(box.matcher);
+  // Filter quizzes belonging to current master subject
+  const currentSubjectQuizzes = useMemo(() => {
+    return quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:") && getQuizMasterSubject(z) === currentSubject);
+  }, [quizzes, currentSubject]);
+
+  // Box stats
+  const boxStats = useMemo(() => {
+    return activeBoxes.map((box) => {
+      const matching = box.id === "all" ? currentSubjectQuizzes : currentSubjectQuizzes.filter(box.matcher);
       const totalQuestions = matching.reduce((sum, z) => sum + (z.questions?.length || 0), 0);
       const completedCount = matching.filter((z) =>
         attempts.some((a) => a.username === auth.username && a.quiz_id === z.id)
@@ -1049,44 +1474,78 @@ function GKQuizSection({
         completedCount,
       };
     });
-  }, [gkQuizzes, attempts, auth.username]);
+  }, [activeBoxes, currentSubjectQuizzes, attempts, auth.username]);
 
-  // Filter quizzes by active subject box + search query
+  // Overall player marks & completed count in this master subject
+  const myTotalCompleted = useMemo(() => {
+    const completedIds = new Set(
+      attempts.filter((a) => a.username === auth.username).map((a) => a.quiz_id)
+    );
+    return currentSubjectQuizzes.filter((z) => completedIds.has(z.id)).length;
+  }, [currentSubjectQuizzes, attempts, auth.username]);
+
+  const myTotalScore = useMemo(() => {
+    let tot = 0;
+    for (const z of currentSubjectQuizzes) {
+      const myAtts = attempts.filter((a) => a.username === auth.username && a.quiz_id === z.id);
+      if (myAtts.length > 0) {
+        tot += Math.max(...myAtts.map((a) => a.score));
+      }
+    }
+    return tot;
+  }, [currentSubjectQuizzes, attempts, auth.username]);
+
+  // Filter quizzes by active box and search
   const filtered = useMemo(() => {
-    return gkQuizzes.filter((z) => {
+    return currentSubjectQuizzes.filter((z) => {
       const title = (z.title || "").toLowerCase();
       const chap = (z.chapter || "").toLowerCase();
       const q = search.toLowerCase().trim();
       const matchesSearch = !q || title.includes(q) || chap.includes(q);
-
       if (!matchesSearch) return false;
-      if (selectedSubjectId === "all") return true;
-      return activeSubject.matcher(z);
+      if (selectedBoxId === "all") return true;
+      return activeBox.matcher(z);
     });
-  }, [gkQuizzes, search, selectedSubjectId, activeSubject]);
+  }, [currentSubjectQuizzes, search, selectedBoxId, activeBox]);
 
-  // Sort quizzes: earliest added at TOP, newest at bottom, ordered chapter-wise
-  const sortedQuizzes = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      // Compare chapters if both have defined chapter names
-      const chapA = (a.chapter || "").trim();
-      const chapB = (b.chapter || "").trim();
-      if (chapA && chapB && chapA !== chapB) {
-        return chapA.localeCompare(chapB, undefined, { numeric: true, sensitivity: "base" });
-      }
-      // Earliest added first (at TOP)
-      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return timeA - timeB;
+  // Group by chapter: earliest added quiz at TOP, newest at BOTTOM
+  const chapterGroups = useMemo(() => {
+    const map = new Map<string, Quiz[]>();
+    for (const z of filtered) {
+      let rawCh = (z.chapter || "General Practice").trim();
+      rawCh = rawCh.replace(/^(?:maths|reasoning|gk\/gs|gk)\s*:\s*/i, "").trim() || "General Practice";
+      if (!map.has(rawCh)) map.set(rawCh, []);
+      map.get(rawCh)!.push(z);
+    }
+
+    const groups: { chapter: string; quizzes: Quiz[]; totalQuestions: number }[] = [];
+    for (const [chapter, groupQuizzes] of map.entries()) {
+      groupQuizzes.sort((a, b) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeA - timeB; // Earliest at TOP
+      });
+      const totalQuestions = groupQuizzes.reduce((s, z) => s + (z.questions?.length || 0), 0);
+      groups.push({ chapter, quizzes: groupQuizzes, totalQuestions });
+    }
+
+    groups.sort((a, b) => {
+      const orderA = getSyllabusChapterOrder(currentSubject, a.chapter);
+      const orderB = getSyllabusChapterOrder(currentSubject, b.chapter);
+      if (orderA !== orderB) return orderA - orderB;
+      return a.chapter.localeCompare(b.chapter, undefined, { numeric: true, sensitivity: "base" });
     });
-  }, [filtered]);
+    return groups;
+  }, [filtered, currentSubject]);
 
   const [copiedQuizId, setCopiedQuizId] = useState<string | null>(null);
 
   const handleShareParticularQuiz = (z: Quiz) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ssc-arena.pages.dev";
-    const link = `${origin}/?quiz=${z.id}`;
-    const text = `🎯 *SSC GK/GS Quiz Challenge!*\n\n📝 *Quiz:* ${z.title}\n📚 *Chapter:* ${z.chapter || "GK/GS"}\n❓ *Questions:* ${z.questions.length} Qs (${z.questions.length * 2} Marks)\n\n⚔️ *Players:* Arun, Ali, Naveen, Devansh\n\n👉 *Direct Quiz Link (Click to attempt):* \n${link}`;
+    const sub = getQuizMasterSubject(z);
+    const link = `${origin}/?sub=${sub}&quizId=${z.id}`;
+    const subLabel = sub === "maths" ? "Maths" : sub === "reasoning" ? "Reasoning" : "GK/GS";
+    const text = `🎯 *SSC ${subLabel} Quiz Challenge!*\n\n📝 *Quiz:* ${z.title}\n📚 *Chapter:* ${z.chapter || subLabel}\n❓ *Questions:* ${z.questions.length} Qs (${z.questions.length * 2} Marks)\n\n⚔️ *Players:* Arun, Ali, Naveen, Devansh\n\n👉 *Direct Quiz Link (Click to attempt):* \n${link}`;
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
     try {
@@ -1108,15 +1567,89 @@ function GKQuizSection({
 
   return (
     <div className="space-y-4">
-      {/* Hero Stats Card */}
+      {/* ============================================================ */}
+      {/* 3 MASTER SUBJECTS CARDS (GK/GS, Maths, Reasoning)            */}
+      {/* ============================================================ */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between px-1">
+          <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+            Select Subject Arena
+          </label>
+          <span className="text-[10px] font-bold text-muted-foreground">3 Core Subjects</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {MASTER_SUBJECTS.map((sub) => {
+            const isSelected = currentSubject === sub.id;
+            const matchingQuizzes = quizzes.filter(
+              (z) => !z.expired && !z.chapter?.startsWith("test:") && getQuizMasterSubject(z) === sub.id
+            );
+            const count = matchingQuizzes.length;
+            const totalQs = matchingQuizzes.reduce((acc, qz) => acc + (qz.questions?.length || 0), 0);
+
+            return (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => {
+                  onSelectSubject(sub.id);
+                  setSelectedBoxId("all");
+                }}
+                className={cn(
+                  "group relative flex flex-col p-3 sm:p-4 rounded-3xl border text-left transition-all duration-200 active:scale-95 shadow-soft",
+                  isSelected
+                    ? cn("border-2 shadow-lg", sub.borderActive)
+                    : "bg-card/90 border-border/80 hover:border-border hover:bg-card"
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-2xl sm:text-3xl">{sub.icon}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full border tabular-nums",
+                      isSelected
+                        ? "bg-white/15 text-white border-white/20"
+                        : "bg-secondary text-muted-foreground border-border/80"
+                    )}
+                  >
+                    {count} {count === 1 ? "Quiz" : "Quizzes"}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 min-w-0">
+                  <h3 className={cn("font-display font-black text-sm sm:text-base tracking-tight truncate", isSelected ? "text-foreground font-extrabold" : "text-foreground/90")}>
+                    {sub.name}
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-muted-foreground truncate">{sub.hindi}</p>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] font-bold text-muted-foreground w-full">
+                  <span>{totalQs} Qs</span>
+                  {isSelected ? (
+                    <span className="text-emerald-400 font-black flex items-center gap-1">
+                      Active ●
+                    </span>
+                  ) : (
+                    <span>Tap to view</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hero Stats Card for Current Subject */}
       <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-secondary/50 p-5 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[10px] font-black text-primary uppercase tracking-wider">
-              <Sparkles size={11} /> SSC GK / GS Arena
+              <Sparkles size={11} /> SSC {activeMaster.name} Arena
             </div>
-            <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground tracking-tight">GK/GS Quizzes</h2>
-            <p className="text-xs text-muted-foreground font-semibold mt-0.5">Select a subject box below & solve quizzes to compete</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground tracking-tight">
+              {activeMaster.icon} {activeMaster.name} Quizzes
+            </h2>
+            <p className="text-xs text-muted-foreground font-semibold mt-0.5">{activeMaster.desc}</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1137,11 +1670,11 @@ function GKQuizSection({
         <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border/60 text-center">
           <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Uploaded</span>
-            <span className="font-display text-lg font-black text-foreground tabular-nums">{gkQuizzes.length}</span>
+            <span className="font-display text-lg font-black text-foreground tabular-nums">{currentSubjectQuizzes.length}</span>
           </div>
           <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Completed</span>
-            <span className="font-display text-lg font-black text-emerald-400 tabular-nums">{myTotalQuizzesCompleted}</span>
+            <span className="font-display text-lg font-black text-emerald-400 tabular-nums">{myTotalCompleted}</span>
           </div>
           <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Your Marks</span>
@@ -1173,48 +1706,45 @@ function GKQuizSection({
 
       {/* Admin Upload Drawer */}
       {showUpload && auth.username === "arun" && (
-        <div className="rounded-3xl border border-primary/40 bg-card p-5 shadow-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display text-sm font-extrabold text-foreground">Upload GK/GS Quiz (Admin)</h3>
-            <span className="text-xs text-muted-foreground font-semibold">HTML or JSON files supported</span>
-          </div>
-          <QuizUpload
-            mode="quiz"
-            onCreated={() => {
-              setShowUpload(false);
-              onRefresh();
-            }}
-          />
-        </div>
+        <ArenaQuizUpload
+          auth={auth}
+          currentSubject={currentSubject}
+          onCreated={(targetSub) => {
+            setShowUpload(false);
+            if (targetSub !== currentSubject) onSelectSubject(targetSub);
+            onRefresh();
+          }}
+          onClose={() => setShowUpload(false)}
+        />
       )}
 
       {/* ============================================================ */}
-      {/* SUBJECT BOXES GRID (7 Categories)                            */}
+      {/* SUBJECT BOXES GRID (7 Categories for active master subject)    */}
       {/* ============================================================ */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-display font-extrabold text-sm text-foreground flex items-center gap-2">
-            <span>Subject Boxes</span>
+            <span>{activeMaster.name} Topic Boxes</span>
             <span className="text-[10px] font-bold text-muted-foreground">Tap to filter</span>
           </h3>
-          {selectedSubjectId !== "all" && (
+          {selectedBoxId !== "all" && (
             <button
-              onClick={() => setSelectedSubjectId("all")}
+              onClick={() => setSelectedBoxId("all")}
               className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
             >
-              Reset to All ({gkQuizzes.length})
+              Reset to All ({currentSubjectQuizzes.length})
             </button>
           )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-          {subjectBoxStats.map((box) => {
-            const isSelected = selectedSubjectId === box.id;
+          {boxStats.map((box) => {
+            const isSelected = selectedBoxId === box.id;
             return (
               <button
                 key={box.id}
                 type="button"
-                onClick={() => setSelectedSubjectId(box.id)}
+                onClick={() => setSelectedBoxId(box.id)}
                 className={cn(
                   "group relative flex flex-col text-left p-3.5 rounded-3xl border transition-all duration-200 active:scale-[0.98]",
                   isSelected
@@ -1271,7 +1801,7 @@ function GKQuizSection({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search in ${activeSubject.name} (${filtered.length} quizzes)...`}
+            placeholder={`Search in ${activeMaster.name} · ${activeBox.name} (${filtered.length} quizzes)...`}
             className="w-full rounded-2xl border border-input bg-card pl-10 pr-9 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-xs transition"
           />
           {search && (
@@ -1281,14 +1811,14 @@ function GKQuizSection({
           )}
         </div>
 
-        {selectedSubjectId !== "all" && (
+        {selectedBoxId !== "all" && (
           <div className="flex items-center justify-between rounded-2xl bg-secondary/70 border border-border/80 px-3 py-2 text-xs">
             <span className="font-bold text-foreground flex items-center gap-1.5">
-              <span>{activeSubject.icon}</span>
-              <span>Showing: <strong>{activeSubject.name}</strong> ({filtered.length} available)</span>
+              <span>{activeBox.icon}</span>
+              <span>Showing: <strong>{activeBox.name}</strong> ({filtered.length} available)</span>
             </span>
             <button
-              onClick={() => setSelectedSubjectId("all")}
+              onClick={() => setSelectedBoxId("all")}
               className="text-[11px] font-black text-primary hover:underline"
             >
               Clear Filter
@@ -1298,13 +1828,13 @@ function GKQuizSection({
       </div>
 
       {/* ============================================================ */}
-      {/* QUIZZES LIST                                                 */}
+      {/* CHAPTER-WISE GROUPED QUIZZES LIST (Oldest Top, Newest Bottom) */}
       {/* ============================================================ */}
-      <div className="space-y-3">
-        {sortedQuizzes.length === 0 ? (
+      <div className="space-y-6">
+        {chapterGroups.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border/90 p-8 text-center space-y-2 bg-card/50">
-            <p className="text-sm font-bold text-foreground">No quizzes found for this subject.</p>
-            <p className="text-xs text-muted-foreground">Try selecting a different subject box above or upload new quiz.</p>
+            <p className="text-sm font-bold text-foreground">No quizzes found for {activeMaster.name}.</p>
+            <p className="text-xs text-muted-foreground">Select another topic box above or upload a new quiz.</p>
             {auth.username === "arun" && (
               <Button
                 variant="unstyled"
@@ -1316,171 +1846,191 @@ function GKQuizSection({
             )}
           </div>
         ) : (
-          sortedQuizzes.map((z, idx) => {
-            const myAttempts = attempts.filter((a) => a.username === auth.username && a.quiz_id === z.id);
-            const bestAttempt = myAttempts.reduce(
-              (best, cur) => (cur.score > (best?.score ?? -1) ? cur : best),
-              null as Attempt | null
-            );
-            const timesAttempted = myAttempts.length;
-            const percentage = bestAttempt ? Math.round((bestAttempt.score / (bestAttempt.total || 1)) * 100) : 0;
-
-            // Other players who attempted this quiz
-            const otherPlayerAttempts = PLAYERS.map((u) => {
-              const uAtts = attempts.filter((a) => a.username === u && a.quiz_id === z.id);
-              const best = uAtts.reduce(
-                (b, c) => (c.score > (b?.score ?? -1) ? c : b),
-                null as Attempt | null
-              );
-              return { username: u, best, count: uAtts.length };
-            }).filter((p) => p.count > 0);
-
-            // Find matching subject box for card badge
-            const quizSubject = SUBJECT_BOXES.slice(1).find((sb) => sb.matcher(z)) || SUBJECT_BOXES[0];
-
-            return (
-              <div
-                key={z.id}
-                className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft space-y-3.5 hover:border-border transition-all"
-              >
-                {/* Row 1: Badges, Title & Delete (Admin) */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="rounded-full bg-secondary/80 border border-border px-2 py-0.5 text-[10px] font-black text-muted-foreground">
-                        #{idx + 1}
-                      </span>
-                      <span className="rounded-full bg-secondary border border-border px-2 py-0.5 text-[10px] font-black text-foreground inline-flex items-center gap-1">
-                        <span>{quizSubject.icon}</span>
-                        <span>{quizSubject.name}</span>
-                      </span>
-                      <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5">
-                        {z.questions.length} Questions
-                      </span>
-                      <span className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-black px-2 py-0.5">
-                        {z.questions.length * 2} Marks
-                      </span>
-                    </div>
-
-                    <h4 className="font-display font-extrabold text-base text-foreground leading-snug pt-0.5">
-                      {z.title}
-                    </h4>
-
-                    {z.chapter && (
-                      <p className="text-[11px] font-semibold text-muted-foreground">
-                        {z.chapter}
-                      </p>
-                    )}
-                  </div>
-
-                  {auth.username === "arun" && (
-                    <Button
-                      variant="unstyled"
-                      onClick={async () => {
-                        if (confirm(`Delete quiz "${z.title}"? This cannot be undone.`)) {
-                          await doDeleteQuiz({ data: { username: auth.username, password: auth.password, quizId: z.id } });
-                          onRefresh();
-                        }
-                      }}
-                      title="Delete quiz (Admin)"
-                      className="p-1.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                    >
-                      <Trash2 size={15} />
-                    </Button>
-                  )}
+          chapterGroups.map((group) => (
+            <div key={group.chapter} className="space-y-3">
+              {/* Chapter Header Banner */}
+              <div className="flex items-center justify-between px-2 py-1 border-b border-border/60">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base">{activeMaster.icon}</span>
+                  <h4 className="font-display font-extrabold text-sm text-foreground truncate">
+                    {group.chapter}
+                  </h4>
                 </div>
-
-                {/* Row 2: Your Performance on this Quiz */}
-                <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-muted-foreground flex items-center gap-1">
-                      <span>Your Best Score:</span>
-                      {bestAttempt ? (
-                        <span className="font-black text-emerald-400 tabular-nums">
-                          {bestAttempt.score} / {bestAttempt.total} ({percentage}%)
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground font-semibold">Not attempted yet</span>
-                      )}
-                    </span>
-
-                    <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
-                      <span>Kitni baar diya:</span>
-                      <span className="font-black text-foreground tabular-nums">
-                        {timesAttempted} {timesAttempted === 1 ? "time" : "times"}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Visual Progress Bar */}
-                  {bestAttempt && (
-                    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden border border-border/50">
-                      <div
-                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, Math.max(5, percentage))}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Row 3: Other Players Activity Strip */}
-                {otherPlayerAttempts.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-0.5">
-                    <span className="text-muted-foreground font-bold">Other players:</span>
-                    {otherPlayerAttempts.map((p) => (
-                      <span
-                        key={p.username}
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-xl border px-2 py-0.5 font-bold text-[10px]",
-                          p.username === auth.username
-                            ? "border-primary/40 bg-primary/10 text-primary"
-                            : "border-border/70 bg-secondary/60 text-foreground"
-                        )}
-                      >
-                        <span className="h-4 w-4 rounded-md bg-secondary text-[9px] font-black flex items-center justify-center shrink-0">
-                          {p.username[0].toUpperCase()}
-                        </span>
-                        <span className="font-extrabold">{cap(p.username)}:</span>
-                        <span className="tabular-nums font-black">{p.best?.score ?? 0}/{z.questions.length}</span>
-                        <span className="text-muted-foreground font-medium">({p.count}x)</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Row 4: Action Button + Particular Quiz WhatsApp Share */}
-                <div className="pt-1 flex items-center gap-2">
-                  <Button
-                    variant="unstyled"
-                    onClick={() => onPlayQuiz(z)}
-                    className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-98 flex items-center justify-center gap-2 transition"
-                  >
-                    {timesAttempted > 0 ? (
-                      <>
-                        <RotateCcw size={14} />
-                        <span>Re-attempt Quiz</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play size={14} fill="currentColor" />
-                        <span>Start Quiz</span>
-                      </>
-                    )}
-                  </Button>
-
-                  <Button
-                    variant="unstyled"
-                    onClick={() => handleShareParticularQuiz(z)}
-                    title="Send this quiz challenge on WhatsApp"
-                    className="shrink-0 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-3 text-xs font-black text-emerald-400 active:scale-95 flex items-center gap-1.5 transition"
-                  >
-                    <WhatsAppIcon className="h-4 w-4" />
-                    <span>{copiedQuizId === z.id ? "Copied Link!" : "Share Quiz"}</span>
-                  </Button>
-                </div>
+                <span className="rounded-full bg-secondary border border-border px-2.5 py-0.5 text-[10px] font-black text-muted-foreground shrink-0">
+                  {group.quizzes.length} {group.quizzes.length === 1 ? "Quiz" : "Quizzes"} · {group.totalQuestions} Qs
+                </span>
               </div>
-            );
-          })
+
+              {/* Quizzes inside this Chapter (sorted: earliest at TOP, latest at BOTTOM) */}
+              <div className="space-y-3">
+                {group.quizzes.map((z, idx) => {
+                  const myAttempts = attempts.filter((a) => a.username === auth.username && a.quiz_id === z.id);
+                  const bestAttempt = myAttempts.reduce(
+                    (best, cur) => (cur.score > (best?.score ?? -1) ? cur : best),
+                    null as Attempt | null
+                  );
+                  const timesAttempted = myAttempts.length;
+                  const percentage = bestAttempt ? Math.round((bestAttempt.score / (bestAttempt.total || 1)) * 100) : 0;
+
+                  // Other players who attempted this quiz
+                  const otherPlayerAttempts = PLAYERS.map((u) => {
+                    const uAtts = attempts.filter((a) => a.username === u && a.quiz_id === z.id);
+                    const best = uAtts.reduce(
+                      (b, c) => (c.score > (b?.score ?? -1) ? c : b),
+                      null as Attempt | null
+                    );
+                    return { username: u, best, count: uAtts.length };
+                  }).filter((p) => p.count > 0);
+
+                  // Find matching subject box for card badge
+                  const quizBox = activeBoxes.slice(1).find((sb) => sb.matcher(z)) || activeBoxes[0];
+
+                  return (
+                    <div
+                      key={z.id}
+                      className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft space-y-3.5 hover:border-border transition-all"
+                    >
+                      {/* Row 1: Badges, Title & Delete (Admin) */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="rounded-full bg-secondary/80 border border-border px-2 py-0.5 text-[10px] font-black text-muted-foreground">
+                              #{idx + 1}
+                            </span>
+                            <span className="rounded-full bg-secondary border border-border px-2 py-0.5 text-[10px] font-black text-foreground inline-flex items-center gap-1">
+                              <span>{quizBox.icon}</span>
+                              <span>{quizBox.name}</span>
+                            </span>
+                            <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5">
+                              {z.questions.length} Questions
+                            </span>
+                            <span className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-black px-2 py-0.5">
+                              {z.questions.length * 2} Marks
+                            </span>
+                          </div>
+
+                          <h4 className="font-display font-extrabold text-base text-foreground leading-snug pt-0.5">
+                            {z.title}
+                          </h4>
+
+                          {z.chapter && (
+                            <p className="text-[11px] font-semibold text-muted-foreground">
+                              {z.chapter}
+                            </p>
+                          )}
+                        </div>
+
+                        {auth.username === "arun" && (
+                          <Button
+                            variant="unstyled"
+                            onClick={async () => {
+                              if (confirm(`Delete quiz "${z.title}"? This cannot be undone.`)) {
+                                await doDeleteQuiz({ data: { username: auth.username, password: auth.password, quizId: z.id } });
+                                onRefresh();
+                              }
+                            }}
+                            title="Delete quiz (Admin)"
+                            className="p-1.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                          >
+                            <Trash2 size={15} />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Row 2: Your Performance on this Quiz */}
+                      <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-muted-foreground flex items-center gap-1">
+                            <span>Your Best Score:</span>
+                            {bestAttempt ? (
+                              <span className="font-black text-emerald-400 tabular-nums">
+                                {bestAttempt.score} / {bestAttempt.total} ({percentage}%)
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground font-semibold">Not attempted yet</span>
+                            )}
+                          </span>
+
+                          <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                            <span>Kitni baar diya:</span>
+                            <span className="font-black text-foreground tabular-nums">
+                              {timesAttempted} {timesAttempted === 1 ? "time" : "times"}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Visual Progress Bar */}
+                        {bestAttempt && (
+                          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden border border-border/50">
+                            <div
+                              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.min(100, Math.max(5, percentage))}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Row 3: Other Players Activity Strip */}
+                      {otherPlayerAttempts.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-0.5">
+                          <span className="text-muted-foreground font-bold">Other players:</span>
+                          {otherPlayerAttempts.map((p) => (
+                            <span
+                              key={p.username}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-xl border px-2 py-0.5 font-bold text-[10px]",
+                                p.username === auth.username
+                                  ? "border-primary/40 bg-primary/10 text-primary"
+                                  : "border-border/70 bg-secondary/60 text-foreground"
+                              )}
+                            >
+                              <span className="h-4 w-4 rounded-md bg-secondary text-[9px] font-black flex items-center justify-center shrink-0">
+                                {p.username[0].toUpperCase()}
+                              </span>
+                              <span className="font-extrabold">{cap(p.username)}:</span>
+                              <span className="tabular-nums font-black">{p.best?.score ?? 0}/{z.questions.length}</span>
+                              <span className="text-muted-foreground font-medium">({p.count}x)</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Row 4: Action Button + Particular Quiz WhatsApp Share */}
+                      <div className="pt-1 flex items-center gap-2">
+                        <Button
+                          variant="unstyled"
+                          onClick={() => onPlayQuiz(z)}
+                          className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-98 flex items-center justify-center gap-2 transition"
+                        >
+                          {timesAttempted > 0 ? (
+                            <>
+                              <RotateCcw size={14} />
+                              <span>Re-attempt Quiz</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play size={14} fill="currentColor" />
+                              <span>Start Quiz</span>
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="unstyled"
+                          onClick={() => handleShareParticularQuiz(z)}
+                          title="Send this quiz challenge on WhatsApp"
+                          className="shrink-0 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-3 text-xs font-black text-emerald-400 active:scale-95 flex items-center gap-1.5 transition"
+                        >
+                          <WhatsAppIcon className="h-4 w-4" />
+                          <span>{copiedQuizId === z.id ? "Copied Link!" : "Share Quiz"}</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
@@ -1493,29 +2043,47 @@ function LeaderboardSection({
   attempts,
   onOpenShare,
   onPlayQuiz,
+  defaultSubject,
 }: {
   auth: Auth;
   quizzes: Quiz[];
   attempts: Attempt[];
   onOpenShare: () => void;
   onPlayQuiz: (z: Quiz) => void;
+  defaultSubject?: MasterSubject;
 }) {
-  const [selectedQuizId, setSelectedQuizId] = useState<string>(() => quizzes[0]?.id ?? "");
+  const [subjFilter, setSubjFilter] = useState<"all" | MasterSubject>(defaultSubject || "all");
+
+  const relevantQuizzes = useMemo(() => {
+    const list = quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:"));
+    if (subjFilter === "all") return list;
+    return list.filter((z) => getQuizMasterSubject(z) === subjFilter);
+  }, [quizzes, subjFilter]);
+
+  const [selectedQuizId, setSelectedQuizId] = useState<string>(() => relevantQuizzes[0]?.id ?? "");
+
+  useEffect(() => {
+    if (!relevantQuizzes.some((z) => z.id === selectedQuizId)) {
+      setSelectedQuizId(relevantQuizzes[0]?.id ?? "");
+    }
+  }, [relevantQuizzes, selectedQuizId]);
+
   const [rival, setRival] = useState<string>(() => {
     const others = PLAYERS.filter((u) => u !== auth.username);
     return others[0] || PLAYERS[0];
   });
 
-  // Calculate Overall Standings for the 4 fixed players
+  // Calculate Standings for the 4 fixed players
   const standings = useMemo(() => {
     const list = PLAYERS.map((u) => {
       const uAttempts = attempts.filter((a) => a.username === u);
-      const totalAttempts = uAttempts.length;
-      const uniqueQuizzes = new Set(uAttempts.map((a) => a.quiz_id)).size;
+      const relevantAttempts = uAttempts.filter((a) => relevantQuizzes.some((z) => z.id === a.quiz_id));
+      const totalAttempts = relevantAttempts.length;
+      const uniqueQuizzes = new Set(relevantAttempts.map((a) => a.quiz_id)).size;
 
       let totalScore = 0;
       let totalPossible = 0;
-      for (const z of quizzes) {
+      for (const z of relevantQuizzes) {
         const atts = uAttempts.filter((a) => a.quiz_id === z.id);
         if (atts.length > 0) {
           const best = Math.max(...atts.map((a) => a.score));
@@ -1540,14 +2108,14 @@ function LeaderboardSection({
     list.sort((a, b) => b.totalMarks - a.totalMarks || b.accuracy - a.accuracy || b.totalAttempts - a.totalAttempts);
     let r = 0;
     return list.map((x) => ({ ...x, rank: x.totalAttempts > 0 ? ++r : null }));
-  }, [attempts, quizzes]);
+  }, [attempts, relevantQuizzes]);
 
   const first = standings.find((s) => s.rank === 1);
   const second = standings.find((s) => s.rank === 2);
   const third = standings.find((s) => s.rank === 3);
 
   // Quiz-specific player breakdown
-  const selectedQuiz = useMemo(() => quizzes.find((z) => z.id === selectedQuizId) || quizzes[0], [quizzes, selectedQuizId]);
+  const selectedQuiz = useMemo(() => relevantQuizzes.find((z) => z.id === selectedQuizId) || relevantQuizzes[0], [relevantQuizzes, selectedQuizId]);
   const quizPlayerBreakdown = useMemo(() => {
     if (!selectedQuiz) return [];
     const list = PLAYERS.map((u) => {
@@ -1580,7 +2148,7 @@ function LeaderboardSection({
       <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft flex items-center justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-            <Trophy size={11} /> Live GK/GS Leaderboard
+            <Trophy size={11} /> Live Arena Leaderboard
           </div>
           <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground">Scoreboard & Comparison</h2>
           <p className="text-xs text-muted-foreground font-semibold mt-0.5">Player rankings for Arun, Ali, Naveen & Devansh</p>
@@ -1594,6 +2162,38 @@ function LeaderboardSection({
           <WhatsAppIcon className="h-4 w-4" />
           <span>Share</span>
         </Button>
+      </div>
+
+      {/* Subject Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: "all", label: "All Subjects", icon: "🌟" },
+          { id: "gk", label: "GK / GS", icon: "🏛️" },
+          { id: "maths", label: "Maths", icon: "🔢" },
+          { id: "reasoning", label: "Reasoning", icon: "🧩" },
+        ].map((tab) => {
+          const isSelected = subjFilter === tab.id;
+          const count = tab.id === "all"
+            ? quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:")).length
+            : quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:") && getQuizMasterSubject(z) === tab.id).length;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSubjFilter(tab.id as any)}
+              className={cn(
+                "rounded-2xl px-3.5 py-2 text-xs font-black transition active:scale-95 flex items-center gap-1.5 shrink-0 border",
+                isSelected
+                  ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                  : "bg-secondary/70 border-border/80 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              <span className="text-[10px] opacity-80 font-bold tabular-nums">({count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Top 3 Podium */}
@@ -1664,33 +2264,37 @@ function LeaderboardSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 size={18} className="text-primary" />
-            <h3 className="font-display font-extrabold text-sm text-foreground">Quiz-wise Score & Attempt Tracker</h3>
+            <h3 className="font-display font-extrabold text-sm text-foreground">
+              {subjFilter === "all" ? "Quiz-wise" : `${cap(subjFilter)} Quiz-wise`} Score & Attempt Tracker
+            </h3>
           </div>
           <span className="text-[11px] font-semibold text-muted-foreground">Marks & attempts count</span>
         </div>
 
         {/* Quiz Selector */}
-        {quizzes.length > 0 && (
+        {relevantQuizzes.length > 0 ? (
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
-              Select GK/GS Quiz:
+              Select Quiz:
             </label>
             <select
               value={selectedQuiz?.id ?? ""}
               onChange={(e) => setSelectedQuizId(e.target.value)}
               className="w-full rounded-2xl border border-input bg-secondary/50 px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary shadow-xs text-foreground"
             >
-              {quizzes.map((z) => (
+              {relevantQuizzes.map((z) => (
                 <option key={z.id} value={z.id}>
                   {z.title} ({z.questions.length} Qs)
                 </option>
               ))}
             </select>
           </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No quizzes available for this filter.</p>
         )}
 
         {/* Detailed Players Table for Selected Quiz */}
-        {selectedQuiz ? (
+        {selectedQuiz && (
           <div className="rounded-2xl border border-border/70 overflow-hidden divide-y divide-border/60">
             <div className="bg-secondary/60 px-3.5 py-2 grid grid-cols-12 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
               <span className="col-span-4">Player</span>
@@ -1738,8 +2342,6 @@ function LeaderboardSection({
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">No quizzes available.</p>
         )}
       </div>
 

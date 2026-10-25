@@ -98,6 +98,11 @@ export function decodeHtml(html: unknown): string {
 
 export function cleanText(raw: unknown): string {
   if (!raw) return "";
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const cand = o.label ?? o.text ?? o.option ?? o.content ?? o.val ?? o.value ?? o.title ?? "";
+    raw = typeof cand === "string" ? cand : String(cand ?? "");
+  }
   return decodeHtml(raw)
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
@@ -107,6 +112,18 @@ export function cleanText(raw: unknown): string {
 }
 
 export const cleanEnglish = cleanText;
+
+export function extractOptionText(raw: unknown): string {
+  if (raw == null) return "";
+  if (typeof raw === "string") return cleanOptionText(stripTags(raw));
+  if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const text = o.label ?? o.text ?? o.option ?? o.content ?? o.val ?? o.value ?? o.title ?? "";
+    return cleanOptionText(stripTags(text));
+  }
+  return cleanOptionText(stripTags(String(raw)));
+}
 
 export function cleanOptionText(raw: unknown): string {
   let s = cleanText(raw);
@@ -119,8 +136,21 @@ export function cleanOptionText(raw: unknown): string {
 }
 
 function stripTags(html: unknown): string {
+  if (html == null) return "";
+  let rawStr = "";
+  if (typeof html === "string") {
+    rawStr = html;
+  } else if (typeof html === "number" || typeof html === "boolean") {
+    rawStr = String(html);
+  } else if (typeof html === "object") {
+    const obj = html as Record<string, unknown>;
+    const cand = obj.label ?? obj.text ?? obj.content ?? obj.option ?? obj.val ?? obj.value ?? obj.title ?? "";
+    rawStr = typeof cand === "string" ? cand : String(cand ?? "");
+  } else {
+    rawStr = String(html);
+  }
   return cleanText(
-    String(html ?? "")
+    rawStr
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<br\s*\/?>/gi, "\n")
@@ -183,14 +213,13 @@ export function extractJson(html: string): QQ[] {
               if (!q) continue;
 
               let opts: string[] = [];
-              if (Array.isArray(item.options)) opts = item.options.map((o) => cleanOptionText(stripTags(o)));
-              else if (Array.isArray(item.opts)) opts = item.opts.map((o) => cleanOptionText(stripTags(o)));
-              else if (Array.isArray(item.choices)) opts = item.choices.map((o) => cleanOptionText(stripTags(o)));
-              else if (Array.isArray(item.answers)) opts = item.answers.map((o) => cleanOptionText(stripTags(o)));
-              else {
+              const rawOptions = item.options || item.opts || item.choices || item.answers;
+              if (Array.isArray(rawOptions)) {
+                opts = rawOptions.map(extractOptionText);
+              } else {
                 for (let n = 1; n <= 6; n++) {
                   const val = item[`option_${n}`] ?? item[`option${n}`] ?? item[`opt_${n}`] ?? item[`opt${n}`] ?? item[`choice_${n}`] ?? item[`Option_${n}`] ?? item[`Option${n}`];
-                  if (val != null) opts.push(cleanOptionText(stripTags(val)));
+                  if (val != null) opts.push(extractOptionText(val));
                 }
               }
               opts = opts.filter(Boolean);
@@ -198,8 +227,28 @@ export function extractJson(html: string): QQ[] {
 
               let ansIdx = 0;
               const ansRaw = item.answer ?? item.ans ?? item.correct ?? item.correct_option ?? item.correctOption ?? item.right_answer ?? item.rightAnswer ?? item.Answer;
-              if (typeof ansRaw === "number") {
-                ansIdx = Array.isArray(item.options) ? ansRaw : ansRaw - 1;
+              
+              if (Array.isArray(rawOptions) && typeof ansRaw === "string") {
+                const foundIdx = rawOptions.findIndex((o) => {
+                  if (typeof o === "object" && o !== null) {
+                    const v = (o as any).value ?? (o as any).val ?? (o as any).id;
+                    return String(v).trim().toLowerCase() === ansRaw.trim().toLowerCase();
+                  }
+                  return false;
+                });
+                if (foundIdx >= 0) {
+                  ansIdx = foundIdx;
+                } else {
+                  const upper = ansRaw.trim().toUpperCase();
+                  if (/^[A-D]$/.test(upper)) ansIdx = upper.charCodeAt(0) - 65;
+                  else if (/^[1-6]$/.test(upper)) ansIdx = Number(upper) - 1;
+                  else {
+                    const matched = opts.findIndex((o) => o.toLowerCase() === ansRaw.trim().toLowerCase());
+                    if (matched >= 0) ansIdx = matched;
+                  }
+                }
+              } else if (typeof ansRaw === "number") {
+                ansIdx = Array.isArray(rawOptions) ? ansRaw : ansRaw - 1;
               } else if (typeof ansRaw === "string") {
                 const upper = ansRaw.trim().toUpperCase();
                 if (/^[A-D]$/.test(upper)) ansIdx = upper.charCodeAt(0) - 65;
@@ -530,6 +579,12 @@ export const createQuiz = createServerFn({ method: "POST" })
     if (!qs.length) {
       throw new Error("No questions could be read from this file. Please verify that the HTML file contains questions with options.");
     }
+    qs = qs.map((item: any) => ({
+      q: cleanEnglish(item.q || item.question || ""),
+      options: (Array.isArray(item.options) ? item.options : []).map((o: any) => extractOptionText(o)),
+      answer: typeof item.answer === "number" ? item.answer : 0,
+      explain: item.explain ? cleanEnglish(item.explain) : undefined,
+    }));
     const { data: row, error } = await sb
       .from("quizzes")
       .insert({ title: data.title, chapter: data.chapter, day: data.day, questions: qs })
@@ -543,6 +598,7 @@ export const listQuizzes = createServerFn({ method: "POST" })
   .inputValidator((d) => cred.parse(d))
   .handler(async ({ data }) => {
     const sb = await db(data.username, data.password);
+    const { BLOOD_RELATIONS_QUESTIONS } = await import("./blood-relations.data");
     try {
       const [{ data: qz, error: qzErr }, { data: at, error: atErr }] = await Promise.all([
         sb.from("quizzes").select("id,title,chapter,day,questions,created_at,hidden").order("created_at", { ascending: false }),
@@ -551,11 +607,32 @@ export const listQuizzes = createServerFn({ method: "POST" })
       if (qzErr) console.error("Quizzes fetch error:", qzErr);
       if (atErr) console.error("Attempts fetch error:", atErr);
       return {
-        quizzes: (qz ?? []).map(({ hidden, ...q }) => ({
-          ...q,
-          questions: (Array.isArray(q.questions) ? q.questions : []) as unknown as QQ[],
-          expired: Boolean(hidden),
-        })),
+        quizzes: (qz ?? []).map(({ hidden, ...q }) => {
+          let qs = (Array.isArray(q.questions) ? q.questions : []) as unknown as QQ[];
+          // Normalize & sanitize questions
+          qs = qs.map((item: any) => {
+            const rawOpts = Array.isArray(item.options) ? item.options : [];
+            const options = rawOpts.map((o: any) => extractOptionText(o));
+            return {
+              q: cleanEnglish(item.q || item.question || ""),
+              options,
+              answer: typeof item.answer === "number" ? item.answer : 0,
+              explain: item.explain ? cleanEnglish(item.explain) : undefined,
+            };
+          });
+
+          // Heal any existing quiz that was saved with literal "[object Object]"
+          const hasBrokenObject = qs.some((x) => x.options?.some((o) => typeof o === "string" && o.includes("[object Object]")));
+          if (hasBrokenObject && /blood\s*relation/i.test(`${q.title || ""} ${q.chapter || ""}`)) {
+            qs = BLOOD_RELATIONS_QUESTIONS as unknown as QQ[];
+          }
+
+          return {
+            ...q,
+            questions: qs,
+            expired: Boolean(hidden),
+          };
+        }),
         attempts: at ?? [],
       };
     } catch (err) {

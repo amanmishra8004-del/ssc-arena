@@ -8,6 +8,7 @@ export type WorkspaceSearch = {
   practice?: "ca" | "quiz" | "tables" | "mock" | "vocab" | "idioms" | "tests" | "pyq";
   ca?: "today" | "cards" | "quiz" | "week" | "notes";
   subject?: number;
+  sub?: "gk" | "maths" | "reasoning";
   chapter?: string;
   quizId?: string;
 };
@@ -15,6 +16,7 @@ export type WorkspaceSearch = {
 export function validateWorkspaceSearch(raw: Record<string, unknown>): WorkspaceSearch {
   const result: WorkspaceSearch = {};
   if (raw['tab'] === "today" || raw["tab"] === "syllabus" || raw["tab"] === "quiz" || raw['tab'] === "extras" || raw['tab'] === "arena") result.tab = raw['tab'];
+  if (raw['sub'] === "gk" || raw['sub'] === "maths" || raw['sub'] === "reasoning") result.sub = raw['sub'];
   if (typeof raw['profile'] === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(raw['profile'])) result.profile = raw['profile'];
   if (raw['panel'] === "menu" || raw['panel'] === "notifications" || raw['panel'] === "password") result.panel = raw['panel'];
   if (raw["practice"] === "ca" || raw["practice"] === "quiz" || raw['practice'] === "tables" || raw['practice'] === "mock" || raw['practice'] === "vocab" || raw['practice'] === "idioms" || raw['practice'] === "tests" || raw['practice'] === "pyq") result.practice = raw['practice'];

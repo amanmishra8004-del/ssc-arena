@@ -107,7 +107,7 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
         {err && <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2 text-xs font-semibold text-destructive">{err}</p>}
         <div className="flex gap-2 pt-1">
           <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-sm font-bold active:scale-95">Not now</Button>
-          <Button variant="unstyled" disabled={busy} className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-60">{busy ? "Saving…" : "Save"}</Button>
+          <Button variant="unstyled" disabled={busy} className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 active:scale-95 disabled:opacity-60">{busy ? "Saving…" : "Save"}</Button>
         </div>
       </form>
     </div>
@@ -148,7 +148,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
               <Sparkles size={12} /> SSC CGL Prep Arena
             </span>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight font-display">Study <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Arena</span></h1>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight font-display">Study <span className="bg-gradient-to-r from-primary via-purple-400 to-accent bg-clip-text text-transparent">Arena</span></h1>
             <p className="mt-1 text-xs text-muted-foreground font-medium">Daily timetable, syllabus tracking & live arena.</p>
           </div>
         </div>
@@ -217,7 +217,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
         <Button
           variant="unstyled"
           disabled={busy}
-          className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 font-display text-sm font-extrabold text-white shadow-lg shadow-emerald-600/25 transition active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3.5 font-display text-sm font-black text-primary-foreground shadow-lg shadow-primary/25 transition active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {busy ? "Signing in…" : <><span>Enter Study Arena</span> <ChevronRight size={18} /></>}
         </Button>
@@ -286,7 +286,7 @@ function NotifPopup({ auth, onClose }: { auth: Auth; onClose: () => void }) {
         {msg && <p className="rounded-2xl bg-secondary/80 border border-border p-3 text-xs leading-relaxed font-semibold">{msg}</p>}
         <div className="flex gap-2 pt-1">
           <Button variant="unstyled" onClick={close} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-sm font-bold active:scale-95">{msg ? "Done" : "Not now"}</Button>
-          <Button variant="unstyled" disabled={busy} onClick={allow} className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-60">
+          <Button variant="unstyled" disabled={busy} onClick={allow} className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 active:scale-95 disabled:opacity-60">
             {busy ? "Sending…" : granted ? "Send test alert" : "Enable"}
           </Button>
         </div>
@@ -482,7 +482,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
     <div className="arena-shell min-h-screen pb-28">
       <header className="app-header sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5">
         <Button variant="unstyled" onClick={() => setViewing(auth.username)} className="flex min-w-0 items-center gap-2.5 text-left active:scale-98">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 font-display text-base font-extrabold text-white shadow-sm ring-2 ring-emerald-500/20">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent font-display text-base font-black text-white shadow-sm ring-2 ring-primary/25">
             {auth.username[0].toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -611,26 +611,30 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
           <span>Study Arena</span>
         </div>
         <div className="navigation-items">
-          {([["today", CalendarDays, "Today"], ["syllabus", BookOpen, "Syllabus"], ["quiz", FileQuestion, "Quiz"], ["extras", Brain, "Practice"], ["arena", Trophy, "Ranks"]] as const).map(([k, Icon, l]) => {
-            const on = tab === k && !viewing;
-            return (
-              <Button
-                variant="unstyled"
-                key={k}
-                onClick={() => { setTab(k); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                aria-current={on ? "page" : undefined}
-                className={cn(
-                  "nav-item transition-all duration-200 active:scale-90",
-                  on ? "bg-primary/15 text-primary scale-[1.03]" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className={cn("flex h-7 w-7 items-center justify-center rounded-full transition-transform", on && "scale-110")}>
-                  <Icon size={20} strokeWidth={on ? 2.5 : 1.8} />
-                </div>
-                <span className={cn("text-[11px] tracking-tight leading-none transition-all", on ? "font-extrabold text-primary" : "font-semibold")}>{l}</span>
-              </Button>
-            );
-          })}
+          {([
+            ["today", CalendarDays, "Today", () => setTab("today"), tab === "today" && !viewing],
+            ["syllabus", BookOpen, "Syllabus", () => setTab("syllabus"), tab === "syllabus" && !viewing],
+            ["quiz", FileQuestion, "Quiz", () => setTab("quiz"), tab === "quiz" && !viewing],
+            ["arena", Trophy, "Arena", () => setTab("arena"), tab === "arena" && !viewing],
+            ["extras", Brain, "Extras", () => setTab("extras"), tab === "extras" && !viewing],
+            ["profile", UserRound, "Profile", () => setViewing(auth.username), !!viewing],
+          ] as const).map(([k, Icon, l, action, on]) => (
+            <Button
+              variant="unstyled"
+              key={k}
+              onClick={() => { action(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              aria-current={on ? "page" : undefined}
+              className={cn(
+                "nav-item transition-all duration-200 active:scale-90",
+                on ? "bg-primary/15 text-primary scale-[1.03]" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div className={cn("flex h-7 w-7 items-center justify-center rounded-full transition-transform", on && "scale-110")}>
+                <Icon size={20} strokeWidth={on ? 2.5 : 1.8} />
+              </div>
+              <span className={cn("text-[10px] tracking-tight leading-none transition-all", on ? "font-extrabold text-primary" : "font-semibold")}>{l}</span>
+            </Button>
+          ))}
         </div>
       </nav>
     </div>
@@ -699,34 +703,41 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
   return (
     <div className="today-workspace space-y-4">
       {/* Hero Greeting Card */}
-      <div className="today-welcome relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 p-5 text-white shadow-elevated">
+      <div className="today-welcome relative overflow-hidden rounded-3xl border border-border/80 bg-card p-5 shadow-elevated">
+        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
         <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-2.5 py-0.5 text-[11px] font-bold text-white">
+          <div className="min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[11px] font-black text-primary">
               <CalendarDays size={12} />
               {new Date(tk + "T00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
             </span>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight font-display">
+            <h1 className="mt-2 text-2xl font-black tracking-tight font-display text-foreground">
               {(() => {
                 const hr = new Date().getHours();
                 return hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
               })()}, {cap(me.u)}! 👋
             </h1>
-            <p className="mt-1 text-xs text-white/90 font-medium">
+            <p className="mt-1 text-xs text-muted-foreground font-semibold">
               {doneCount === slots.length && slots.length ? "🎉 All tasks finished! Outstanding consistency." : `${doneCount} of ${slots.length} tasks completed today`}
             </p>
+            <div className="mt-2.5 h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-secondary">
+              <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500" style={{ width: `${(doneCount / (slots.length || 1)) * 100}%` }} />
+            </div>
           </div>
-          <img src={studyCompanion} alt="Study companion" width={768} height={768} className="companion h-20 w-20 shrink-0 object-contain drop-shadow-md" />
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
+            <img src={studyCompanion} alt="Study companion" width={768} height={768} className="companion relative z-10 h-20 w-20 object-contain drop-shadow-md" />
+          </div>
         </div>
       </div>
 
       {/* Quick Launchpad */}
       <div className="grid grid-cols-4 gap-2">
         {([
-          ["syllabus", BookOpen, "Syllabus", "from-emerald-500/15 to-teal-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"],
-          ["quiz", FileQuestion, "Quizzes", "from-violet-500/15 to-purple-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"],
-          ["extras", Brain, "Practice", "from-amber-500/15 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"],
-          ["arena", Trophy, "Ranks", "from-blue-500/15 to-indigo-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"]
+          ["syllabus", BookOpen, "Syllabus", "from-primary/15 to-primary/5 text-primary border-primary/25"],
+          ["quiz", FileQuestion, "Quizzes", "from-accent/15 to-accent/5 text-accent border-accent/25"],
+          ["extras", Brain, "Practice", "from-amber-500/15 to-amber-500/5 text-amber-500 border-amber-500/25"],
+          ["arena", Trophy, "Ranks", "from-blue-500/15 to-blue-500/5 text-blue-400 border-blue-500/25"]
         ] as const).map(([target, Icon, label, cls]) => (
           <Button variant="unstyled" key={target} onClick={() => onNavigate(target)}
             className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/80 bg-card p-2.5 text-xs font-bold transition shadow-soft active:scale-92">
@@ -740,43 +751,59 @@ function Today({ data, update, me, board, onNavigate }: { data: UserData; update
 
       {/* Focus Session Live Card */}
       {!edit && nowMin !== null && (
-        <section aria-label="Current session" className={cn("focus-session relative overflow-hidden p-5 rounded-3xl", current ? "session-active" : "session-upcoming")}>
+        <section aria-label="Current session" className={cn("focus-session relative overflow-hidden rounded-3xl border-2 p-5 shadow-elevated", current ? "border-accent/40 bg-gradient-to-b from-accent/10 via-card to-card" : "border-border/80 bg-card")}>
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/15 border border-primary/20 px-3 py-1 text-xs font-black uppercase text-primary tracking-wide">
-              <span className="session-dot h-2 w-2 shrink-0 rounded-full bg-primary" />
-              {current ? done[current.id] ? "Current session · Done" : "In progress" : next ? "Up next" : "Schedule complete"}
+            <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide", current ? "bg-accent/15 border border-accent/30 text-accent" : "bg-primary/10 border border-primary/20 text-primary")}>
+              <span className={cn("h-2 w-2 shrink-0 rounded-full", current ? "bg-accent animate-ping" : "bg-primary")} />
+              {current ? done[current.id] ? "Current session · Done" : "Live focus session" : next ? "Up next" : "Schedule complete"}
             </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card border border-border text-primary shadow-2xs">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary border border-border text-foreground shadow-2xs">
               <Clock3 size={16} className="shrink-0" />
             </span>
           </div>
-          <h2 className="mt-3 text-xl sm:text-2xl font-extrabold text-foreground">{current?.label ?? next?.label ?? "No session scheduled"}</h2>
+
+          <h2 className="mt-3 text-xl sm:text-2xl font-black font-display text-foreground">{current?.label ?? next?.label ?? "No session scheduled"}</h2>
+
           {(current ?? next) && (
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              <span className="text-primary font-bold">{(current ?? next)?.subject}</span> <span className="mx-1">·</span> {(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)} ({fmt((current ?? next)?.minutes ?? 0)})
+            <p className="mt-1 text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <span className="text-primary font-extrabold uppercase tracking-wide">{(current ?? next)?.subject}</span>
+              <span>·</span>
+              <span className="tabular-nums">{(current ?? next)?.start} – {addMin((current ?? next)?.start ?? "00:00", (current ?? next)?.minutes ?? 0)}</span>
+              <span>({fmt((current ?? next)?.minutes ?? 0)})</span>
             </p>
           )}
+
           {current ? (
             <>
-              <div className="mt-4 flex items-center justify-between text-xs font-bold">
-                <span className="text-muted-foreground">{fmt(remaining)} remaining</span>
-                <span className="text-primary">{fmt(current.minutes)} session</span>
+              <div className="mt-4 flex items-baseline justify-between">
+                <div>
+                  <span className="font-mono tabular-nums text-4xl sm:text-5xl font-black tracking-tight text-foreground">{fmt(remaining)}</span>
+                  <span className="ml-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">remaining</span>
+                </div>
+                <span className="text-xs font-extrabold text-accent tabular-nums">{fmt(current.minutes)} target</span>
               </div>
-              <progress aria-label="Session elapsed" max={current.minutes} value={current.minutes - remaining} className="session-progress mt-2 h-2 w-full" />
+              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-secondary border border-border/40">
+                <div
+                  className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, ((current.minutes - remaining) / (current.minutes || 1)) * 100))}%` }}
+                />
+              </div>
               <Button
+                variant="unstyled"
                 onClick={() => toggle(current.id)}
-                className={cn("mt-4 w-full gap-2 rounded-2xl py-3 text-sm font-extrabold transition shadow-md",
+                className={cn(
+                  "mt-4 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black transition active:scale-98 shadow-md",
                   done[current.id]
                     ? "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border"
-                    : "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-600/20 active:scale-98"
+                    : "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-primary/25"
                 )}
               >
                 <Check size={18} strokeWidth={3} />
-                {done[current.id] ? "Completed · Click to undo" : "Complete session"}
+                {done[current.id] ? "Completed · Click to undo" : "Complete session (+10 pts)"}
               </Button>
             </>
           ) : (
-            <p className="mt-3 text-xs text-muted-foreground font-medium">
+            <p className="mt-3 text-xs text-muted-foreground font-semibold">
               {next ? `Starts in ${fmt(toMin(next.start) - nowMin)}` : doneCount === slots.length && slots.length ? "All tasks completed for today. Great job!" : "No study session is currently active."}
             </p>
           )}
@@ -942,19 +969,19 @@ function SlotRow({ s, checked, edit, live, onToggle, onUp, onDown, onChange, onD
     </div>
   );
   return (
-    <div ref={setNodeRef} data-task-id={s.id} className={cn("task-row flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition shadow-soft", live && !checked ? "task-live border-primary/50 bg-primary/8 shadow-md" : checked ? "task-completed border-border/60 bg-secondary/40" : "border-border/80 bg-card hover:border-border")}>
+    <div ref={setNodeRef} data-task-id={s.id} className={cn("task-row flex items-center justify-between gap-3.5 rounded-2xl border p-3.5 sm:p-4 transition shadow-soft", live && !checked ? "task-live border-accent/60 bg-accent/8 shadow-md ring-1 ring-accent/30" : checked ? "task-completed border-border/50 bg-secondary/30" : "border-border/80 bg-card hover:border-border")}>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-1.5">
           <span className={cn("h-2 w-2 rounded-full", SUBJ_COLOR[s.subject] ?? "bg-muted")} />
           <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{s.subject}</span>
           {live && (
-            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+            <span className={cn("ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black", checked ? "bg-emerald-500/15 text-emerald-400" : "bg-accent/15 text-accent animate-pulse")}>
               <Play size={9} fill="currentColor" /> {checked ? "Completed" : "Live"}
             </span>
           )}
         </div>
-        <p className={cn("font-bold text-sm leading-snug text-foreground", checked && "text-muted-foreground line-through")}>{s.label}</p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground font-semibold">
+        <p className={cn("font-bold text-sm leading-snug text-foreground", checked && "text-muted-foreground line-through opacity-75")}>{s.label}</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground font-semibold tabular-nums">
           <Clock3 size={12} /> {s.start} – {end} · {fmt(s.minutes)}
         </p>
       </div>
@@ -963,13 +990,13 @@ function SlotRow({ s, checked, edit, live, onToggle, onUp, onDown, onChange, onD
         onClick={onToggle}
         aria-label={checked ? "Not done" : "Mark done"}
         className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-2 transition active:scale-85",
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border-2 transition active:scale-90",
           checked
-            ? "border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/30"
+            ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
             : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
         )}
       >
-        <Check size={18} strokeWidth={checked ? 3 : 2} />
+        <Check size={20} strokeWidth={checked ? 3 : 2} />
       </Button>
     </div>
   );
@@ -1696,7 +1723,7 @@ function Profile({ user, data, entry, onBack, onSwitch, me, openPass }: { user: 
         ← Back to Arena
       </Button>
       <div className="flex items-center gap-4 rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 font-display text-2xl font-black text-white shadow-md ring-2 ring-emerald-500/20">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent font-display text-2xl font-black text-white shadow-md ring-2 ring-primary/25">
           {user[0].toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">

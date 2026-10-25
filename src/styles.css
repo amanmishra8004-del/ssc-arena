@@ -56,96 +56,88 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --radius: 1rem;
   
-  /* Ultra-clean porcelain slate canvas */
-  --background: oklch(0.985 0.005 240);
-  --foreground: oklch(0.16 0.02 245);
+  /* Master Prompt Dark-First Foundations */
+  --background: #0B0D12;
+  --foreground: #F3F4F6;
   
-  /* Crisp pure white cards with glass highlights */
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
+  /* Elevated surfaces & cards */
+  --card: #171C26;
+  --card-foreground: #F3F4F6;
+  --popover: #171C26;
+  --popover-foreground: #F3F4F6;
   
-  /* Vibrant Royal Emerald Primary (energetic, motivating, fresh) */
-  --primary: oklch(0.56 0.19 155);
-  --primary-foreground: oklch(1 0 0);
+  /* Primary Accent: Sophisticated Electric Violet */
+  --primary: #8B7CFF;
+  --primary-foreground: #FFFFFF;
   
-  /* Soft pearl slate secondary */
-  --secondary: oklch(0.955 0.008 240);
-  --secondary-foreground: oklch(0.24 0.02 245);
+  /* Secondary: Slate Dark */
+  --secondary: #11151D;
+  --secondary-foreground: #F3F4F6;
   
-  --muted: oklch(0.94 0.008 240);
-  --muted-foreground: oklch(0.50 0.02 245);
+  --muted: #1A202C;
+  --muted-foreground: #94A3B8;
   
-  /* Golden Amber Accent for Streak, Trophies & Milestones */
-  --accent: oklch(0.72 0.17 65);
-  --accent-foreground: oklch(0.22 0.04 65);
+  /* Secondary Accent: Cyan for timers & live status indicators */
+  --accent: #55D6E8;
+  --accent-foreground: #0B0D12;
   
-  --destructive: oklch(0.58 0.22 25);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
   
-  /* Delicate hairline border */
-  --border: oklch(0.925 0.008 240);
-  --input: oklch(0.88 0.012 240);
-  --ring: var(--primary);
+  /* Low-contrast slate border */
+  --border: #242B38;
+  --input: #1E2533;
+  --ring: #8B7CFF;
   
-  --chart-1: var(--primary);
-  --chart-2: oklch(0.60 0.18 245); /* Vivid Indigo */
-  --chart-3: var(--accent);         /* Golden Amber */
-  --chart-4: oklch(0.64 0.19 350); /* Coral Rose */
-  --chart-5: oklch(0.66 0.16 195); /* Cyan */
+  --chart-1: #8B7CFF;
+  --chart-2: #55D6E8;
+  --chart-3: #F59E0B;
+  --chart-4: #10B981;
+  --chart-5: #EC4899;
   
-  --sidebar: var(--card);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--secondary);
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar: #11151D;
+  --sidebar-foreground: #F3F4F6;
+  --sidebar-primary: #8B7CFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #171C26;
+  --sidebar-accent-foreground: #F3F4F6;
+  --sidebar-border: #242B38;
+  --sidebar-ring: #8B7CFF;
   
-  /* Soft ambient shadows */
-  --shadow-elevated: 0 20px 45px -10px oklch(0.18 0.02 245 / 0.10), 0 0 1px 1px oklch(0.18 0.02 245 / 0.03);
-  --shadow-navigation: 0 -8px 30px oklch(0.18 0.02 245 / 0.08), 0 -1px 0 oklch(0.18 0.02 245 / 0.04);
-  --shadow-soft: 0 4px 20px -2px oklch(0.18 0.02 245 / 0.05), 0 0 1px 1px oklch(0.18 0.02 245 / 0.02);
+  /* Soft ambient dark shadows */
+  --shadow-elevated: 0 20px 45px -10px rgba(0, 0, 0, 0.70), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+  --shadow-navigation: 0 -8px 30px rgba(0, 0, 0, 0.65), 0 -1px 0 rgba(36, 43, 56, 0.85);
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.50), 0 0 1px 1px rgba(255, 255, 255, 0.04);
   
-  --session-surface: oklch(0.965 0.035 155);
-  --session-ink: oklch(0.24 0.08 155);
-  --practice-surface: oklch(0.96 0.03 245);
-  --rank-surface: oklch(0.965 0.04 70);
-  --rank-ink: oklch(0.42 0.12 65);
+  --session-surface: #131A26;
+  --session-ink: #8B7CFF;
+  --practice-surface: #121824;
+  --rank-surface: #1C1917;
+  --rank-ink: #F59E0B;
 }
 
-.dark {
-  color-scheme: dark;
-  --background: oklch(0.12 0.02 245);
-  --foreground: oklch(0.96 0.005 240);
-  --card: oklch(0.16 0.022 245);
-  --card-foreground: var(--foreground);
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.66 0.20 155);
-  --primary-foreground: oklch(0.10 0.02 155);
-  --secondary: oklch(0.21 0.022 245);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.23 0.02 245);
-  --muted-foreground: oklch(0.65 0.015 240);
-  --accent: oklch(0.75 0.17 65);
-  --accent-foreground: oklch(0.15 0.04 65);
-  --border: oklch(0.24 0.02 245);
-  --input: oklch(0.27 0.02 245);
-  --ring: var(--primary);
-  --shadow-elevated: 0 20px 45px -10px rgba(0, 0, 0, 0.50);
-  --shadow-navigation: 0 -8px 30px rgba(0, 0, 0, 0.45);
-  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
-  --session-surface: oklch(0.20 0.04 155);
-  --session-ink: oklch(0.94 0.06 155);
-  --practice-surface: oklch(0.20 0.04 245);
-  --rank-surface: oklch(0.22 0.05 70);
-  --rank-ink: oklch(0.92 0.10 70);
+.light {
+  color-scheme: light;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #6366F1;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
+  --accent: #0284C7;
+  --accent-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #6366F1;
 }
 
 @layer base {
@@ -173,21 +165,22 @@
   p, h1, h2, h3 { overflow-wrap: anywhere; }
 }
 
-/* Mobile-First App Shell */
+/* Mobile-First App Shell - Exact 480px Native Android Experience */
 .arena-shell {
-  max-width: 580px;
+  max-width: 480px;
   margin-inline: auto;
   min-height: 100vh;
   position: relative;
   background: var(--background);
+  box-shadow: 0 0 50px -10px rgba(0, 0, 0, 0.85);
   animation: app-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .desktop-brand { display: none; }
 
 .arena-shell main {
-  padding-bottom: 112px;
-  padding-top: 14px;
+  padding-bottom: 108px;
+  padding-top: 10px;
 }
 
 .page-heading { padding-block: 2px 14px; }
@@ -195,7 +188,12 @@
 
 .arena-shell main > .space-y-4,
 .arena-shell main > .space-y-5 {
-  row-gap: 18px;
+  row-gap: 16px;
+}
+
+.tabular-nums, .timer-digits, .session-digits, .streak-stat, .stat-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .arena-shell main h2 { line-height: 1.25; }
@@ -205,12 +203,12 @@
 .arena-shell main textarea {
   border-radius: var(--radius);
   background-color: var(--card);
-  font-size: 15px;
+  font-size: 14px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .arena-shell main input:not([type="range"]),
-.arena-shell main select { min-height: 46px; }
+.arena-shell main select { min-height: 44px; }
 
 /* Tactile Bouncy Interactions */
 .arena-shell button,
@@ -232,58 +230,59 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  min-height: 64px;
-  background: color-mix(in oklab, var(--card) 85%, transparent);
+  min-height: 60px;
+  background: rgba(23, 28, 38, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-bottom: 1px solid rgba(36, 43, 56, 0.8);
 }
 
-/* Modern Bottom Navigation Dock */
+/* Modern 6-Destination Bottom Navigation Dock */
 .arena-navigation {
   position: fixed;
   bottom: 0;
   inset-x: 0;
   z-index: 40;
-  background: color-mix(in oklab, var(--card) 88%, transparent);
+  background: rgba(17, 21, 29, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  border-top: 1px solid rgba(36, 43, 56, 0.9);
   box-shadow: var(--shadow-navigation);
   padding-bottom: max(env(safe-area-inset-bottom), 6px);
 }
 
 .navigation-items {
-  max-width: 580px;
+  max-width: 480px;
   margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  padding: 6px 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px 6px;
 }
 
 .navigation-items .nav-item {
-  min-height: 52px;
+  min-height: 48px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  border-radius: calc(var(--radius) - 2px);
+  gap: 2px;
+  border-radius: calc(var(--radius) - 4px);
   padding-block: 4px;
   position: relative;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .navigation-items .nav-item[aria-current="page"] {
-  background: color-mix(in oklab, var(--primary) 12%, transparent);
-  color: var(--primary);
+  background: rgba(139, 124, 255, 0.15);
+  color: #8B7CFF;
 }
 
 .navigation-items .nav-item[aria-current="page"] svg {
   animation: completion-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  color: var(--primary);
+  color: #8B7CFF;
+  filter: drop-shadow(0 0 6px rgba(139, 124, 255, 0.4));
 }
 
 /* Section Tabs */

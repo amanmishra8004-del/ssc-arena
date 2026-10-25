@@ -358,33 +358,34 @@ export function MathPracticeZone({
     return (
       <div className="space-y-5">
         {/* Clean Hero Card: Speed Math Arena */}
-        <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-primary">
-              <Zap size={11} /> Speed Math Arena
-            </span>
-            <h2 className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground mt-0.5">
-              Calculation Drills & Speed Lab
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              7 calculation labs with interactive speed drills, flashcards, and sprint quizzes.
-            </p>
-          </div>
+        <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                <Zap size={11} /> Speed Math Arena
+              </span>
+              <h2 className="font-display text-xl sm:text-2xl font-black tracking-tight text-foreground mt-0.5">
+                Calculation Drills & Speed Lab
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                7 calculation labs with interactive speed drills, flashcards, and sprint quizzes.
+              </p>
+            </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTargets(!showTargets)}
-            className="flex items-center gap-1.5 rounded-xl border-border text-xs font-bold shadow-2xs shrink-0"
-          >
-            <Sliders size={13} className="text-primary" />
-            <span>{showTargets ? "Hide Sliders" : "Milestones"}</span>
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTargets(!showTargets)}
+              className="flex items-center gap-1.5 rounded-xl border-border text-xs font-bold shadow-2xs shrink-0"
+            >
+              <Sliders size={13} className="text-primary" />
+              <span>{showTargets ? "Hide Sliders" : "Milestones"}</span>
+            </Button>
+          </div>
 
           {/* Target Milestone Sliders (Collapsible Drawer) */}
           {showTargets && (
-            <div className="mt-4 pt-4 border-t border-border/80 grid gap-3 sm:grid-cols-3 animate-in fade-in zoom-in-95 duration-200">
+            <div className="pt-3 border-t border-border/80 grid gap-3 sm:grid-cols-3 animate-in fade-in zoom-in-95 duration-200">
               {([
                 ["table", "Tables up to", 30],
                 ["square", "Squares up to", 40],
@@ -419,7 +420,7 @@ export function MathPracticeZone({
           )}
 
           {/* Live Milestone Badges */}
-          <div className="mt-4 pt-3 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
+          <div className="pt-3 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-secondary/60 p-2.5">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tables Memorised</p>
               <p className="font-display text-lg font-black text-primary">{data.tables.table} / 30</p>

@@ -29,8 +29,8 @@ export const SYLLABUS: Subject[] = [
   {
     subject: "Reasoning",
     sections: [
-      { name: "Verbal Reasoning", chapters: s("Analogy|Classification & Odd One Out|Coding-Decoding|Letter & Number Series|Alphabet Test & Word Formation|Blood Relation|Distance & Direction|Order & Ranking|Clock & Calendar|Syllogism|Venn Diagram|Mathematical Operations|Seating Arrangement (Linear & Circular)|Puzzle & Ranking|Input Output|Statement & Conclusion|Statement & Assumption") },
-      { name: "Non-Verbal & Analytical", chapters: s("Figure Analogy|Figure Classification|Figure Series|Counting of Figures|Mirror & Water Image|Paper Cutting & Folding|Embedded Figures|Pattern Completion|Dice & Cube|Data Sufficiency|Logical Sequence of Words") },
+      { name: "Verbal Reasoning", chapters: s("Coding-Decoding|Alphabet Test|Alpha-Numeric Series|Number Based Reasoning|Analogy|Missing Number|Odd One Out|Number Series|Numerical Operations|Blood Relation|Distance & Direction|Test of Inequality|Clock|Calendar|Venn Diagram|Syllogism|Statement & Assumption/Argument|Cause & Effect|Logical & Meaningful Order|Ranking Test|Puzzle|GK Based Reasoning|Data Sufficiency") },
+      { name: "Non-Verbal & Analytical", chapters: s("Linear Seating Arrangement|Circular Seating Arrangement|Polygon Seating Arrangement|Dice|Cube|Figure Series|Counting Figure|Mirror & Water Image|Completion of Figures|Embedded Figure|Paper Cutting & Folding|Figure Analogy|Figure Classification|Analytical Reasoning|Input Output") },
     ],
   },
 ];
@@ -41,6 +41,7 @@ export const DEFAULT_SLOTS: Slot[] = [
   { id: "rea", subject: "Reasoning", label: "Reasoning practice", minutes: 60, start: "06:00" },
   { id: "mlec", subject: "Maths", label: "Maths lecture", minutes: 90, start: "07:00" },
   { id: "mq", subject: "Maths", label: "Maths question solving", minutes: 60, start: "08:30" },
+  { id: "mtr", subject: "Maths", label: "Formula, calculation & tricks", minutes: 30, start: "09:30" },
   { id: "glec", subject: "GS", label: "GK/GS lecture", minutes: 105, start: "11:00" },
   { id: "grev", subject: "GS", label: "GK/GS revision", minutes: 30, start: "12:45" },
   { id: "gq", subject: "GS", label: "GK/GS questions", minutes: 30, start: "13:15" },
@@ -62,14 +63,12 @@ export type ChapterState = {
   quiz?: string;
   notes?: string;
 };
-
 export type Mock = { id: string; name: string; date: string; marks: string; total: string };
 export type CAItem = { id: string; week: string; category: string; title: string; note: string; revised: boolean };
 export type UserData = {
   slots: Slot[];
   daily: Record<string, Record<string, boolean>>;
   chapters: Record<string, ChapterState>;
-  customChapters: CustomChapter[];
   tables: { table: number; square: number; cube: number };
   ca: CAItem[];
   mocks: Mock[];
@@ -85,7 +84,6 @@ export const emptyData = (): UserData => ({
   slots: DEFAULT_SLOTS,
   daily: {},
   chapters: {},
-  customChapters: [],
   tables: { table: 0, square: 0, cube: 0 },
   ca: [],
   mocks: [],
@@ -102,7 +100,6 @@ export const normalize = (d: any): UserData => {
     slots: Array.isArray(d?.slots) && d.slots.length ? d.slots : e.slots,
     daily: d?.daily ?? {},
     chapters: d?.chapters ?? {},
-    customChapters: Array.isArray(d?.customChapters) ? d.customChapters : [],
     tables: { ...e.tables, ...(d?.tables ?? {}) },
     ca: Array.isArray(d?.ca) ? d.ca : [],
     mocks: Array.isArray(d?.mocks) ? d.mocks : [],
@@ -139,15 +136,14 @@ export function stats(d: UserData) {
   for (const day of Object.values(d.daily))
     for (const [id, v] of Object.entries(day)) if (v) { tasksDone++; totalMin += minById[id] ?? 0; }
   const ch = Object.values(d.chapters);
-  const lec = ch.filter((c) => c.lecture || (c.lecturesDone && c.totalLectures && c.lecturesDone >= c.totalLectures)).length;
-  const rev = ch.filter((c) => c.revised || (c.revisionCount && c.revisionCount > 0)).length;
+  const lec = ch.filter((c) => c.lecture).length;
+  const rev = ch.filter((c) => c.revised).length;
   const pyq = ch.filter((c) => c.pyq).length;
-  const totalLecturesDone = ch.reduce((acc, c) => acc + (c.lecturesDone || (c.lecture ? 1 : 0)), 0);
   const caCount = d.ca.length;
   // streak
   let streak = 0;
   const cur = new Date();
-  for (;;) {
+  for (; ;) {
     const k = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
     if (Object.values(d.daily[k] ?? {}).some(Boolean)) { streak++; cur.setDate(cur.getDate() - 1); }
     else if (streak === 0 && k === tk) { cur.setDate(cur.getDate() - 1); }
@@ -161,13 +157,10 @@ export function stats(d: UserData) {
     }
   }
   const score =
-    quizMarksTotal * 10 +
-    lec * 20 +
-    rev * 10 +
-    pyq * 10 +
-    tasksDone * 5 +
-    streak * 5;
-  return { todayMin, planMin, tasksDone, totalMin, lec, rev, pyq, totalLecturesDone, caCount, streak, score };
+    tasksDone * 10 + lec * 15 + rev * 8 + pyq * 8 + caCount * 3 +
+    Math.floor((d.tables.table + d.tables.square + d.tables.cube) / 5) + streak * 5 +
+    quizMarksTotal * 2;
+  return { todayMin, planMin, tasksDone, totalMin, lec, rev, pyq, caCount, streak, score };
 }
 
 export const fmt = (m: number) => `${Math.floor(m / 60)}h ${m % 60 ? `${m % 60}m` : ""}`.trim();

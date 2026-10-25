@@ -1,16 +1,16 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { addUser, changePassword, getActivity, listUsers, login, ping, removeUser, resetPassword } from "@/lib/data.functions";
-import { listQuizzes, submitQuiz, createQuiz, deleteQuiz, type QQ } from "@/lib/quiz.functions";
+import { useEffect, useMemo, useState } from "react";
+import { changePassword, getActivity, login, ping } from "@/lib/data.functions";
+import { deleteQuiz, type QQ } from "@/lib/quiz.functions";
 import { useQuizzes, QuizPlayer, QuizUpload } from "@/components/quiz-zone";
-import { USERS } from "@/lib/syllabus";
 import { Button } from "@/components/ui/button";
 import {
-  FileQuestion, Trophy, Award, Check, Play, RotateCcw, Swords, Flame, Sparkles, Plus,
-  Search, ChevronRight, UserRound, KeyRound, LogOut, Menu, X, Clock, HelpCircle,
-  BarChart3, Users, Eye, EyeOff, ShieldCheck
+  Trophy, Award, Check, Play, RotateCcw, Swords, Sparkles, Plus,
+  Search, ChevronRight, KeyRound, LogOut, Menu, X,
+  BarChart3, Users, Eye, EyeOff, Trash2, CheckCircle2,
+  Compass, Shield, Flame
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MotionPresence } from "@/components/motion-presence";
@@ -19,14 +19,17 @@ import { useWorkspaceNavigation, validateWorkspaceSearch } from "@/lib/workspace
 export const Route = createFileRoute("/")({
   validateSearch: validateWorkspaceSearch,
   head: () => ({
-    title: "GK/GS Quiz Arena — Quizzes, Scores & Leaderboard",
+    title: "GK/GS Quiz Arena — Arun, Ali, Naveen, Devansh",
     meta: [
       { property: "og:title", content: "GK/GS Quiz Arena" },
-      { name: "description", content: "GK/GS Quizzes, score comparison, attempts tracker & player leaderboard." },
+      { name: "description", content: "SSC GK/GS Quizzes by subjects, leaderboard, attempt tracker & player scoreboard." },
     ],
   }),
   component: App,
 });
+
+export const PLAYERS = ["arun", "ali", "naveen", "devansh"] as const;
+type PlayerName = (typeof PLAYERS)[number];
 
 type Auth = { username: string; password: string; isDefault?: boolean };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -50,6 +53,108 @@ type Attempt = {
   at: string;
 };
 
+type SubjectBox = {
+  id: string;
+  name: string;
+  hindi: string;
+  icon: string;
+  badge: string;
+  activeBg: string;
+  desc: string;
+  matcher: (z: Quiz) => boolean;
+};
+
+const SUBJECT_BOXES: SubjectBox[] = [
+  {
+    id: "all",
+    name: "All GK/GS",
+    hindi: "सभी प्रश्नोत्तरी",
+    icon: "🎯",
+    badge: "Master Bank",
+    activeBg: "bg-primary/15 border-primary shadow-lg shadow-primary/20",
+    desc: "Complete SSC GK/GS collection",
+    matcher: () => true,
+  },
+  {
+    id: "polity",
+    name: "Polity",
+    hindi: "भारतीय राजव्यवस्था",
+    icon: "🏛️",
+    badge: "Constitution",
+    activeBg: "bg-blue-500/15 border-blue-500 shadow-lg shadow-blue-500/20",
+    desc: "Articles, Amendments, Parliament & Rights",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("polity") || s.includes("constitution") || s.includes("article") || s.includes("parliament") || s.includes("amendment") || s.includes("dpsp") || s.includes("president");
+    },
+  },
+  {
+    id: "history",
+    name: "History",
+    hindi: "इतिहास",
+    icon: "📜",
+    badge: "Ancient · Med · Mod",
+    activeBg: "bg-amber-500/15 border-amber-500 shadow-lg shadow-amber-500/20",
+    desc: "Mughals, Freedom Struggle, Vedic & Mauryas",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("history") || s.includes("mughal") || s.includes("ancient") || s.includes("medieval") || s.includes("modern") || s.includes("sultan") || s.includes("gandhi") || s.includes("revolt") || s.includes("vedic") || s.includes("maurya");
+    },
+  },
+  {
+    id: "geo",
+    name: "Geography",
+    hindi: "भूगोल",
+    icon: "🌍",
+    badge: "India & World",
+    activeBg: "bg-emerald-500/15 border-emerald-500 shadow-lg shadow-emerald-500/20",
+    desc: "Rivers, Himalayas, Climate, Oceans & Maps",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("geo") || s.includes("river") || s.includes("mountain") || s.includes("monsoon") || s.includes("soil") || s.includes("plateau") || s.includes("ocean") || s.includes("solar");
+    },
+  },
+  {
+    id: "eco",
+    name: "Economics",
+    hindi: "अर्थव्यवस्था",
+    icon: "📈",
+    badge: "Economy & Budget",
+    activeBg: "bg-rose-500/15 border-rose-500 shadow-lg shadow-rose-500/20",
+    desc: "Budget, GDP, Banking, Inflation & 5-Yr Plans",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("eco") || s.includes("budget") || s.includes("tax") || s.includes("gdp") || s.includes("bank") || s.includes("inflation");
+    },
+  },
+  {
+    id: "sci",
+    name: "Science",
+    hindi: "सामान्य विज्ञान",
+    icon: "🔬",
+    badge: "Phy · Chem · Bio",
+    activeBg: "bg-sky-500/15 border-sky-500 shadow-lg shadow-sky-500/20",
+    desc: "Human Body, Periodic Table, Mechanics & Optics",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("sci") || s.includes("physic") || s.includes("chem") || s.includes("bio") || s.includes("cell") || s.includes("matter") || s.includes("disease") || s.includes("force") || s.includes("periodic");
+    },
+  },
+  {
+    id: "static",
+    name: "Static GK",
+    hindi: "विविध व संस्कृति",
+    icon: "💡",
+    badge: "Art & Culture",
+    activeBg: "bg-violet-500/15 border-violet-500 shadow-lg shadow-violet-500/20",
+    desc: "Dances, Festivals, Gharanas, Books & Sports",
+    matcher: (z) => {
+      const s = `${z.title || ""} ${z.chapter || ""}`.toLowerCase();
+      return s.includes("static") || s.includes("dance") || s.includes("festival") || s.includes("book") || s.includes("author") || s.includes("sport") || s.includes("census") || s.includes("organis");
+    },
+  },
+];
+
 function App() {
   return <ArenaApp />;
 }
@@ -60,17 +165,15 @@ function ArenaApp() {
   const { search, change } = useWorkspaceNavigation();
   const popup = search.panel === "password";
   const setPopup = (open: boolean) => change({ panel: open ? "password" : undefined }, !open);
-  const fetchUsers = useServerFn(listUsers);
 
   useEffect(() => {
     const raw = localStorage.getItem("arena-auth");
-    if (raw) setAuth(JSON.parse(raw));
-    fetchUsers()
-      .then((list) => {
-        if (list?.length) USERS.splice(0, USERS.length, ...list);
-      })
-      .catch(() => {})
-      .finally(() => setReady(true));
+    if (raw) {
+      try {
+        setAuth(JSON.parse(raw));
+      } catch {}
+    }
+    setReady(true);
   }, []);
 
   const store = (a: Auth) => {
@@ -79,6 +182,7 @@ function ArenaApp() {
   };
 
   if (!ready) return null;
+
   if (!auth) {
     return (
       <Login
@@ -100,6 +204,8 @@ function ArenaApp() {
           setAuth(null);
         }}
       />
+
+      {/* Change Password Modal */}
       <MotionPresence open={popup}>
         <PassPopup
           auth={auth}
@@ -122,10 +228,10 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-5 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md" onClick={onClose}>
       <form
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-elevated backdrop-blur-xl"
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur-xl"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr("");
@@ -142,8 +248,8 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
         }}
       >
         <div>
-          <h2 className="font-display text-xl font-bold">Change password</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h2 className="font-display text-lg font-extrabold">Change Password</h2>
+          <p className="mt-1 text-xs text-muted-foreground font-semibold">
             {auth.isDefault ? "You are using default password. Protect your account." : "Enter and confirm your new password."}
           </p>
         </div>
@@ -154,7 +260,7 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
             type="password"
             autoComplete="new-password"
             placeholder="New password"
-            className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary"
+            className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm font-semibold outline-none focus:border-primary"
           />
           <input
             value={np2}
@@ -162,18 +268,18 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
             type="password"
             autoComplete="new-password"
             placeholder="Confirm new password"
-            className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary"
+            className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm font-semibold outline-none focus:border-primary"
           />
         </div>
-        {err && <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2 text-xs font-semibold text-destructive">{err}</p>}
+        {err && <p className="rounded-xl bg-destructive/10 border border-destructive/20 p-2.5 text-xs font-semibold text-destructive">{err}</p>}
         <div className="flex gap-2 pt-1">
-          <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-sm font-bold active:scale-95">
+          <Button variant="unstyled" type="button" onClick={onClose} className="flex-1 rounded-2xl border border-border bg-secondary/50 py-3 text-xs font-bold active:scale-95">
             Not now
           </Button>
           <Button
             variant="unstyled"
             disabled={busy}
-            className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 active:scale-95 disabled:opacity-60"
+            className="flex-1 rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 active:scale-95 disabled:opacity-60"
           >
             {busy ? "Saving…" : "Save"}
           </Button>
@@ -185,17 +291,18 @@ function PassPopup({ auth, onClose, onChanged }: { auth: Auth; onClose: () => vo
 
 function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
   const doLogin = useServerFn(login);
-  const [u, setU] = useState("");
-  const [p, setP] = useState("");
+  const [u, setU] = useState<string>("arun");
+  const [p, setP] = useState<string>("1234");
   const [showPass, setShowPass] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-background">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-background selection:bg-primary/30">
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (!u || !p) return setErr("Please choose a player and enter password.");
           setErr("");
           setBusy(true);
           try {
@@ -207,43 +314,60 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
           }
           setBusy(false);
         }}
-        className="w-full max-w-sm space-y-5 rounded-3xl border border-border/80 bg-card/90 p-6 shadow-elevated backdrop-blur-xl"
+        className="w-full max-w-sm space-y-5 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur-2xl"
       >
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent shadow-md shadow-primary/25">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent shadow-lg shadow-primary/30">
             <Trophy className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-3 text-2xl font-black font-display text-foreground">GK/GS Quiz Arena</h1>
-          <p className="mt-1 text-xs font-semibold text-muted-foreground">Sign in to compete on GK/GS quizzes & view live rankings</p>
+          <h1 className="mt-3 text-2xl font-black font-display text-foreground tracking-tight">GK/GS Quiz Arena</h1>
+          <p className="mt-1 text-xs font-semibold text-muted-foreground">Select your player profile to enter</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <div>
-            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-1">User Account</label>
-            <div className="grid grid-cols-4 gap-1.5 mb-2">
-              {USERS.map((usr) => (
-                <Button
-                  key={usr}
-                  type="button"
-                  variant="unstyled"
-                  onClick={() => setU(usr)}
-                  className={cn(
-                    "rounded-xl border py-2 text-xs font-black transition active:scale-95 text-center",
-                    u.toLowerCase() === usr.toLowerCase()
-                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/25"
-                      : "border-border/80 bg-secondary/50 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {cap(usr)}
-                </Button>
-              ))}
+            <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground block mb-2 text-center">
+              Choose Player
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {PLAYERS.map((usr) => {
+                const isSelected = u.toLowerCase() === usr.toLowerCase();
+                return (
+                  <Button
+                    key={usr}
+                    type="button"
+                    variant="unstyled"
+                    onClick={() => {
+                      setU(usr);
+                      if (!p) setP("1234");
+                    }}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-2xl border transition-all duration-200 active:scale-95 text-left",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                        : "border-border/80 bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-xl font-display font-black text-xs shrink-0",
+                        isSelected
+                          ? "bg-white text-primary"
+                          : "bg-secondary text-foreground border border-border"
+                      )}
+                    >
+                      {usr[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-black text-xs leading-tight truncate">{cap(usr)}</p>
+                      <p className={cn("text-[10px] font-bold truncate", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                        {usr === "arun" ? "Admin" : "Player"}
+                      </p>
+                    </div>
+                  </Button>
+                );
+              })}
             </div>
-            <input
-              value={u}
-              onChange={(e) => setU(e.target.value.toLowerCase())}
-              placeholder="Or enter username"
-              className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary"
-            />
           </div>
 
           <div>
@@ -254,7 +378,7 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
                 onChange={(e) => setP(e.target.value)}
                 type={showPass ? "text" : "password"}
                 placeholder="Password (default: 1234)"
-                className="w-full rounded-2xl border border-input bg-background/80 px-4 py-3 text-sm font-semibold outline-none focus:border-primary pr-11"
+                className="w-full rounded-2xl border border-input bg-background/90 px-4 py-3 text-sm font-semibold outline-none focus:border-primary pr-11"
               />
               <Button
                 variant="unstyled"
@@ -265,6 +389,9 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </Button>
             </div>
+            <p className="text-[10px] text-muted-foreground mt-1 text-center font-medium">
+              Default password for all 4 players is <strong>1234</strong>
+            </p>
           </div>
         </div>
 
@@ -272,18 +399,26 @@ function Login({ onLogin }: { onLogin: (a: Auth) => void }) {
 
         <Button
           variant="unstyled"
-          disabled={busy || !u.trim() || !p}
+          disabled={busy || !u || !p}
           type="submit"
-          className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3.5 text-sm font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-95 disabled:opacity-50"
+          className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3.5 text-sm font-black text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 disabled:opacity-50"
         >
-          {busy ? "Signing in…" : "Sign In to Arena"}
+          {busy ? "Signing in…" : `Sign In as ${cap(u)}`}
         </Button>
       </form>
     </div>
   );
 }
 
-function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; openPass: () => void }) {
+function Main({
+  auth,
+  logout,
+  openPass,
+}: {
+  auth: Auth;
+  logout: () => void;
+  openPass: () => void;
+}) {
   const qc = useQueryClient();
   const q = useQuizzes();
   const { search, change } = useWorkspaceNavigation();
@@ -310,23 +445,23 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
   const attempts = (q.data?.attempts ?? []) as Attempt[];
 
   return (
-    <div className="arena-shell min-h-screen pb-28">
-      {/* Quiz Player Fullscreen Overlay */}
+    <div className="arena-shell min-h-screen pb-28 selection:bg-primary/30">
+      {/* Fullscreen Quiz Player Overlay */}
       {playingQuiz && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-background p-4 sm:p-6 backdrop-blur-xl">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-3 sm:p-6 backdrop-blur-2xl">
           <div className="max-w-2xl mx-auto space-y-4 pt-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pb-2 border-b border-border/80">
               <Button
                 variant="unstyled"
                 onClick={() => {
                   setPlayingQuiz(null);
                   qc.invalidateQueries({ queryKey: ["quizzes"] });
                 }}
-                className="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground hover:text-foreground active:scale-95"
+                className="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground hover:text-foreground active:scale-95 py-1 px-2.5 rounded-xl bg-secondary/80 border border-border/80"
               >
                 ← Exit Quiz
               </Button>
-              <span className="text-xs font-bold text-muted-foreground">
+              <span className="text-xs font-bold text-foreground truncate max-w-[200px] sm:max-w-md">
                 {playingQuiz.title}
               </span>
             </div>
@@ -342,14 +477,17 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         </div>
       )}
 
-      {/* Clean Top Header */}
-      <header className="app-header sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-3 bg-card/80 backdrop-blur-lg border-b border-border/80">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-accent font-display text-sm font-black text-white shadow-xs">
-            {auth.username[0].toUpperCase()}
+      {/* Modern Top Header */}
+      <header className="app-header sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-3 bg-card/90 backdrop-blur-xl border-b border-border/80 shadow-xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-accent font-display text-sm font-black text-white shadow-md shadow-primary/25 ring-2 ring-primary/20">
+              {auth.username[0].toUpperCase()}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card" />
           </div>
-          <div>
-            <p className="font-display text-sm font-black text-foreground leading-tight">{cap(auth.username)}</p>
+          <div className="min-w-0">
+            <p className="font-display text-sm font-black text-foreground leading-tight truncate">{cap(auth.username)}</p>
             <p className="text-[10px] font-bold text-primary flex items-center gap-1">
               <Sparkles size={10} /> GK/GS Arena Player
             </p>
@@ -361,7 +499,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
             variant="unstyled"
             onClick={() => setMenu(true)}
             aria-label="Account Menu"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-secondary/70 text-foreground active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/80 bg-secondary/80 text-foreground active:scale-95"
           >
             <Menu size={17} />
           </Button>
@@ -373,7 +511,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-background/70 backdrop-blur-md sm:items-center p-0 sm:p-4" onClick={() => setMenu(false)}>
           <div className="w-full max-w-sm space-y-3 rounded-t-[32px] sm:rounded-3xl border border-border/80 bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-1">
-              <h3 className="font-display text-base font-extrabold text-foreground">Account & Settings</h3>
+              <h3 className="font-display text-base font-extrabold text-foreground">Menu & Account</h3>
               <Button variant="unstyled" onClick={() => setMenu(false)} className="p-1 rounded-full text-muted-foreground hover:bg-secondary">
                 <X size={18} />
               </Button>
@@ -390,7 +528,7 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
               <KeyRound size={18} className="text-primary shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-foreground">Change Password</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Update your account password</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Update account password</p>
               </div>
               <ChevronRight size={15} className="text-muted-foreground" />
             </Button>
@@ -413,8 +551,8 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         </div>
       </MotionPresence>
 
-      {/* Main Views */}
-      <main className="workspace-view px-4 pt-4 max-w-4xl mx-auto">
+      {/* Main Container */}
+      <main className="workspace-view px-3 sm:px-4 pt-3 max-w-4xl mx-auto space-y-4">
         {tab === "quiz" ? (
           <GKQuizSection
             auth={auth}
@@ -433,9 +571,9 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
         )}
       </main>
 
-      {/* 2-Item Focused Navigation Dock */}
-      <nav className="arena-navigation fixed bottom-0 left-0 right-0 z-30 bg-card/90 backdrop-blur-xl border-t border-border/80 p-2">
-        <div className="max-w-md mx-auto grid grid-cols-2 gap-2">
+      {/* 2-Item Clean Bottom Navigation Dock */}
+      <nav className="arena-navigation fixed bottom-0 left-0 right-0 z-30 bg-card/90 backdrop-blur-xl border-t border-border/80 p-2.5">
+        <div className="max-w-md mx-auto grid grid-cols-2 gap-2.5">
           <Button
             variant="unstyled"
             onClick={() => {
@@ -443,13 +581,13 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className={cn(
-              "flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-black transition-all active:scale-95 shadow-xs",
+              "flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-black transition-all active:scale-95",
               tab === "quiz"
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                : "bg-secondary/60 text-muted-foreground hover:text-foreground"
+                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg shadow-primary/30"
+                : "bg-secondary/70 text-muted-foreground hover:text-foreground"
             )}
           >
-            <FileQuestion size={18} strokeWidth={2.5} />
+            <Compass size={17} strokeWidth={2.5} />
             <span>GK/GS Quizzes</span>
           </Button>
 
@@ -460,13 +598,13 @@ function Main({ auth, logout, openPass }: { auth: Auth; logout: () => void; open
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className={cn(
-              "flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-black transition-all active:scale-95 shadow-xs",
+              "flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-black transition-all active:scale-95",
               tab === "arena"
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                : "bg-secondary/60 text-muted-foreground hover:text-foreground"
+                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg shadow-primary/30"
+                : "bg-secondary/70 text-muted-foreground hover:text-foreground"
             )}
           >
-            <Trophy size={18} strokeWidth={2.5} />
+            <Trophy size={17} strokeWidth={2.5} />
             <span>Leaderboard</span>
           </Button>
         </div>
@@ -489,15 +627,16 @@ function GKQuizSection({
   onRefresh: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
+  const doDeleteQuiz = useServerFn(deleteQuiz);
 
-  // Filter GK/GS quizzes
+  // Filter valid GK/GS quizzes
   const gkQuizzes = useMemo(() => {
     return quizzes.filter((z) => !z.expired && !z.chapter?.startsWith("test:"));
   }, [quizzes]);
 
-  // Overall player stats
+  // Overall player marks & completed count
   const myTotalQuizzesCompleted = useMemo(() => {
     const completedIds = new Set(attempts.filter((a) => a.username === auth.username).map((a) => a.quiz_id));
     return completedIds.size;
@@ -514,6 +653,29 @@ function GKQuizSection({
     return tot;
   }, [gkQuizzes, attempts, auth.username]);
 
+  // Active Subject Box Meta
+  const activeSubject = useMemo(() => {
+    return SUBJECT_BOXES.find((s) => s.id === selectedSubjectId) || SUBJECT_BOXES[0];
+  }, [selectedSubjectId]);
+
+  // Calculate stats for each subject box
+  const subjectBoxStats = useMemo(() => {
+    return SUBJECT_BOXES.map((box) => {
+      const matching = box.id === "all" ? gkQuizzes : gkQuizzes.filter(box.matcher);
+      const totalQuestions = matching.reduce((sum, z) => sum + (z.questions?.length || 0), 0);
+      const completedCount = matching.filter((z) =>
+        attempts.some((a) => a.username === auth.username && a.quiz_id === z.id)
+      ).length;
+      return {
+        ...box,
+        count: matching.length,
+        totalQuestions,
+        completedCount,
+      };
+    });
+  }, [gkQuizzes, attempts, auth.username]);
+
+  // Filter quizzes by active subject box + search query
   const filtered = useMemo(() => {
     return gkQuizzes.filter((z) => {
       const title = (z.title || "").toLowerCase();
@@ -522,52 +684,49 @@ function GKQuizSection({
       const matchesSearch = !q || title.includes(q) || chap.includes(q);
 
       if (!matchesSearch) return false;
-      if (category === "all") return true;
-      if (category === "polity") return title.includes("polity") || chap.includes("polity") || chap.includes("constitution");
-      if (category === "history") return title.includes("history") || chap.includes("history") || chap.includes("mughal") || chap.includes("ancient") || chap.includes("medieval") || chap.includes("modern");
-      if (category === "geo") return title.includes("geo") || chap.includes("geo") || chap.includes("river") || chap.includes("mountain");
-      if (category === "eco") return title.includes("eco") || chap.includes("eco") || chap.includes("budget");
-      if (category === "sci") return title.includes("sci") || chap.includes("physic") || chap.includes("chem") || chap.includes("bio");
-      return true;
+      if (selectedSubjectId === "all") return true;
+      return activeSubject.matcher(z);
     });
-  }, [gkQuizzes, search, category]);
+  }, [gkQuizzes, search, selectedSubjectId, activeSubject]);
 
   return (
     <div className="space-y-4">
-      {/* Top Banner & Stats */}
-      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-secondary/40 p-5 shadow-soft">
+      {/* Hero Stats Card */}
+      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-secondary/50 p-5 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[10px] font-black text-primary uppercase tracking-wider">
               <Sparkles size={11} /> SSC GK / GS Arena
             </div>
-            <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground">GK/GS Quizzes</h2>
-            <p className="text-xs text-muted-foreground font-semibold mt-0.5">Attempt uploaded quizzes, track marks & solve mistakes</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground tracking-tight">GK/GS Quizzes</h2>
+            <p className="text-xs text-muted-foreground font-semibold mt-0.5">Select a subject box below & solve quizzes to compete</p>
           </div>
 
-          {auth.username === "arun" && (
-            <Button
-              variant="unstyled"
-              onClick={() => setShowUpload(!showUpload)}
-              className="shrink-0 rounded-2xl bg-gradient-to-r from-primary to-accent px-3 py-2 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-95 flex items-center gap-1"
-            >
-              <Plus size={14} />
-              <span>{showUpload ? "Close" : "Upload Quiz"}</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {auth.username === "arun" && (
+              <Button
+                variant="unstyled"
+                onClick={() => setShowUpload(!showUpload)}
+                className="shrink-0 rounded-2xl bg-gradient-to-r from-primary to-accent px-3 py-2 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-95 flex items-center gap-1"
+              >
+                <Plus size={14} />
+                <span>{showUpload ? "Close" : "Upload Quiz"}</span>
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Quick Stats Grid */}
+        {/* 3 Quick Performance Meters */}
         <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border/60 text-center">
-          <div className="rounded-2xl bg-secondary/50 p-2.5">
+          <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Uploaded</span>
             <span className="font-display text-lg font-black text-foreground tabular-nums">{gkQuizzes.length}</span>
           </div>
-          <div className="rounded-2xl bg-secondary/50 p-2.5">
+          <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Completed</span>
             <span className="font-display text-lg font-black text-emerald-400 tabular-nums">{myTotalQuizzesCompleted}</span>
           </div>
-          <div className="rounded-2xl bg-secondary/50 p-2.5">
+          <div className="rounded-2xl bg-secondary/60 p-2.5 border border-border/40">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Your Marks</span>
             <span className="font-display text-lg font-black text-primary tabular-nums">{myTotalScore} pts</span>
           </div>
@@ -576,7 +735,7 @@ function GKQuizSection({
 
       {/* Admin Upload Drawer */}
       {showUpload && auth.username === "arun" && (
-        <div className="rounded-3xl border border-primary/40 bg-card p-5 shadow-elevated">
+        <div className="rounded-3xl border border-primary/40 bg-card p-5 shadow-2xl">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-display text-sm font-extrabold text-foreground">Upload GK/GS Quiz (Admin)</h3>
             <span className="text-xs text-muted-foreground font-semibold">HTML or JSON files supported</span>
@@ -591,49 +750,132 @@ function GKQuizSection({
         </div>
       )}
 
-      {/* Search & Topic Filters */}
-      <div className="space-y-2">
+      {/* ============================================================ */}
+      {/* SUBJECT BOXES GRID (As requested: "subject ke box hoo")       */}
+      {/* ============================================================ */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-display font-extrabold text-sm text-foreground flex items-center gap-2">
+            <span>Subject Boxes</span>
+            <span className="text-[10px] font-bold text-muted-foreground">Tap to filter</span>
+          </h3>
+          {selectedSubjectId !== "all" && (
+            <button
+              onClick={() => setSelectedSubjectId("all")}
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
+              Reset to All ({gkQuizzes.length})
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+          {subjectBoxStats.map((box) => {
+            const isSelected = selectedSubjectId === box.id;
+            return (
+              <button
+                key={box.id}
+                type="button"
+                onClick={() => setSelectedSubjectId(box.id)}
+                className={cn(
+                  "group relative flex flex-col text-left p-3.5 rounded-3xl border transition-all duration-200 active:scale-[0.98]",
+                  isSelected
+                    ? box.activeBg
+                    : "bg-card/90 border-border/80 hover:border-border hover:bg-card"
+                )}
+              >
+                {/* Top Row: Icon & Count Badge */}
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-2xl">{box.icon}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-black px-2 py-0.5 rounded-full border tabular-nums",
+                      isSelected
+                        ? "bg-white/10 text-white border-white/20"
+                        : "bg-secondary text-muted-foreground border-border/80"
+                    )}
+                  >
+                    {box.count} {box.count === 1 ? "Quiz" : "Quizzes"}
+                  </span>
+                </div>
+
+                {/* Subject Names */}
+                <div className="mt-2.5 min-w-0">
+                  <p className={cn("font-display font-black text-sm tracking-tight truncate", isSelected ? "text-foreground font-extrabold" : "text-foreground/90")}>
+                    {box.name}
+                  </p>
+                  <p className="text-[10px] font-bold text-muted-foreground truncate">{box.hindi}</p>
+                </div>
+
+                {/* Bottom Progress Indicator */}
+                <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[10px] font-bold text-muted-foreground w-full">
+                  <span>{box.totalQuestions} Qs</span>
+                  {box.completedCount > 0 ? (
+                    <span className="text-emerald-400 font-extrabold flex items-center gap-0.5">
+                      <CheckCircle2 size={10} /> {box.completedCount} done
+                    </span>
+                  ) : (
+                    <span>0 done</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* SEARCH BAR & ACTIVE FILTER CHIP                             */}
+      {/* ============================================================ */}
+      <div className="space-y-2 pt-1">
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search GK/GS quizzes by topic or chapter..."
-            className="w-full rounded-2xl border border-input bg-card pl-10 pr-4 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-2xs"
+            placeholder={`Search in ${activeSubject.name} (${filtered.length} quizzes)...`}
+            className="w-full rounded-2xl border border-input bg-card pl-10 pr-9 py-2.5 text-xs font-semibold outline-none focus:border-primary shadow-xs transition"
           />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
-          {([
-            ["all", "All GK/GS"],
-            ["polity", "Polity"],
-            ["history", "History"],
-            ["geo", "Geography"],
-            ["eco", "Economy"],
-            ["sci", "Science"],
-          ] as const).map(([k, label]) => (
-            <Button
-              key={k}
-              variant="unstyled"
-              onClick={() => setCategory(k)}
-              className={cn(
-                "rounded-xl px-3 py-1.5 text-xs font-black transition active:scale-95 shrink-0 shadow-2xs",
-                category === k
-                  ? "bg-primary text-primary-foreground shadow-xs shadow-primary/25"
-                  : "border border-border/80 bg-card text-muted-foreground hover:text-foreground"
-              )}
+        {selectedSubjectId !== "all" && (
+          <div className="flex items-center justify-between rounded-2xl bg-secondary/70 border border-border/80 px-3 py-2 text-xs">
+            <span className="font-bold text-foreground flex items-center gap-1.5">
+              <span>{activeSubject.icon}</span>
+              <span>Showing: <strong>{activeSubject.name}</strong> ({filtered.length} available)</span>
+            </span>
+            <button
+              onClick={() => setSelectedSubjectId("all")}
+              className="text-[11px] font-black text-primary hover:underline"
             >
-              {label}
-            </Button>
-          ))}
-        </div>
+              Clear Filter
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Quizzes List */}
+      {/* ============================================================ */}
+      {/* QUIZZES LIST (As requested: "badya see format me hoo quiz")  */}
+      {/* ============================================================ */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm font-semibold text-muted-foreground">
-            No quizzes found. Upload your first GK/GS quiz using the button above.
+          <div className="rounded-3xl border border-dashed border-border/90 p-8 text-center space-y-2 bg-card/50">
+            <p className="text-sm font-bold text-foreground">No quizzes found for this subject.</p>
+            <p className="text-xs text-muted-foreground">Try selecting a different subject box above or upload new quiz.</p>
+            {auth.username === "arun" && (
+              <Button
+                variant="unstyled"
+                onClick={() => setShowUpload(true)}
+                className="mt-2 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground shadow-sm active:scale-95"
+              >
+                + Upload Quiz Now
+              </Button>
+            )}
           </div>
         ) : (
           filtered.map((z) => {
@@ -643,9 +885,10 @@ function GKQuizSection({
               null as Attempt | null
             );
             const timesAttempted = myAttempts.length;
+            const percentage = bestAttempt ? Math.round((bestAttempt.score / (bestAttempt.total || 1)) * 100) : 0;
 
-            // Other players who attempted
-            const otherPlayerAttempts = USERS.map((u) => {
+            // Other players who attempted this quiz
+            const otherPlayerAttempts = PLAYERS.map((u) => {
               const uAtts = attempts.filter((a) => a.username === u && a.quiz_id === z.id);
               const best = uAtts.reduce(
                 (b, c) => (c.score > (b?.score ?? -1) ? c : b),
@@ -654,74 +897,136 @@ function GKQuizSection({
               return { username: u, best, count: uAtts.length };
             }).filter((p) => p.count > 0);
 
+            // Find matching subject box for card badge
+            const quizSubject = SUBJECT_BOXES.slice(1).find((sb) => sb.matcher(z)) || SUBJECT_BOXES[0];
+
             return (
               <div
                 key={z.id}
-                className="rounded-3xl border border-border/80 bg-card p-4.5 shadow-soft space-y-3 hover:border-border transition"
+                className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-soft space-y-3.5 hover:border-border transition-all"
               >
-                {/* Quiz Header Row */}
+                {/* Row 1: Badges, Title & Delete (Admin) */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-display font-extrabold text-sm sm:text-base text-foreground leading-snug">
-                        {z.title}
-                      </h3>
-                      <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5 shrink-0">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="rounded-full bg-secondary border border-border px-2 py-0.5 text-[10px] font-black text-foreground inline-flex items-center gap-1">
+                        <span>{quizSubject.icon}</span>
+                        <span>{quizSubject.name}</span>
+                      </span>
+                      <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-0.5">
                         {z.questions.length} Questions
                       </span>
+                      <span className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-black px-2 py-0.5">
+                        {z.questions.length * 2} Marks
+                      </span>
                     </div>
+
+                    <h4 className="font-display font-extrabold text-base text-foreground leading-snug pt-0.5">
+                      {z.title}
+                    </h4>
+
                     {z.chapter && (
-                      <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground">
                         {z.chapter}
                       </p>
                     )}
                   </div>
 
-                  <Button
-                    variant="unstyled"
-                    onClick={() => onPlayQuiz(z)}
-                    className="shrink-0 rounded-2xl bg-gradient-to-r from-primary to-accent px-4 py-2 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-95 flex items-center gap-1.5"
-                  >
-                    <Play size={12} fill="currentColor" />
-                    <span>{timesAttempted > 0 ? "Re-take" : "Start"}</span>
-                  </Button>
+                  {auth.username === "arun" && (
+                    <Button
+                      variant="unstyled"
+                      onClick={async () => {
+                        if (confirm(`Delete quiz "${z.title}"? This cannot be undone.`)) {
+                          await doDeleteQuiz({ data: { username: auth.username, password: auth.password, quizId: z.id } });
+                          onRefresh();
+                        }
+                      }}
+                      title="Delete quiz (Admin)"
+                      className="p-1.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                    >
+                      <Trash2 size={15} />
+                    </Button>
+                  )}
                 </div>
 
-                {/* Your Performance on This Quiz */}
-                <div className="rounded-2xl border border-border/70 bg-secondary/35 p-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-muted-foreground">Your Result:</span>
-                    {bestAttempt ? (
-                      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black px-2.5 py-0.5 tabular-nums">
-                        Best: {bestAttempt.score} / {bestAttempt.total} ({Math.round((bestAttempt.score / (bestAttempt.total || 1)) * 100)}%)
+                {/* Row 2: Your Performance on this Quiz (Clean Score Box) */}
+                <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-muted-foreground flex items-center gap-1">
+                      <span>Your Best Score:</span>
+                      {bestAttempt ? (
+                        <span className="font-black text-emerald-400 tabular-nums">
+                          {bestAttempt.score} / {bestAttempt.total} ({percentage}%)
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground font-semibold">Not attempted yet</span>
+                      )}
+                    </span>
+
+                    <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                      <span>Kitni baar diya:</span>
+                      <span className="font-black text-foreground tabular-nums">
+                        {timesAttempted} {timesAttempted === 1 ? "time" : "times"}
                       </span>
-                    ) : (
-                      <span className="text-xs font-semibold text-muted-foreground/80">Not attempted yet</span>
-                    )}
+                    </span>
                   </div>
 
-                  <div className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
-                    <span>Kitni baar diya:</span>
-                    <span className="text-foreground font-black tabular-nums">{timesAttempted} {timesAttempted === 1 ? "time" : "times"}</span>
-                  </div>
+                  {/* Visual Progress Bar */}
+                  {bestAttempt && (
+                    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden border border-border/50">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.max(5, percentage))}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Other Players Activity Peek */}
+                {/* Row 3: Other Players Activity Strip */}
                 {otherPlayerAttempts.length > 0 && (
-                  <div className="pt-1 flex items-center gap-1.5 flex-wrap text-[11px]">
+                  <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-0.5">
                     <span className="text-muted-foreground font-bold">Other players:</span>
                     {otherPlayerAttempts.map((p) => (
                       <span
                         key={p.username}
-                        className="inline-flex items-center gap-1 rounded-xl border border-border/70 bg-secondary/50 px-2 py-0.5 font-bold text-foreground text-[10px]"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-xl border px-2 py-0.5 font-bold text-[10px]",
+                          p.username === auth.username
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-border/70 bg-secondary/60 text-foreground"
+                        )}
                       >
-                        <span className="font-extrabold text-primary">{cap(p.username)}:</span>
+                        <span className="h-4 w-4 rounded-md bg-secondary text-[9px] font-black flex items-center justify-center shrink-0">
+                          {p.username[0].toUpperCase()}
+                        </span>
+                        <span className="font-extrabold">{cap(p.username)}:</span>
                         <span className="tabular-nums font-black">{p.best?.score ?? 0}/{z.questions.length}</span>
-                        <span className="text-muted-foreground">({p.count}x)</span>
+                        <span className="text-muted-foreground font-medium">({p.count}x)</span>
                       </span>
                     ))}
                   </div>
                 )}
+
+                {/* Row 4: Action Button */}
+                <div className="pt-1">
+                  <Button
+                    variant="unstyled"
+                    onClick={() => onPlayQuiz(z)}
+                    className="w-full rounded-2xl bg-gradient-to-r from-primary to-accent py-3 text-xs font-black text-primary-foreground shadow-md shadow-primary/25 active:scale-98 flex items-center justify-center gap-2 transition"
+                  >
+                    {timesAttempted > 0 ? (
+                      <>
+                        <RotateCcw size={14} />
+                        <span>Re-attempt Quiz (Improve Score)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={14} fill="currentColor" />
+                        <span>Start Quiz Now</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -744,13 +1049,13 @@ function LeaderboardSection({
 }) {
   const [selectedQuizId, setSelectedQuizId] = useState<string>(() => quizzes[0]?.id ?? "");
   const [rival, setRival] = useState<string>(() => {
-    const others = USERS.filter((u) => u !== auth.username);
-    return others[0] || USERS[0];
+    const others = PLAYERS.filter((u) => u !== auth.username);
+    return others[0] || PLAYERS[0];
   });
 
-  // Calculate Overall Standings based purely on GK/GS Quiz marks and attempts
+  // Calculate Overall Standings for the 4 fixed players
   const standings = useMemo(() => {
-    const list = USERS.map((u) => {
+    const list = PLAYERS.map((u) => {
       const uAttempts = attempts.filter((a) => a.username === u);
       const totalAttempts = uAttempts.length;
       const uniqueQuizzes = new Set(uAttempts.map((a) => a.quiz_id)).size;
@@ -766,7 +1071,6 @@ function LeaderboardSection({
         }
       }
       const accuracy = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
-      // Points formula: marks x 10 + attempt consistency
       const points = totalScore * 10 + totalAttempts * 2;
 
       return {
@@ -783,7 +1087,7 @@ function LeaderboardSection({
     list.sort((a, b) => b.totalMarks - a.totalMarks || b.accuracy - a.accuracy || b.totalAttempts - a.totalAttempts);
     let r = 0;
     return list.map((x) => ({ ...x, rank: x.totalAttempts > 0 ? ++r : null }));
-  }, [USERS, attempts, quizzes]);
+  }, [attempts, quizzes]);
 
   const first = standings.find((s) => s.rank === 1);
   const second = standings.find((s) => s.rank === 2);
@@ -793,7 +1097,7 @@ function LeaderboardSection({
   const selectedQuiz = useMemo(() => quizzes.find((z) => z.id === selectedQuizId) || quizzes[0], [quizzes, selectedQuizId]);
   const quizPlayerBreakdown = useMemo(() => {
     if (!selectedQuiz) return [];
-    const list = USERS.map((u) => {
+    const list = PLAYERS.map((u) => {
       const uAtts = attempts.filter((a) => a.username === u && a.quiz_id === selectedQuiz.id);
       const best = uAtts.reduce(
         (b, c) => (c.score > (b?.score ?? -1) ? c : b),
@@ -811,7 +1115,7 @@ function LeaderboardSection({
     });
     list.sort((a, b) => (b.bestScore ?? -1) - (a.bestScore ?? -1) || b.timesAttempted - a.timesAttempted);
     return list;
-  }, [USERS, attempts, selectedQuiz]);
+  }, [attempts, selectedQuiz]);
 
   // Head to Head stats
   const playerA = standings.find((s) => s.username === auth.username) ?? standings[0];
@@ -825,12 +1129,12 @@ function LeaderboardSection({
           <Trophy size={11} /> Live GK/GS Leaderboard
         </div>
         <h2 className="mt-1 text-xl sm:text-2xl font-black font-display text-foreground">Scoreboard & Comparison</h2>
-        <p className="text-xs text-muted-foreground font-semibold mt-0.5">Track players' marks, number of attempts & head-to-head comparison</p>
+        <p className="text-xs text-muted-foreground font-semibold mt-0.5">Player rankings for Arun, Ali, Naveen & Devansh</p>
       </div>
 
       {/* Top 3 Podium */}
       {standings.some((s) => s.rank) && (
-        <div className="grid grid-cols-3 gap-2 items-end pt-2 pb-1">
+        <div className="grid grid-cols-3 gap-2 items-end pt-3 pb-1">
           {/* #2 Rank */}
           {second ? (
             <div className="flex flex-col items-center rounded-3xl border border-slate-700 bg-card p-3 shadow-soft text-center">
@@ -898,7 +1202,7 @@ function LeaderboardSection({
             <BarChart3 size={18} className="text-primary" />
             <h3 className="font-display font-extrabold text-sm text-foreground">Quiz-wise Score & Attempt Tracker</h3>
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground">Kiske kitne no. aaye & kitni baar diya</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">Marks & attempts count</span>
         </div>
 
         {/* Quiz Selector */}
@@ -910,7 +1214,7 @@ function LeaderboardSection({
             <select
               value={selectedQuiz?.id ?? ""}
               onChange={(e) => setSelectedQuizId(e.target.value)}
-              className="w-full rounded-2xl border border-input bg-secondary/50 px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary shadow-2xs text-foreground"
+              className="w-full rounded-2xl border border-input bg-secondary/50 px-3.5 py-2.5 text-xs font-bold outline-none focus:border-primary shadow-xs text-foreground"
             >
               {quizzes.map((z) => (
                 <option key={z.id} value={z.id}>
@@ -930,12 +1234,12 @@ function LeaderboardSection({
               <span className="col-span-4 text-right">Kitni Baar Diya</span>
             </div>
 
-            {quizPlayerBreakdown.map((p, idx) => (
+            {quizPlayerBreakdown.map((p) => (
               <div
                 key={p.username}
                 className={cn(
                   "px-3.5 py-2.5 grid grid-cols-12 items-center text-xs transition",
-                  p.username === auth.username && "bg-primary/8 font-bold"
+                  p.username === auth.username && "bg-primary/10 font-bold"
                 )}
               >
                 <div className="col-span-4 flex items-center gap-2 min-w-0">
@@ -982,14 +1286,14 @@ function LeaderboardSection({
             <Swords size={18} className="text-primary" />
             <h3 className="font-display font-extrabold text-sm text-foreground">Head-to-Head Comparison</h3>
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground">Compare Rival</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">Direct Rival Battle</span>
         </div>
 
         {/* Rival Selector Pills */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-muted-foreground">Compare with:</span>
+          <span className="text-[11px] font-bold text-muted-foreground">Rival:</span>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-            {USERS.filter((u) => u !== auth.username).map((u) => (
+            {PLAYERS.filter((u) => u !== auth.username).map((u) => (
               <Button
                 key={u}
                 variant="unstyled"
@@ -997,7 +1301,7 @@ function LeaderboardSection({
                 className={cn(
                   "rounded-xl px-2.5 py-1 text-xs font-bold transition active:scale-95",
                   rival === u
-                    ? "bg-primary text-primary-foreground font-black shadow-2xs"
+                    ? "bg-primary text-primary-foreground font-black shadow-xs"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -1011,7 +1315,7 @@ function LeaderboardSection({
         <div className="rounded-2xl border border-border/70 bg-secondary/30 p-3 space-y-2">
           <div className="grid grid-cols-3 items-center text-center font-display font-black text-xs">
             <div className="text-left text-primary">{cap(playerA.username)} (You)</div>
-            <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Metrics</div>
+            <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Metric</div>
             <div className="text-right text-accent">{cap(playerB.username)}</div>
           </div>
 
@@ -1034,9 +1338,9 @@ function LeaderboardSection({
         </div>
       </div>
 
-      {/* Full Leaderboard Standings List */}
+      {/* Full Leaderboard Standings List for 4 Players */}
       <div className="space-y-2">
-        <h3 className="font-display font-extrabold text-sm text-foreground px-1">All Player Standings</h3>
+        <h3 className="font-display font-extrabold text-sm text-foreground px-1">All 4 Players Standings</h3>
         {standings.map((b) => (
           <div
             key={b.username}
@@ -1049,7 +1353,7 @@ function LeaderboardSection({
             <div className="w-8 text-center font-display text-base font-black text-muted-foreground tabular-nums">
               {b.rank ? (b.rank === 1 ? "🥇" : b.rank === 2 ? "🥈" : b.rank === 3 ? "🥉" : `#${b.rank}`) : "—"}
             </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary font-display text-base font-black text-foreground shadow-2xs">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary font-display text-base font-black text-foreground shadow-xs">
               {b.username[0].toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
@@ -1103,8 +1407,8 @@ function Activity({ auth }: { auth: Auth }) {
   return (
     <div className="space-y-3 pt-2">
       <div className="grid grid-cols-2 gap-2">
-        {USERS.map((u) => {
-          const p = q.data.presence.find((x) => x.username === u);
+        {PLAYERS.map((u) => {
+          const p = q.data.presence?.find((x: any) => x.username === u);
           const online = p && Date.now() - new Date(p.last_seen).getTime() < 2.5 * 60 * 1000;
           return (
             <div key={u} className="rounded-xl bg-secondary/60 p-3 border border-border/60">

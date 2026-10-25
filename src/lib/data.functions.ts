@@ -27,10 +27,17 @@ async function requireArun(username: string, password: string) {
   return supabaseAdmin;
 }
 
+async function requireAuth(username: string, password: string) {
+  const auth = await check(username, password);
+  if (!auth.ok) throw new Error("Please log in to perform this action.");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
 export const addUser = createServerFn({ method: "POST" })
   .inputValidator((d) => adminIn.parse(d))
   .handler(async ({ data }) => {
-    const db = await requireArun(data.username, data.password);
+    const db = await requireAuth(data.username, data.password);
     const { error } = await db.from("app_users" as any).insert({ username: data.target } as any);
     if (error) throw new Error(error.code === "23505" ? "This player ID already exists." : error.message);
     await db.from("user_passwords" as any).delete().eq("username", data.target);
